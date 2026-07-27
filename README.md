@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/matchowl-icon.svg" width="128" alt="Matchowl — an owl face built from football pitch markings">
+</p>
+
 # Matchowl
 
 A football prediction game for you and your friends. Predict the whole
