@@ -1,0 +1,465 @@
+/* Design system — structure + FLOODLIGHT treatment. ALL colours/fonts/radii
+   come from the tokens in ./lib/theme.css (the single place to re-theme). */
+@import './lib/theme.css';
+
+* {
+	box-sizing: border-box;
+}
+
+/* Slim, themed scrollbars (desktop) — the default chunky ones look out of place
+   on the dark UI. Firefox uses the standard props; WebKit/Blink the pseudo. */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+}
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--muted) 40%, transparent);
+	border-radius: 999px;
+	border: 3px solid transparent;
+	background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in srgb, var(--muted) 70%, transparent);
+	background-clip: content-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font);
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	min-height: 100dvh;
+	background-image: var(--bg-atmosphere);
+	background-attachment: fixed;
+}
+
+/* Fine film-grain overlay for broadcast texture. */
+body::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	opacity: 0.035;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a {
+	color: var(--accent);
+	text-decoration: none;
+}
+
+/* Condensed poster headlines. */
+h1,
+h2 {
+	font-family: var(--font-display);
+	font-weight: 400;
+	letter-spacing: 0.005em;
+	line-height: 0.98;
+	text-transform: uppercase;
+	margin: 0;
+}
+h1 {
+	font-size: clamp(2.1rem, 6vw, 3rem);
+}
+h2 {
+	font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+}
+h3 {
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	margin: 0;
+}
+
+/* Uppercase eyebrow/kicker label. */
+.kicker {
+	font-family: var(--font);
+	font-weight: 700;
+	font-size: 0.72rem;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+
+/* Scoreboard digits. */
+.digits {
+	font-family: var(--font-mono);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.02em;
+}
+
+.app-shell {
+	position: relative;
+	z-index: 2;
+	max-width: var(--maxw);
+	margin: 0 auto;
+	padding: 1rem;
+	/* Contain decorative off-edge elements (e.g. the landing's WM note) so they
+	   can't trigger sideways page scroll. `clip` keeps overflow-y visible, so it
+	   establishes no scroll container and sticky headers keep working. */
+	overflow-x: clip;
+}
+.app-shell.with-chrome {
+	padding-top: calc(var(--topbar-h) + 1.25rem);
+	padding-bottom: calc(var(--nav-h) + 1.5rem);
+}
+
+@media (min-width: 900px) {
+	.app-shell.with-chrome {
+		padding: 2rem;
+		padding-left: calc(var(--rail-w) + 2.5rem);
+	}
+}
+
+/* ---- Cards ---- */
+.card {
+	position: relative;
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
+		var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 1.15rem;
+	overflow: clip;
+}
+.card + .card {
+	margin-top: 0.85rem;
+}
+
+/* ---- Buttons: chunky, uppercase, broadcast CTA ---- */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	width: 100%;
+	padding: 0.85rem 1.1rem;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+	background: var(--accent);
+	color: var(--accent-fg);
+	font-family: var(--font);
+	font-weight: 800;
+	font-size: 0.95rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition:
+		transform 0.12s ease,
+		box-shadow 0.2s ease,
+		filter 0.15s ease;
+}
+.btn:hover:not(:disabled) {
+	transform: translateY(-2px);
+	box-shadow: var(--glow);
+}
+.btn:active:not(:disabled) {
+	transform: translateY(0);
+}
+.btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+.btn.secondary {
+	background: var(--surface-2);
+	border-color: var(--border);
+	color: var(--text);
+}
+.btn.secondary:hover:not(:disabled) {
+	box-shadow: none;
+	border-color: var(--accent);
+}
+.btn.ghost {
+	background: transparent;
+	color: var(--accent);
+}
+.btn.ghost:hover:not(:disabled) {
+	box-shadow: none;
+}
+
+/* ---- Inputs ---- */
+.field {
+	display: block;
+	margin-bottom: 0.85rem;
+}
+.field label {
+	display: block;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted);
+	margin-bottom: 0.4rem;
+}
+.input {
+	width: 100%;
+	padding: 0.8rem 0.9rem;
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+	color: var(--text);
+	font: inherit;
+	font-size: 1rem;
+}
+.input:focus {
+	outline: var(--ring);
+	outline-offset: -1px;
+}
+
+.muted {
+	color: var(--muted);
+}
+.error {
+	color: var(--danger);
+	font-size: 0.9rem;
+}
+.row {
+	display: flex;
+	gap: 0.6rem;
+	align-items: center;
+}
+.spacer {
+	flex: 1;
+}
+
+/* ---- Pills / tags ---- */
+.pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	white-space: nowrap;
+	flex: none;
+	font-weight: 700;
+	font-size: 0.68rem;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	color: var(--muted);
+	padding: 0.25rem 0.6rem;
+	border-radius: var(--radius-pill);
+}
+.pill.ok {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.pill.live {
+	color: var(--bg);
+	background: var(--live);
+	border-color: var(--live);
+}
+
+/* ---- Segmented control (tabs) shared look ---- */
+.seg,
+.tabs {
+	display: flex;
+	gap: 0.35rem;
+	padding: 0.3rem;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+.seg button,
+.tabs button {
+	flex: 1;
+	padding: 0.55rem 0.5rem;
+	background: transparent;
+	border: none;
+	border-radius: 7px;
+	color: var(--muted);
+	font: inherit;
+	font-weight: 700;
+	font-size: 0.78rem;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	cursor: pointer;
+	transition:
+		color 0.15s ease,
+		background 0.15s ease;
+}
+.seg button.on,
+.seg button.active,
+.tabs button.on,
+.tabs button.active {
+	background: var(--accent);
+	color: var(--accent-fg);
+}
+
+/* Collapsible part of a sticky header — hidden once scrolled (the
+   collapseOnScroll action toggles .scrolled on .stickyhead). */
+/* Animate the REAL height (grid 1fr<->0fr) so it can't overshoot/pop like a
+   max-height guess. .sh-expand must hold exactly one child (.sh-inner). */
+.sh-expand {
+	display: grid;
+	grid-template-rows: 1fr;
+	transition:
+		grid-template-rows 0.26s ease,
+		opacity 0.2s ease;
+	opacity: 1;
+}
+.sh-expand > .sh-inner {
+	min-height: 0;
+	overflow: hidden;
+}
+.stickyhead.scrolled .sh-expand {
+	grid-template-rows: 0fr;
+	opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+	.sh-expand {
+		transition: none;
+	}
+}
+
+/* ---- Page-load reveal ---- */
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.stagger > * {
+	animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.stagger > *:nth-child(1) {
+	animation-delay: 0.02s;
+}
+.stagger > *:nth-child(2) {
+	animation-delay: 0.07s;
+}
+.stagger > *:nth-child(3) {
+	animation-delay: 0.12s;
+}
+.stagger > *:nth-child(4) {
+	animation-delay: 0.17s;
+}
+.stagger > *:nth-child(5) {
+	animation-delay: 0.22s;
+}
+.stagger > *:nth-child(n + 6) {
+	animation-delay: 0.27s;
+}
+@media (prefers-reduced-motion: reduce) {
+	.stagger > *,
+	.btn {
+		animation: none;
+		transition: none;
+	}
+}
+
+/* ---- Mobile top header ---- */
+.topbar {
+	position: fixed;
+	inset: 0 0 auto 0;
+	height: var(--topbar-h);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0 1rem;
+	background: color-mix(in srgb, var(--bg) 80%, transparent);
+	backdrop-filter: blur(14px) saturate(1.4);
+	border-bottom: 1px solid var(--border);
+	z-index: 50;
+}
+
+/* Help (?) icon button — mobile topbar, left of the install button. */
+.topbar-help {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border-radius: var(--radius-sm);
+	color: var(--muted);
+	flex: none;
+	transition:
+		color 0.15s ease,
+		background 0.15s ease;
+}
+.topbar-help:hover {
+	color: var(--accent);
+	background: var(--surface-2);
+}
+
+/* ---- Mobile bottom tab bar ---- */
+.tabbar {
+	position: fixed;
+	inset: auto 0 0 0;
+	height: var(--nav-h);
+	display: flex;
+	background: color-mix(in srgb, var(--bg) 80%, transparent);
+	backdrop-filter: blur(14px) saturate(1.4);
+	border-top: 1px solid var(--border);
+	z-index: 50;
+}
+/* Hide the bottom nav while the on-screen keyboard is up (more room to type). */
+body.kb-open .tabbar {
+	display: none;
+}
+
+.siderail {
+	display: none;
+}
+
+@media (min-width: 900px) {
+	.topbar,
+	.tabbar {
+		display: none;
+	}
+	.siderail {
+		position: fixed;
+		inset: 0 auto 0 0;
+		width: var(--rail-w);
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		padding: 1.6rem 0;
+		background: var(--surface);
+		border-right: 1px solid var(--border);
+		z-index: 50;
+	}
+	.rail-logo {
+		padding: 0 1.5rem 0.8rem;
+	}
+	/* Help (?) link — sits just above the user area (above its divider line). */
+	.rail-help {
+		display: flex;
+		align-items: center;
+		gap: 0.85rem;
+		padding: 0.7rem 1.5rem;
+		color: var(--muted);
+		transition: color 0.15s ease;
+	}
+	.rail-help span {
+		font-size: 0.82rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+	.rail-help:hover {
+		color: var(--accent);
+	}
+	.rail-user {
+		padding: 0.9rem 1.5rem 0;
+		border-top: 1px solid var(--border);
+	}
+}

@@ -1,0 +1,11 @@
+# Compiled binaries
+/bots
+/wmbot
+*.exe
+
+# Local secrets — per-bot env files (e.g. claude.env), but keep the example.
+*.env
+!.env.example
+
+# Real compose file (the committed one is docker-compose.example.yml)
+docker-compose.yml

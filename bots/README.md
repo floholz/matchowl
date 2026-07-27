@@ -1,0 +1,151 @@
+# wm-pickems bots
+
+A standalone side project that plays [wm-pickems](../) as a bot. It logs in as a bot user and submits a tournament **Forecast** and per-match **Tips** through the public REST API, playing by the exact same server-side locks as a human:
+
+- can't tip after kickoff,
+- can't tip a knockout match before both teams are resolved,
+- can't submit a Forecast after the tournament starts,
+- can't see anyone else's tips before kickoff.
+
+No bypass anywhere — the bot competes on equal footing. It's a separate Go module with no dependency on the main app: just an HTTP client + the Anthropic SDK (and a small HTTP client for the OpenRouter gateway).
+
+## Strategies (`BOT_KIND`)
+
+The prediction "brain" is selected by `BOT_KIND`; everything else (auth, the bracket resolver, the submit flow) is shared:
+
+- **`algo`** (default) — a deterministic, API-free **rating model**. Each team gets a strength rating from a small embedded table (`algo.go`, keyed by FIFA code, neutral default for unknowns). Group order = by rating; best-8 thirds = the highest-rated third-placed teams; the bracket = higher rating advances (ties → home); scorelines = expected goals from the rating gap (`round(1.25 + gap/160)`, uncapped so a genuine mismatch can read 4–5+; group games may draw, knockouts coerced decisive). It also **learns**: results Elo-adjust the ratings (see _Feedback loop_). No API key required. Tweak the ratings table to change its starting opinion.
+- **`claude`** — asks Claude via the **native Anthropic API** for predictions. Needs `ANTHROPIC_API_KEY`. Best-ergonomics path: prompt caching on the system prefix + adaptive thinking. See _How it works_ below.
+- **`openrouter`** — asks any provider through **[OpenRouter](https://openrouter.ai)**, the one-key gateway fronting Claude, GPT, Gemini, and more. Needs `OPENROUTER_API_KEY` + `OPENROUTER_MODEL` (e.g. `openai/gpt-5.1`, `google/gemini-2.5-pro`, `anthropic/claude-opus-4-8`). The point: run many model bots off a single key and balance instead of one account per vendor. Shares all of `claude`'s prompt/schema/forecast logic — only the transport differs (an OpenAI-compatible request with strict `json_schema` structured outputs, honored by the Tier-1 providers Claude/GPT/Gemini).
+
+  **Any OpenRouter model is a drop-in** — just set `OPENROUTER_MODEL` to its slug (Qwen, Llama, Mistral, DeepSeek, Grok, Kimi, …); no code change, no model list to edit. The structured-output strategy is chosen at runtime by what the model actually does (see the tiers below), not from a hardcoded table — so a model the code has never seen still works. The only requirements are config: the model must be allowed on your key, pass your data-policy settings, and support at least JSON mode.
+
+## How it works
+
+1. **Auth** — logs in via `users/auth-with-password`.
+2. **Forecast** (once, before the tournament locks): asks Claude to rank every group 1–4 and pick the 8 best thirds, then walks the knockout rounds R32→FINAL, resolving each match's two concrete teams and asking Claude who advances. The bracket-resolution logic mirrors the server's scoring engine (`bracket.go`) so the Forecast scores correctly. Uses FIFA's official Annex C third-place table served by `/api/forecast/structure`.
+3. **Tips** (every run, idempotent): finds every match that's still open (kickoff in the future, matchup resolved) and not already tipped, then asks Claude for a scoreline — a decisive 90' result for knockouts so the server derives the advancer. Skips matches it has already tipped.
+
+It reads the server clock from `/api/now`, so it also works against the `WMP_DEV=1` simulator — you can advance the virtual clock and watch Claude play a whole tournament before June 2026.
+
+## Feedback loop
+
+Every run the bot pulls in finished results and revises, like a human would:
+
+- **algo** Elo-adjusts its ratings from every result (goal-difference-weighted), so an over-performing team climbs and its upcoming tips shift accordingly; a flop drops.
+- **claude** gets the results so far as prompt context and re-reasons.
+
+It then reconciles **every still-open match**: creating missing tips and **updating** ones whose prediction has changed (editing a tip before kickoff is allowed — same as a human). To avoid churn and needless API calls, already-tipped matches are only re-evaluated when a new result has come in since the bot last tipped. The **Forecast is one-shot** and never revised (it locks at the first kickoff, before any results exist).
+
+The large, unchanging tournament reference (teams, groups, knockout skeleton) is sent as a **cached system prompt**, so every prediction call after the first reuses it as a prompt-cache prefix.
+
+### Brains and completers
+
+Both LLM strategies share one `Brain` (`brain.go`) that owns everything provider-agnostic — prompt assembly, JSON schemas, response parsing — and talks to a pluggable **`completer`** (the provider transport):
+
+- `anthropicCompleter` (`completer_anthropic.go`) — native Anthropic API, with prompt caching + adaptive thinking. Selected by `BOT_KIND=claude`.
+- `openrouterCompleter` (`completer_openrouter.go`) — a small OpenAI-compatible HTTP client pointed at OpenRouter, requesting strict `json_schema` structured outputs. Selected by `BOT_KIND=openrouter`.
+
+So adding a provider is just a different completer; the prompts, schemas, and downstream repair logic (`repairOrder`/`chooseThirds`/`selectTip`) are identical and act as a safety net regardless of which model answers.
+
+**Structured-output tiers** (descriptive, not enforced — there is no model→tier table in the code; the tier is discovered per run by what the model does). Models like Claude, GPT, Gemini, and Grok honor strict `json_schema`, so the reply parses directly. Spottier ones like DeepSeek and Kimi don't reliably support it — so when a strict attempt fails (an HTTP error, or a reply that won't parse), the OpenRouter transport **degrades** to plain JSON mode with the schema moved into the prompt, and retries once. The downgrade is sticky per run (once a model proves it can't do strict schema, later calls skip straight to JSON mode), and `extractJSON` unwraps any code-fenced/prose-wrapped reply before parsing. A brand-new model you've never run lands in whichever tier it earns on its first call — no code change either way.
+
+`CLAUDE_MODEL` (claude only) accepts any chat model (default `claude-opus-4-8`). Opus 4.6+/Sonnet 4.6 run with adaptive thinking; `claude-haiku-4-5` has no adaptive thinking, so it runs with thinking omitted — handy as a cheaper/faster model for dev. `OPENROUTER_MODEL` (openrouter only, required) is an OpenRouter model id like `openai/gpt-5.1` or `google/gemini-2.5-pro`.
+
+## Setup
+
+1. In the PocketBase admin, create the bot's user account, set `role=bot` and `botKind` (`claude`, `openrouter`, or `algo`), and add it to your league(s) — or set `BOT_LEAGUE_CODE`.
+2. Copy `.env.example` and fill in `BOT_EMAIL`, `BOT_PASSWORD`, `WMP_BASE_URL`, and `BOT_KIND`. For `claude` also set `ANTHROPIC_API_KEY`; for `openrouter` set `OPENROUTER_API_KEY` + `OPENROUTER_MODEL`; `algo` needs no key.
+
+## Run
+
+```sh
+go run .            # one pass: ensure the Forecast exists, tip all open matches
+go run . --loop --interval 1h   # keep running on a schedule
+go run . --once     # single pass, even if --loop is set (overrides the container default)
+```
+
+### Triggering a run manually
+
+A no-flag invocation is already a single run, so the simplest one-off is just `go run .` (or `./wm-pickems-bot`).
+
+For a bot that's **already running in `--loop`** (the container default), send it a signal to act now without waiting for the next tick — it reuses the live process and its env:
+
+| Signal | Effect |
+|---|---|
+| `SIGHUP`  | Run now (normal): tip new open matches + revise where a result changed since the last tip. |
+| `SIGUSR1` | Re-evaluate **all** open tips and override existing picks — use after retuning a brain (e.g. the algo ratings table or the Claude prompt). |
+| `SIGUSR2` | Regenerate the **forecast**, overriding the existing one. Pre-lock only — the server rejects forecast edits once the tournament starts. |
+
+```sh
+kill -USR1 <pid>                               # re-tip, bare process
+docker kill --signal=SIGUSR1 wmp_bot_claude    # re-tip, docker run
+docker compose kill -s SIGUSR2 bot-claude      # re-forecast, compose service
+```
+
+`SIGUSR1`/`SIGUSR2` only re-submit a pick where the new prediction actually differs from the saved one, so re-running after no change is a cheap no-op (aside from the LLM calls).
+
+A fresh one-off against the deployment without touching the running loop (`--once` overrides the image's `--loop` default):
+
+```sh
+docker compose run --rm bot-claude --once
+docker run --rm --env-file claude.env wm-pickems/bot:latest --once
+```
+
+Or build and run via cron / a systemd timer:
+
+```sh
+go build -o wmbot .
+./wmbot
+```
+
+## Docker
+
+One image, **one container per bot** — the same image runs every bot; each container just gets its own env (different `BOT_EMAIL` / `CLAUDE_MODEL` / …). The container defaults to `--loop` so it runs continuously.
+
+```sh
+# Build (context is this bots/ directory — separate module from the app)
+docker build -t wm-pickems/bot:latest .
+
+# Run one bot, continuously
+docker run -d --name wmp_bot_claude --restart unless-stopped \
+  --env-file claude.env wm-pickems/bot:latest
+```
+
+`claude.env` holds the same variables as `.env.example`. For a second bot later, run another container with its own env file off the same image.
+
+A Compose starting point is in `docker-compose.example.yml` (copy to `docker-compose.yml`, add a per-bot env file, `docker compose up -d`). If the app runs in its own Compose project, put the bot(s) on a shared Docker network and point `WMP_BASE_URL` at the app's container name.
+
+### Releasing (CI)
+
+The bot has its **own** release tags, independent of the app. Pushing a `bot-v*` tag triggers `.github/workflows/docker-publish-bot.yml`, which builds and pushes to GHCR:
+
+```sh
+git tag bot-v0.1.0 && git push origin bot-v0.1.0
+# -> ghcr.io/floholz/wm-pickems/bot : 0.1.0, 0, latest
+```
+
+The package is private by default; flip visibility in GHCR if you want public pulls.
+
+## Configuration
+
+See `.env.example`. Defaults: `WMP_BASE_URL=http://127.0.0.1:8090`, `BOT_KIND=algo` (no API key needed), `CLAUDE_MODEL=claude-opus-4-8` (only used when `BOT_KIND=claude`). The container additionally defaults its command to `--loop --interval=1h`.
+
+### Logging
+
+Structured logging via `log/slog` to **stdout**. Set `LOG_FORMAT=json` in containers for shipper-friendly structured logs (Grafana Alloy/Promtail → Loki), or leave the default `text` for readable local output. Notable events: `ai_call` (per LLM call, claude and openrouter alike — model, input/output/cache token counts, duration; `cache_read=0` across a run means the cached prompt prefix isn't hitting), `tip` (created/revised with old→new scoreline and trigger), and the per-run `run_id` that ties a run's lines together. The `algo` strategy emits no `ai_call` events (it makes no API calls).
+
+Set `BOT_RATIONALE=1` (claude only) to have the model attach a one-line reason to each prediction. Rationales are **persisted**: per-match on `tips.rationale` (also logged on the `tip` event), and per-group/per-bracket-pick on `forecasts.rationale` (`{groups:{letter:why}, bracket:{key:why}}`). They inherit pick visibility — hidden until kickoff/lock, then revealed — for displaying "why" later. Costs extra output tokens, so it's off by default.
+
+## Tests
+
+```sh
+go test ./...
+```
+
+`bracket_test.go` checks the resolver port (bracket winners are always valid participants; W/L feeder labels resolve; the Annex C third-place lookup works). `algo_test.go` checks the rating model (group order, winner selection, scorelines).
+
+## Future
+
+Claude, GPT, Gemini, DeepSeek, Grok, and Kimi all run today via `BOT_KIND=openrouter` — the first three on strict `json_schema`, the rest through the JSON-mode fallback. Showing each bot's reasoning in the app UI is partially done (the `rationale` field is persisted; richer display is a follow-up).
+
+> **Heads-up on model availability.** OpenRouter routes per your account's model allowlist and the data-policy/privacy settings at <https://openrouter.ai/settings/privacy>. A `404 No endpoints available matching your guardrail restrictions and data policy` means the chosen model isn't allowed on your key, or every eligible endpoint needs a data policy you haven't enabled — common with free/preview model ids. Fix it by allowing the model on the key, relaxing the privacy toggle, or picking a GA model id.

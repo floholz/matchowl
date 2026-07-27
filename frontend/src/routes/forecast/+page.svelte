@@ -1,0 +1,619 @@
+<script lang="ts">
+	import { forecastStore as fs, koKey, type KOMatch } from '$lib/forecast.svelte';
+	import Flag from '$lib/components/Flag.svelte';
+	import {
+		ChevronUp,
+		ChevronDown,
+		Lock,
+		Check,
+		CircleCheck,
+		X,
+		Trophy
+	} from '@lucide/svelte';
+	import { collapseOnScroll } from '$lib/actions';
+
+	let section = $state<'groups' | 'thirds' | 'bracket'>('groups');
+	let saveState = $state<'idle' | 'saving' | 'saved' | 'error'>('idle');
+	let err = $state('');
+
+	$effect(() => {
+		if (!fs.loaded) fs.load().catch((e) => (err = e?.message ?? 'load failed'));
+	});
+
+	// Once the group stage is complete the bracket is where the action is —
+	// land there by default. One-shot so the tabs still work.
+	let sectionInit = false;
+	$effect(() => {
+		if (sectionInit || !fs.loaded) return;
+		sectionInit = true;
+		if (fs.groupStageDone) section = 'bracket';
+	});
+
+	// Debounced autosave. The Forecast is a living prediction edited until
+	// lock, so changes persist automatically ~1s after the last edit.
+	let primed = false;
+	let timer: ReturnType<typeof setTimeout>;
+	$effect(() => {
+		// Track every part of the prediction.
+		const snapshot = JSON.stringify([
+			fs.groupOrder,
+			fs.thirds,
+			fs.bracket
+		]);
+		if (!fs.loaded || fs.locked) return;
+		if (!primed) {
+			primed = true; // skip the initial hydrate
+			return;
+		}
+		void snapshot;
+		clearTimeout(timer);
+		timer = setTimeout(async () => {
+			saveState = 'saving';
+			err = '';
+			try {
+				await fs.save();
+				saveState = 'saved';
+			} catch (e: unknown) {
+				saveState = 'error';
+				err =
+					(e as { message?: string })?.message ??
+					'Could not save — your changes are not stored.';
+			}
+		}, 1000);
+		return () => clearTimeout(timer);
+	});
+
+	const stages = ['R32', 'R16', 'QF', 'SF', '3RD', 'FINAL'];
+	const stageName: Record<string, string> = {
+		R32: 'Round of 32',
+		R16: 'Round of 16',
+		QF: 'Quarter-finals',
+		SF: 'Semi-finals',
+		'3RD': 'Third place',
+		FINAL: 'Final'
+	};
+	let byStage = $derived(
+		stages.map((s) => ({
+			stage: s,
+			matches: fs.knockout.filter((m) => m.stage === s)
+		}))
+	);
+
+	let finalMatch = $derived(fs.knockout.find((m) => m.stage === 'FINAL'));
+	let champion = $derived(
+		finalMatch ? fs.bracket[koKey(finalMatch)] : ''
+	);
+	let actualThirds = $derived(fs.actualBestThirds());
+
+	function tname(id: string) {
+		return fs.team(id)?.name ?? '';
+	}
+	const ord = (n: number) =>
+		n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+
+	const lockDate = $derived(
+		fs.tournamentStart
+			? new Date(fs.tournamentStart).toLocaleString(undefined, {
+					day: 'numeric',
+					month: 'short',
+					hour: '2-digit',
+					minute: '2-digit'
+				})
+			: ''
+	);
+
+	function sideLabel(m: KOMatch, side: 'home' | 'away') {
+		const [h, a] = fs.sides(m);
+		const id = side === 'home' ? h : a;
+		if (id) return { id, name: tname(id), team: fs.team(id) };
+		return {
+			id: '',
+			name: side === 'home' ? m.homeLabel : m.awayLabel,
+			team: undefined
+		};
+	}
+</script>
+
+<div class="stickyhead" use:collapseOnScroll>
+	<p class="kicker">The big call</p>
+	<div class="sh-expand">
+		<div class="sh-inner">
+			<h1>Forecast</h1>
+			<p class="muted desc">
+				Your one-time tournament call. {#if fs.locked}<b>Locked.</b
+					>{:else}Locks at kickoff{lockDate
+						? ` · ${lockDate}`
+						: ''}.{/if}
+			</p>
+		</div>
+	</div>
+	{#if fs.loaded}
+		<div class="seg">
+			<button class:on={section === 'groups'} onclick={() => (section = 'groups')}>Groups</button>
+			<button class:on={section === 'thirds'} onclick={() => (section = 'thirds')}>Best thirds</button>
+			<button class:on={section === 'bracket'} onclick={() => (section = 'bracket')}>Bracket</button>
+		</div>
+	{/if}
+</div>
+
+{#if err}<p class="error">{err}</p>{/if}
+
+{#if !fs.loaded}
+	<p class="muted">Loading…</p>
+{:else}
+	{#if fs.locked}
+		<div class="card lockbar"><Lock size={16} /> The tournament has started — your Forecast is final.</div>
+	{/if}
+
+	{#if section === 'groups'}
+		<p class="muted small">Order each group 1st → 4th. Top 2 advance; 3rd may qualify as a best third.</p>
+		{#each fs.groups as g (g.letter)}
+			<section class="card grp">
+				<h3>Group {g.letter}</h3>
+				{#each fs.groupOrder[g.letter] as id, i (id)}
+					{@const ao = fs.actualOrder(g.letter)}
+					{@const apos = ao ? ao.indexOf(id) + 1 : 0}
+					{@const exact = ao ? ao[i] === id : null}
+					{@const advanced =
+						ao &&
+						(apos <= 2 ||
+							(apos === 3 && (actualThirds?.has(id) ?? false)))}
+					{@const scoredAdv =
+						advanced && (i < 2 || (i === 2 && !!fs.thirds[g.letter]))}
+					{@const state =
+						exact === null
+							? 'pending'
+							: exact
+								? 'ok'
+								: scoredAdv
+									? 'half'
+									: 'miss'}
+					<div
+						class="trow"
+						class:rwin={state === 'ok'}
+						class:rhalf={state === 'half'}
+						class:rmiss={state === 'miss'}
+					>
+						<span class="pos">{i + 1}</span>
+						<Flag iso2={fs.team(id)?.iso2 ?? ''} code={fs.team(id)?.fifaCode ?? ''} />
+						<span class="nm">{tname(id)}</span>
+						<span class="tag">
+							{#if state === 'ok'}<span class="ind ok"><Check size={15} /></span>
+							{:else if state === 'half'}
+								<span class="apos half">finished {ord(apos)}</span>
+								<span class="ind half"><CircleCheck size={15} /></span>
+							{:else if state === 'miss'}
+								<span class="apos">finished {ord(apos)}</span>
+								<span class="ind no"><X size={15} /></span>
+							{:else if i < 2}<span class="pill ok">advances</span>
+							{:else if i === 2}<span class="pill">3rd</span>{/if}
+						</span>
+						{#if !fs.locked}
+							<span class="ord">
+								<button aria-label="up" disabled={i === 0} onclick={() => fs.move(g.letter, i, -1)}><ChevronUp size={16} /></button>
+								<button aria-label="down" disabled={i === 3} onclick={() => fs.move(g.letter, i, 1)}><ChevronDown size={16} /></button>
+							</span>
+						{/if}
+					</div>
+				{/each}
+			</section>
+		{/each}
+	{:else if section === 'thirds'}
+		<div class="thead">
+			<p class="muted small">
+				8 of the 12 third-placed teams advance. Tick the eight you think
+				make it. (The 3rd of each group comes from your Groups order.)
+			</p>
+			<span class="cnt" class:full={fs.chosenThirdLetters.length === 8}>
+				{fs.chosenThirdLetters.length} / 8
+			</span>
+		</div>
+		<section class="card tlist">
+			{#each fs.groups as g (g.letter)}
+				{@const tid = fs.groupThird(g.letter)}
+				{@const on = !!fs.thirds[g.letter]}
+				{@const adv = actualThirds ? actualThirds.has(tid) : null}
+				<label class="trow" class:on>
+					<input
+						type="checkbox"
+						checked={on}
+						disabled={fs.locked ||
+							(!on && fs.chosenThirdLetters.length >= 8)}
+						onchange={() => fs.toggleThird(g.letter)}
+					/>
+					<span class="gl">{g.letter}</span>
+					<Flag iso2={fs.team(tid)?.iso2 ?? ''} code={fs.team(tid)?.fifaCode ?? ''} />
+					<span class="nm">{tname(tid) || '—'}</span>
+					<span class="spacer"></span>
+					{#if on && adv === true}<span class="ind ok"><Check size={15} /></span>
+					{:else if on && adv === false}<span class="ind no"><X size={15} /></span>
+					{:else if adv === true}<span class="ind dim"><Check size={14} /></span>{/if}
+				</label>
+			{/each}
+		</section>
+	{:else}
+		{#if champion}
+			<div class="card champ">
+				<Trophy size={20} />
+				<span class="lbl">Predicted champion</span>
+				<Flag
+					iso2={fs.team(champion)?.iso2 ?? ''}
+					code={fs.team(champion)?.fifaCode ?? ''}
+					size={26}
+				/>
+				<b>{tname(champion)}</b>
+			</div>
+		{/if}
+		{#each byStage as col (col.stage)}
+			<h3 class="rname">{stageName[col.stage]}</h3>
+			{#each col.matches as m (koKey(m))}
+				{@const H = sideLabel(m, 'home')}
+				{@const A = sideLabel(m, 'away')}
+				{@const w = fs.bracket[koKey(m)]}
+				{@const actAdv =
+					m.num > 0
+						? fs.advancerOf(m.num)
+						: (fs.results.find(
+								(r) => r.stage === m.stage && r.finished
+							)?.advancer ?? '')}
+				{@const bok = actAdv ? w === actAdv : null}
+				<div class="bm card" class:rwin={bok === true} class:rmiss={bok === false}>
+					<button
+						class="bteam"
+						class:win={w && w === H.id}
+						disabled={fs.locked || !H.id}
+						onclick={() => fs.pick(m, H.id)}
+					>
+						{#if H.team}<Flag iso2={H.team.iso2} code={H.team.fifaCode} />{/if}
+						<span class="bn" class:ph={!H.id}>{H.name}</span>
+					</button>
+					<span class="vs">vs</span>
+					<button
+						class="bteam"
+						class:win={w && w === A.id}
+						disabled={fs.locked || !A.id}
+						onclick={() => fs.pick(m, A.id)}
+					>
+						{#if A.team}<Flag iso2={A.team.iso2} code={A.team.fifaCode} />{/if}
+						<span class="bn" class:ph={!A.id}>{A.name}</span>
+					</button>
+					{#if bok === true}<span class="ind ok"><Check size={15} /></span>
+					{:else if bok === false}<span class="ind no"><X size={15} /></span>{/if}
+				</div>
+			{/each}
+		{/each}
+	{/if}
+
+	{#if !fs.locked}
+		<div class="savebar">
+			<span class="savestat" class:err={saveState === 'error'}>
+				{#if saveState === 'saving'}
+					Saving…
+				{:else if saveState === 'error'}
+					{err || 'Save failed'}
+				{:else if saveState === 'saved'}
+					<Check size={15} /> Saved · changes auto-save
+				{:else}
+					Changes auto-save
+				{/if}
+			</span>
+		</div>
+	{/if}
+{/if}
+
+<style>
+	h1 {
+		margin: 0.25rem 0 0.2rem;
+	}
+	.small {
+		font-size: 0.85rem;
+	}
+	.lockbar {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--warning);
+	}
+	.stickyhead {
+		position: sticky;
+		top: var(--topbar-h);
+		z-index: 20;
+		margin: 0 -1rem;
+		padding: 0.6rem 1rem 0.75rem;
+		background: color-mix(in srgb, var(--bg) 86%, transparent);
+		backdrop-filter: blur(12px) saturate(1.3);
+		border-bottom: 1px solid var(--border);
+	}
+	.stickyhead h1 {
+		margin: 0.1rem 0 0;
+	}
+	.stickyhead .desc {
+		margin: 0.3rem 0 0;
+		font-size: 0.9rem;
+	}
+	@media (min-width: 900px) {
+		.stickyhead {
+			top: 0;
+			margin: 0 -2rem;
+			padding: 0.75rem 2rem 0.85rem;
+		}
+	}
+	.seg {
+		display: flex;
+		gap: 0.4rem;
+		margin: 0.75rem 0 0;
+		z-index: 10;
+	}
+	.seg button {
+		flex: 1;
+		padding: 0.5rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--muted);
+		font-weight: 600;
+		font-size: 0.85rem;
+	}
+	.seg button.on {
+		background: var(--accent);
+		color: var(--accent-fg);
+		border-color: var(--accent);
+	}
+	.grp h3 {
+		margin: 0 0 0.6rem;
+	}
+	.trow {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.45rem 0;
+		border-top: 1px solid var(--border);
+	}
+	.trow:nth-child(2) {
+		border-top: none;
+	}
+	.pos {
+		width: 1.2rem;
+		text-align: center;
+		font-weight: 800;
+		color: var(--muted);
+	}
+	.nm {
+		flex: 1;
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.pill.ok {
+		color: var(--success);
+		border-color: var(--success);
+	}
+	.ord button {
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		color: var(--accent);
+		border-radius: 7px;
+		width: 30px;
+		height: 26px;
+		margin-left: 2px;
+	}
+	.ord button:disabled {
+		color: var(--muted);
+		opacity: 0.5;
+	}
+	.rname {
+		margin: 1.2rem 0 0.5rem;
+		color: var(--muted);
+		font-size: 0.95rem;
+	}
+	.bm {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.7rem;
+	}
+	.bm + .bm {
+		margin-top: 0.5rem;
+	}
+	.bteam {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.55rem 0.6rem;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--text);
+		min-width: 0;
+	}
+	.bteam:disabled {
+		opacity: 0.7;
+	}
+	.bteam.win {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-fg);
+	}
+	.bn {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-weight: 600;
+		font-size: 0.9rem;
+	}
+	.bn.ph {
+		color: var(--muted);
+		font-weight: 500;
+	}
+	.vs {
+		color: var(--muted);
+		font-size: 0.8rem;
+	}
+	.champ {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		color: var(--gold);
+		border-color: color-mix(in srgb, var(--gold) 45%, var(--border));
+		background:
+			radial-gradient(
+				120% 140% at 0% 0%,
+				color-mix(in srgb, var(--gold) 14%, transparent),
+				transparent 60%
+			),
+			var(--surface);
+		text-shadow: 0 0 14px color-mix(in srgb, var(--gold) 55%, transparent);
+	}
+	.champ .lbl {
+		text-transform: uppercase;
+		letter-spacing: 0.14em;
+		font-size: 0.78rem;
+		font-weight: 700;
+	}
+	.champ b {
+		font-family: var(--font-display);
+		font-size: 1.15rem;
+		letter-spacing: 0.02em;
+	}
+	.savebar {
+		position: sticky;
+		bottom: calc(var(--nav-h) + 0.5rem);
+		display: flex;
+		justify-content: center;
+		margin-top: 1.5rem;
+		pointer-events: none;
+	}
+	.savestat {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--muted);
+		background: color-mix(in srgb, var(--bg) 80%, transparent);
+		backdrop-filter: blur(8px);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		padding: 0.4rem 0.85rem;
+	}
+	.savestat.err {
+		color: var(--danger);
+		border-color: var(--danger);
+		text-transform: none;
+		letter-spacing: 0;
+	}
+	.thead {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+		margin-bottom: 0.6rem;
+	}
+	.thead .small {
+		flex: 1;
+	}
+	.cnt {
+		font-family: var(--font-mono);
+		font-weight: 700;
+		padding: 0.2rem 0.6rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--border);
+		color: var(--muted);
+		white-space: nowrap;
+	}
+	.cnt.full {
+		color: var(--accent-fg);
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+	.tlist {
+		padding: 0.3rem 0.9rem;
+	}
+	.trow {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0.6rem 0;
+		border-top: 1px solid var(--border);
+		cursor: pointer;
+	}
+	.trow:first-child {
+		border-top: none;
+	}
+	.trow input {
+		width: 20px;
+		height: 20px;
+		accent-color: var(--accent);
+	}
+	.trow .gl {
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: 6px;
+		background: var(--surface-2);
+		font-family: var(--font-display);
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+	.trow.on {
+		color: var(--text);
+	}
+	.trow.on .gl {
+		background: var(--accent);
+		color: var(--accent-fg);
+	}
+	.trow .nm {
+		font-weight: 600;
+	}
+	.ind {
+		display: inline-grid;
+		place-items: center;
+	}
+	.ind.ok {
+		color: var(--success);
+	}
+	.ind.no {
+		color: var(--danger);
+	}
+	.ind.half {
+		color: var(--gold);
+	}
+	.apos.half {
+		color: var(--gold);
+	}
+	.tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.apos {
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.ind.dim {
+		color: var(--muted);
+		opacity: 0.7;
+	}
+	.trow.rwin,
+	.bm.rwin {
+		border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+	}
+	.trow.rhalf {
+		border-color: color-mix(in srgb, var(--gold) 45%, var(--border));
+	}
+	.trow.rmiss,
+	.bm.rmiss {
+		border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+	}
+	.bm.rwin,
+	.bm.rmiss {
+		border-style: solid;
+	}
+</style>
