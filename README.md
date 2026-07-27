@@ -1,11 +1,14 @@
-# WM Tips
+# Matchowl
 
-A World Cup 2026 prediction game for you and your friends. Predict the whole
+A football prediction game for you and your friends. Predict the whole
 tournament up front, tip every individual match, and compete on private
 leaderboards. Ships as a **single Docker image** (one Go binary serving the
 API and the embedded SvelteKit app).
 
-> Naming note: the repo/module is `wm-pickems`; the app is branded **WM Tips**.
+> Naming note: **Matchowl** is the successor of **WM Tips**, the World Cup
+> 2026 prediction game (archived at [`wm-pickems`](https://github.com/floholz/wm-pickems)).
+> The rebrand is in progress — the module path and app UI still say
+> `wm-pickems` / "WM Tips" for now.
 
 ## Features
 
