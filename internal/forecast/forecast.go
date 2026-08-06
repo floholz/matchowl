@@ -1,11 +1,13 @@
 // Package forecast backs the one-time pre-tournament prediction: full group
-// standings (1..4 per group), the 8 manually-chosen best-third R32 slots, and
-// the knockout bracket winners. It is editable until the tournament's first
-// kickoff (global lock) and validated server-side.
+// standings, the manually-chosen extra-qualifier slots (WC2026: 8 best
+// thirds), and the knockout bracket winners. One forecast per
+// (user, tournament); editable until that tournament starts and validated
+// server-side against the tournament's structure.
 package forecast
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -15,29 +17,35 @@ import (
 
 	"github.com/floholz/matchowl/internal/bracket"
 	"github.com/floholz/matchowl/internal/clock"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
-// tournamentStart returns the earliest match kickoff (the global Forecast
-// deadline).
-func tournamentStart(app core.App) (time.Time, error) {
-	ms, err := app.FindRecordsByFilter("matches", "id != ''", "kickoff", 1, 0)
+// startOf returns a tournament's Forecast deadline: its startsAt when set,
+// else the earliest kickoff of its matches.
+func startOf(app core.App, t *core.Record) (time.Time, error) {
+	if ts := t.GetDateTime("startsAt").Time(); !ts.IsZero() {
+		return ts, nil
+	}
+	ms, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "kickoff", 1, 0, map[string]any{"t": t.Id})
 	if err != nil || len(ms) == 0 {
 		return time.Time{}, err
 	}
 	return ms[0].GetDateTime("kickoff").Time(), nil
 }
 
-func locked(app core.App) bool {
-	ts, err := tournamentStart(app)
-	if err != nil {
+func locked(app core.App, t *core.Record) bool {
+	ts, err := startOf(app, t)
+	if err != nil || ts.IsZero() {
 		return false
 	}
 	return !clock.Now(app).Before(ts)
 }
 
-// groupTeams returns letter -> set(teamId) from tournament_groups.
-func groupTeams(app core.App) (map[string]map[string]bool, error) {
-	gs, err := app.FindRecordsByFilter("tournament_groups", "id != ''", "letter", 0, 0)
+// groupTeams returns letter -> set(teamId) from a tournament's groups.
+func groupTeams(app core.App, tournamentID string) (map[string]map[string]bool, error) {
+	gs, err := app.FindRecordsByFilter("tournament_groups",
+		"tournament = {:t}", "letter", 0, 0, map[string]any{"t": tournamentID})
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +63,8 @@ func groupTeams(app core.App) (map[string]map[string]bool, error) {
 // validate enforces the lock and that group orderings only contain that
 // group's own teams without duplicates. Partial forecasts are allowed (the
 // user fills it in over multiple sessions); only clearly invalid data is
-// rejected.
+// rejected. A forecast without a tournament is assigned the current one, so
+// pre-rework clients keep working.
 // bypass lets the dev bot generator insert a complete Forecast regardless of
 // the lock. Never set in production (dev-only path).
 var bypass atomic.Bool
@@ -67,10 +76,14 @@ func validate(app core.App, rec *core.Record) error {
 	if bypass.Load() {
 		return nil
 	}
-	if locked(app) {
+	t, err := tournamentOf(app, rec)
+	if err != nil {
+		return apis.NewBadRequestError("no tournament to forecast", nil)
+	}
+	if locked(app, t) {
 		return apis.NewBadRequestError("the tournament has started — the Forecast is locked", nil)
 	}
-	groups, err := groupTeams(app)
+	groups, err := groupTeams(app, t.Id)
 	if err != nil {
 		return err
 	}
@@ -100,7 +113,21 @@ func validate(app core.App, rec *core.Record) error {
 	return nil
 }
 
-// ThirdSlot is an R32 match whose away side is a best-third placeholder.
+// tournamentOf resolves a forecast record's tournament, defaulting (and
+// stamping) the current one when unset.
+func tournamentOf(app core.App, rec *core.Record) (*core.Record, error) {
+	if tid := rec.GetString("tournament"); tid != "" {
+		return app.FindRecordById("tournaments", tid)
+	}
+	t, err := tournaments.Current(app)
+	if err != nil {
+		return nil, err
+	}
+	rec.Set("tournament", t.Id)
+	return t, nil
+}
+
+// ThirdSlot is a knockout match with an extra-qualifier placeholder side.
 type ThirdSlot struct {
 	MatchNum int      `json:"matchNum"`
 	Winner   string   `json:"winner"`  // group-winner letter this slot pairs with
@@ -125,7 +152,103 @@ func sharesLeague(app core.App, a, b string) bool {
 	return false
 }
 
-// Register wires the Forecast validation hooks and the structure endpoint.
+// resolveTournamentParam returns the tournament addressed by an optional
+// ?tournament=<slug> query param, defaulting to the current one.
+func resolveTournamentParam(app core.App, e *core.RequestEvent) (*core.Record, error) {
+	if slug := e.Request.URL.Query().Get("tournament"); slug != "" {
+		return tournaments.BySlug(app, slug)
+	}
+	return tournaments.Current(app)
+}
+
+// structurePayload builds everything the Forecast builder (and the bots)
+// need for one tournament: its stages/shape, groups with teams, the knockout
+// skeleton with placeholder labels, the extra-qualifier slots, the official
+// allocation table, and the lock state.
+func structurePayload(app core.App, t *core.Record) (map[string]any, error) {
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return nil, err
+	}
+	eq := st.ExtraQualifiers
+
+	groups, err := app.FindRecordsByFilter("tournament_groups",
+		"tournament = {:t}", "letter", 0, 0, map[string]any{"t": t.Id})
+	if err != nil {
+		return nil, err
+	}
+	gOut := make([]map[string]any, 0, len(groups))
+	for _, g := range groups {
+		gOut = append(gOut, map[string]any{
+			"letter": g.GetString("letter"),
+			"teams":  g.GetStringSlice("teams"),
+		})
+	}
+
+	all, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "num", 0, 0, map[string]any{"t": t.Id})
+	if err != nil {
+		return nil, err
+	}
+	slotPrefix := ""
+	if eq != nil {
+		slotPrefix = strconv.Itoa(eq.FromPosition)
+	}
+	kOut := make([]map[string]any, 0, len(all))
+	thirds := make([]ThirdSlot, 0, 8)
+	for _, mt := range all {
+		if !st.IsKnockout(mt.GetString("stage")) {
+			continue
+		}
+		home := mt.GetString("homeLabel")
+		away := mt.GetString("awayLabel")
+		num := mt.GetInt("num")
+		kOut = append(kOut, map[string]any{
+			"num":       num,
+			"stage":     mt.GetString("stage"),
+			"round":     mt.GetString("roundLabel"),
+			"homeLabel": home,
+			"awayLabel": away,
+		})
+		if eq == nil {
+			continue
+		}
+		for _, lbl := range []string{home, away} {
+			if strings.HasPrefix(lbl, slotPrefix) && strings.Contains(lbl, "/") {
+				w, _ := bracket.WinnerLetter(home, away)
+				thirds = append(thirds, ThirdSlot{
+					MatchNum: num,
+					Winner:   w,
+					Allowed:  strings.Split(strings.TrimPrefix(lbl, slotPrefix), "/"),
+				})
+			}
+		}
+	}
+
+	var thirdTable map[string]map[string]string
+	if eq != nil {
+		thirdTable = bracket.Table(eq.TableKey)
+	}
+	ts, _ := startOf(app, t)
+	return map[string]any{
+		"tournament": map[string]any{
+			"id":        t.Id,
+			"slug":      t.GetString("slug"),
+			"name":      t.GetString("name"),
+			"shortName": t.GetString("shortName"),
+			"status":    t.GetString("status"),
+		},
+		"structure":       st,
+		"groups":          gOut,
+		"knockout":        kOut,
+		"thirdSlots":      thirds,
+		"thirdTable":      thirdTable,
+		"tournamentStart": ts,
+		"locked":          locked(app, t),
+	}, nil
+}
+
+// Register wires the Forecast validation hooks and the structure endpoints.
 func Register(app core.App, se *core.ServeEvent) {
 	app.OnRecordCreate("forecasts").BindFunc(func(e *core.RecordEvent) error {
 		if err := validate(e.App, e.Record); err != nil {
@@ -140,10 +263,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.Next()
 	})
 
-	// GET /api/forecast/of/{userId} — a friend's Forecast. Visible to anyone
-	// who shares a League with them (no lock gate: in a friends group you
-	// want to see picks right away). Not registered on the forecasts table,
-	// which stays own-only.
+	// GET /api/forecast/of/{userId}?tournament=<slug> — a friend's Forecast
+	// for a tournament (default: current). Visible to anyone who shares a
+	// League with them (no lock gate: in a friends group you want to see
+	// picks right away). Not registered on the forecasts table, which stays
+	// own-only.
 	se.Router.GET("/api/forecast/of/{userId}", func(e *core.RequestEvent) error {
 		uid := e.Request.PathValue("userId")
 		if uid != e.Auth.Id && !sharesLeague(app, e.Auth.Id, uid) {
@@ -153,9 +277,13 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return apis.NewNotFoundError("user not found", nil)
 		}
-		out := map[string]any{"userId": uid, "name": u.GetString("name")}
+		t, err := resolveTournamentParam(app, e)
+		if err != nil {
+			return apis.NewNotFoundError("no such tournament", nil)
+		}
+		out := map[string]any{"userId": uid, "name": u.GetString("name"), "tournament": t.GetString("slug")}
 		fc, err := app.FindFirstRecordByFilter("forecasts",
-			"user = {:u}", map[string]any{"u": uid})
+			"user = {:u} && tournament = {:t}", map[string]any{"u": uid, "t": t.Id})
 		if err != nil {
 			out["forecast"] = nil
 			return e.JSON(http.StatusOK, out)
@@ -176,59 +304,30 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, out)
 	}).Bind(apis.RequireAuth())
 
-	// GET /api/forecast/structure — everything the builder needs: groups with
-	// their teams, the knockout match skeleton with placeholder labels, the
-	// best-third slots with their eligible groups, and the lock state.
+	// GET /api/tournaments/{slug}/structure — the tournament-scoped
+	// structure endpoint.
+	se.Router.GET("/api/tournaments/{slug}/structure", func(e *core.RequestEvent) error {
+		t, err := tournaments.BySlug(app, e.Request.PathValue("slug"))
+		if err != nil {
+			return apis.NewNotFoundError("no such tournament", nil)
+		}
+		out, err := structurePayload(app, t)
+		if err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, out)
+	}).Bind(apis.RequireAuth())
+
+	// GET /api/forecast/structure — compat alias for the current tournament.
 	se.Router.GET("/api/forecast/structure", func(e *core.RequestEvent) error {
-		groups, err := app.FindRecordsByFilter("tournament_groups", "id != ''", "letter", 0, 0)
+		t, err := resolveTournamentParam(app, e)
+		if err != nil {
+			return apis.NewNotFoundError("no tournament", nil)
+		}
+		out, err := structurePayload(app, t)
 		if err != nil {
 			return err
 		}
-		gOut := make([]map[string]any, 0, len(groups))
-		for _, g := range groups {
-			gOut = append(gOut, map[string]any{
-				"letter": g.GetString("letter"),
-				"teams":  g.GetStringSlice("teams"),
-			})
-		}
-
-		ko, err := app.FindRecordsByFilter("matches", "stage != 'group'", "num", 0, 0)
-		if err != nil {
-			return err
-		}
-		kOut := make([]map[string]any, 0, len(ko))
-		thirds := make([]ThirdSlot, 0, 8)
-		for _, mt := range ko {
-			home := mt.GetString("homeLabel")
-			away := mt.GetString("awayLabel")
-			num := mt.GetInt("num")
-			kOut = append(kOut, map[string]any{
-				"num":       num,
-				"stage":     mt.GetString("stage"),
-				"round":     mt.GetString("roundLabel"),
-				"homeLabel": home,
-				"awayLabel": away,
-			})
-			for _, lbl := range []string{home, away} {
-				if strings.HasPrefix(lbl, "3") && strings.Contains(lbl, "/") {
-					w, _ := bracket.WinnerLetter(home, away)
-					thirds = append(thirds, ThirdSlot{
-						MatchNum: num,
-						Winner:   w,
-						Allowed:  strings.Split(strings.TrimPrefix(lbl, "3"), "/"),
-					})
-				}
-			}
-		}
-
-		ts, _ := tournamentStart(app)
-		return e.JSON(http.StatusOK, map[string]any{
-			"groups":          gOut,
-			"knockout":        kOut,
-			"thirdSlots":      thirds,
-			"thirdTable":      bracket.Table(),
-			"tournamentStart": ts,
-			"locked":          locked(app),
-		})
+		return e.JSON(http.StatusOK, out)
 	}).Bind(apis.RequireAuth())
 }

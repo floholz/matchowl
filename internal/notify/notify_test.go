@@ -238,7 +238,7 @@ func TestRenderAllTemplates(t *testing.T) {
 	// and produce a non-empty subject + bodies.
 	events := []string{"stage_starting", "forecast_reminder", "tips_reminder", "results_recap"}
 	data := tplData{
-		AppName:      "WM Pickems",
+		AppName:      "Matchowl",
 		SettingsUrl:  "https://example.test/settings",
 		CTAText:      "Go",
 		CTAUrl:       "https://example.test/tips",

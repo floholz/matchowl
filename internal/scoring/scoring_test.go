@@ -24,7 +24,7 @@ func TestScoreValues(t *testing.T) {
 	}{
 		{
 			name:      "group exact",
-			m:         MatchResult{Stage: "group", FtH: 2, FtA: 1},
+			m:         MatchResult{FtH: 2, FtA: 1},
 			p:         TipPrediction{FtH: 2, FtA: 1},
 			wantPts:   6,
 			wantExact: 1,
@@ -32,7 +32,7 @@ func TestScoreValues(t *testing.T) {
 		},
 		{
 			name:      "group tendency only",
-			m:         MatchResult{Stage: "group", FtH: 3, FtA: 1},
+			m:         MatchResult{FtH: 3, FtA: 1},
 			p:         TipPrediction{FtH: 1, FtA: 0},
 			wantPts:   3,
 			wantGdDev: 1,
@@ -40,14 +40,14 @@ func TestScoreValues(t *testing.T) {
 		},
 		{
 			name:      "group totally wrong",
-			m:         MatchResult{Stage: "group", FtH: 1, FtA: 0},
+			m:         MatchResult{FtH: 1, FtA: 0},
 			p:         TipPrediction{FtH: 0, FtA: 2},
 			wantPts:   0,
 			wantGdDev: 3,
 		},
 		{
 			name:      "KO decided in 90, perfect",
-			m:         MatchResult{Stage: "R32", FtH: 2, FtA: 1, Advancer: "T1"},
+			m:         MatchResult{Knockout: true, FtH: 2, FtA: 1, Advancer: "T1"},
 			p:         TipPrediction{FtH: 2, FtA: 1, Advancer: "T1"},
 			wantPts:   6, // advancer(3)+exact+total+diff
 			wantExact: 1,
@@ -55,7 +55,7 @@ func TestScoreValues(t *testing.T) {
 		},
 		{
 			name:      "KO right advancer, wrong score",
-			m:         MatchResult{Stage: "R32", FtH: 2, FtA: 0, Advancer: "T1"},
+			m:         MatchResult{Knockout: true, FtH: 2, FtA: 0, Advancer: "T1"},
 			p:         TipPrediction{FtH: 0, FtA: 1, Advancer: "T1"},
 			wantPts:   3, // advancer only
 			wantTend:  3,
@@ -63,7 +63,7 @@ func TestScoreValues(t *testing.T) {
 		},
 		{
 			name:      "KO wrong advancer",
-			m:         MatchResult{Stage: "R32", FtH: 1, FtA: 0, Advancer: "T1"},
+			m:         MatchResult{Knockout: true, FtH: 1, FtA: 0, Advancer: "T1"},
 			p:         TipPrediction{FtH: 0, FtA: 1, Advancer: "T2"},
 			wantPts:   1, // total goals (1==1); no tendency
 			wantGdDev: 2, // |(0-1)-(1-0)|
@@ -71,7 +71,7 @@ func TestScoreValues(t *testing.T) {
 		{
 			name: "KO to ET, predicted draw then ET perfectly",
 			m: MatchResult{
-				Stage: "SF", FtH: 1, FtA: 1, EtH: 2, EtA: 1, Advancer: "T1",
+				Knockout: true, FtH: 1, FtA: 1, EtH: 2, EtA: 1, Advancer: "T1",
 			},
 			p: TipPrediction{
 				FtH: 1, FtA: 1, EtH: 2, EtA: 1, Advancer: "T1",
@@ -83,7 +83,7 @@ func TestScoreValues(t *testing.T) {
 		{
 			name: "KO to ET, predicted decisive 90 (no ET guess)",
 			m: MatchResult{
-				Stage: "SF", FtH: 1, FtA: 1, EtH: 3, EtA: 1, Advancer: "T1",
+				Knockout: true, FtH: 1, FtA: 1, EtH: 3, EtA: 1, Advancer: "T1",
 			},
 			p:         TipPrediction{FtH: 2, FtA: 1, Advancer: "T1"},
 			wantPts:   3, // advancer only; 2:1 vs after-ET 3:1 misses all

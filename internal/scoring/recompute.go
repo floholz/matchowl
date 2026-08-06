@@ -6,6 +6,8 @@ import (
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // Recompute rebuilds every match_scores and forecast_scores row for all
@@ -30,14 +32,16 @@ func Recompute(app core.App) error {
 				return err
 			}
 		}
+		structures := tournaments.NewStructureCache(tx)
 		finished, _ := tx.FindRecordsByFilter("matches",
 			"finalizedAt != ''", "", 0, 0)
 		for _, match := range finished {
+			knockout := structures.IsKnockoutMatch(match)
 			tipList, _ := tx.FindRecordsByFilter("tips",
 				"match = {:m}", "", 0, 0, map[string]any{"m": match.Id})
 			for _, tip := range tipList {
 				for cid, cfg := range configs {
-					comp := scoreTip(cfg, match, tip)
+					comp := scoreTip(cfg, knockout, match, tip)
 					rec := core.NewRecord(msCol)
 					rec.Set("user", tip.GetString("user"))
 					rec.Set("match", match.Id)
@@ -69,6 +73,7 @@ func Recompute(app core.App) error {
 				bd, total := scoreForecast(tx, cfg, fc)
 				rec := core.NewRecord(fsCol)
 				rec.Set("user", fc.GetString("user"))
+				rec.Set("tournament", fc.GetString("tournament"))
 				rec.Set("config", cid)
 				rec.Set("points", total)
 				bj, _ := json.Marshal(bd)
@@ -88,7 +93,8 @@ func Register(app core.App, se *core.ServeEvent) {
 	app.OnRecordAfterUpdateSuccess("matches").BindFunc(func(e *core.RecordEvent) error {
 		// Recompute when a result is finalized/corrected, or when a knockout
 		// match's teams resolve (affects Forecast round scoring).
-		if e.Record.GetString("finalizedAt") != "" || e.Record.GetString("stage") != "group" {
+		if e.Record.GetString("finalizedAt") != "" ||
+			tournaments.NewStructureCache(e.App).IsKnockoutMatch(e.Record) {
 			if err := Recompute(e.App); err != nil {
 				log.Printf("[scoring] recompute: %v", err)
 			}

@@ -1,30 +1,47 @@
-// Package bracket holds FIFA's official 2026 best-third → Round-of-32
-// allocation table (Annex C of the tournament regulations / Wikipedia
-// transcription): for each of the 495 combinations of 8 qualifying
+// Package bracket holds official "extra qualifier" slot-allocation tables,
+// keyed by the tournament structure's extraQualifiers.tableKey. The "wc2026"
+// entry is FIFA's 2026 best-third → Round-of-32 table (Annex C of the
+// tournament regulations): for each of the 495 combinations of 8 qualifying
 // third-placed groups, which group's third faces each group winner.
+// Tournaments without an official table fall back to the deterministic
+// greedy allocation in internal/sync.
 package bracket
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
+	"path"
 	"sort"
 	"strings"
 )
 
-//go:embed data/third_table.json
-var rawTable []byte
+//go:embed tables
+var tablesFS embed.FS
 
-// table[sortedQualifierLetters] = { winnerGroupLetter: thirdGroupLetter }
-var table map[string]map[string]string
+// registry[tableKey][sortedQualifierLetters] = { winnerGroupLetter: thirdGroupLetter }
+var registry = map[string]map[string]map[string]string{}
 
 func init() {
-	if err := json.Unmarshal(rawTable, &table); err != nil {
-		panic("bracket: bad third_table.json: " + err.Error())
+	entries, err := tablesFS.ReadDir("tables")
+	if err != nil {
+		panic("bracket: " + err.Error())
+	}
+	for _, e := range entries {
+		key := strings.TrimSuffix(e.Name(), ".json")
+		raw, err := tablesFS.ReadFile(path.Join("tables", e.Name()))
+		if err != nil {
+			panic("bracket: " + err.Error())
+		}
+		var t map[string]map[string]string
+		if err := json.Unmarshal(raw, &t); err != nil {
+			panic("bracket: bad table " + e.Name() + ": " + err.Error())
+		}
+		registry[key] = t
 	}
 }
 
-// Key normalises a set of qualifying third-place group letters to the table
-// key (sorted, upper-case, deduped).
+// Key normalises a set of qualifying extra-qualifier group letters to the
+// table key (sorted, upper-case, deduped).
 func Key(groups []string) string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(groups))
@@ -39,15 +56,12 @@ func Key(groups []string) string {
 	return strings.Join(out, "")
 }
 
-// ThirdFor returns the group letter whose third-placed team faces the given
-// group winner, for the given set of 8 qualifying third groups. ok is false
-// if the combination isn't exactly 8 groups or isn't in the official table
-// (callers should fall back to a deterministic matching).
-func ThirdFor(qualifiers []string, winner string) (string, bool) {
-	if len(qualifiers) != 8 {
-		return "", false
-	}
-	m, ok := table[Key(qualifiers)]
+// ThirdFor returns the group letter whose extra-qualifier team faces the
+// given group winner, per the named official table. ok is false when the
+// table doesn't exist or the qualifier combination isn't in it (callers fall
+// back to a deterministic matching).
+func ThirdFor(tableKey string, qualifiers []string, winner string) (string, bool) {
+	m, ok := Lookup(tableKey, qualifiers)
 	if !ok {
 		return "", false
 	}
@@ -55,26 +69,29 @@ func ThirdFor(qualifiers []string, winner string) (string, bool) {
 	return g, ok
 }
 
-// Lookup returns the full winner→thirdGroup map for a combination.
-func Lookup(qualifiers []string) (map[string]string, bool) {
-	if len(qualifiers) != 8 {
+// Lookup returns the full winner→thirdGroup map for a qualifier combination
+// in the named table.
+func Lookup(tableKey string, qualifiers []string) (map[string]string, bool) {
+	t, ok := registry[tableKey]
+	if !ok {
 		return nil, false
 	}
-	m, ok := table[Key(qualifiers)]
+	m, ok := t[Key(qualifiers)]
 	return m, ok
 }
 
 // WinnerLetter returns the group-winner letter ("1X" -> "X") of a knockout
-// match's two labels, i.e. the side a third-placed team is drawn against.
+// match's two labels, i.e. the side an extra-qualifier team is drawn against.
 func WinnerLetter(homeLabel, awayLabel string) (string, bool) {
 	for _, l := range []string{homeLabel, awayLabel} {
-		if len(l) == 2 && l[0] == '1' && l[1] >= 'A' && l[1] <= 'L' {
+		if len(l) == 2 && l[0] == '1' && l[1] >= 'A' && l[1] <= 'Z' {
 			return string(l[1]), true
 		}
 	}
 	return "", false
 }
 
-// Table exposes the whole official table (served to the frontend so its
-// Forecast bracket uses the identical allocation).
-func Table() map[string]map[string]string { return table }
+// Table exposes a whole official table (served to the frontend so its
+// Forecast bracket uses the identical allocation). nil when the key has no
+// registered table.
+func Table(tableKey string) map[string]map[string]string { return registry[tableKey] }

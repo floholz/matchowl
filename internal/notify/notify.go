@@ -131,7 +131,7 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// Dev-only manual trigger so the flow can be exercised against the virtual
 	// clock without waiting for the cron. Mirrors the /api/dev gating in dev.go.
-	if os.Getenv("WMP_DEV") == "1" {
+	if os.Getenv("MATCHOWL_DEV") == "1" || os.Getenv("WMP_DEV") == "1" {
 		se.Router.POST("/api/dev/notify/run", func(e *core.RequestEvent) error {
 			ctx, cancel := context.WithTimeout(e.Request.Context(), 90*time.Second)
 			defer cancel()
@@ -245,15 +245,21 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 		return res, nil
 	}
 
-	matches, err := r.app.FindRecordsByFilter("matches", "id != ''", "kickoff", 0, 0)
-	if err != nil {
-		return res, fmt.Errorf("load matches: %w", err)
+	// All match-driven detectors scope to the current tournament; without one
+	// (or with an unreadable structure) only the league-lead detector runs.
+	tinfo, tErr := r.currentTournament()
+	if tErr != nil {
+		if err := r.detectLeagueLead(ctx, res, recipients, base); err != nil {
+			log.Printf("[notify] league_lead: %v", err)
+		}
+		return res, nil
 	}
+	matches := tinfo.matches
 
-	if err := r.detectStageStarting(ctx, res, now, lead, matches, recipients, base); err != nil {
+	if err := r.detectStageStarting(ctx, res, now, lead, tinfo, recipients, base); err != nil {
 		log.Printf("[notify] stage_starting: %v", err)
 	}
-	if err := r.detectForecastReminder(ctx, res, now, lead, matches, recipients, base); err != nil {
+	if err := r.detectForecastReminder(ctx, res, now, lead, tinfo, recipients, base); err != nil {
 		log.Printf("[notify] forecast_reminder: %v", err)
 	}
 	if now.Hour() >= cfg.CountdownHourUTC {
@@ -335,7 +341,7 @@ func (r *Runner) base() baseInfo {
 	url := strings.TrimRight(meta.AppURL, "/")
 	name := meta.AppName
 	if name == "" {
-		name = "WM Pickems"
+		name = "Matchowl"
 	}
 	return baseInfo{appName: name, url: url}
 }
@@ -645,7 +651,7 @@ func (r *Runner) sampleData(event string) tplData {
 	case "announcement":
 		d.Title = "New: live match tracker is here"
 		d.Body = "We just shipped a live tracker so you can follow scores in real time. Open the app to check it out and get your tips in before kickoff."
-		d.CTAText, d.CTAUrl = "Open WM Tips", base.url+"/"
+		d.CTAText, d.CTAUrl = "Open Matchowl", base.url+"/"
 	case "league_chat":
 		d.ChatTotal = 5
 		d.ChatLeagues = []chatLine{{League: "Squad", Count: 3}, {League: "Office Pool", Count: 2}}
@@ -653,7 +659,7 @@ func (r *Runner) sampleData(event string) tplData {
 	case "kickoff_countdown":
 		d.DaysLeft = 3
 		d.WhenText = when
-		d.CTAText, d.CTAUrl = "Open WM Tips", base.url+"/"
+		d.CTAText, d.CTAUrl = "Open Matchowl", base.url+"/"
 	default:
 		d.CTAUrl = base.url + "/"
 	}

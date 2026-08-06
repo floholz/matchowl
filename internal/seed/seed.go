@@ -1,18 +1,27 @@
-// Package seed populates teams, tournament groups and the 104-match fixture
-// list from the embedded openfootball WC2026 dataset. It runs once on first
-// boot (idempotent: guarded by an app_meta flag and skipped if teams exist).
+// Package seed populates a tournament's teams, groups and fixture list from
+// openfootball-format JSON (fixtures doc + team meta). The embedded WC2026
+// dataset seeds the first tournament on first boot (idempotent: skipped once
+// that tournament has teams); new tournaments are seeded through the admin
+// endpoint with uploaded data.
 package seed
 
 import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/floholz/matchowl/internal/tournaments"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 //go:embed data/worldcup2026.json data/teams_meta2026.json
@@ -109,16 +118,17 @@ func RoundStage(round string) string {
 
 // ExtID is the deterministic match id shared by the seed and the live-results
 // sync, so openfootball live matches map 1:1 onto our rows (no name aliases).
-func ExtID(round string, num int, group, team1, team2 string) string {
+// The prefix comes from the tournament record's extIdPrefix.
+func ExtID(prefix, round string, num int, group, team1, team2 string) string {
 	stage := RoundStage(round)
 	if stage == "group" {
-		return fmt.Sprintf("WC2026-G-%s-%s-%s",
-			strings.ReplaceAll(group, " ", ""), slug(team1), slug(team2))
+		return fmt.Sprintf("%s-G-%s-%s-%s",
+			prefix, strings.ReplaceAll(group, " ", ""), slug(team1), slug(team2))
 	}
 	if num > 0 {
-		return fmt.Sprintf("WC2026-K-%d", num)
+		return fmt.Sprintf("%s-K-%d", prefix, num)
 	}
-	return "WC2026-K-" + stage
+	return prefix + "-K-" + stage
 }
 
 // displayNames overrides the stored display name for teams whose preferred label
@@ -191,11 +201,24 @@ func Run(app core.App) error {
 		return err
 	}
 
-	teamsCol, err := app.FindCollectionByNameOrId("teams")
+	// The wc2026 tournament record is created by migration 0029; every seeded
+	// row is scoped to it. Link its scoring config now that the default
+	// config exists (fresh DBs run the migration before the seeder).
+	tournament, err := app.FindFirstRecordByFilter("tournaments",
+		"slug = {:s}", map[string]any{"s": "wc2026"})
 	if err != nil {
-		return err
+		return fmt.Errorf("seed: wc2026 tournament record missing: %w", err)
 	}
-	if n, _ := app.CountRecords("teams"); n > 0 {
+	if tournament.GetString("scoringConfig") == "" {
+		if def, err := app.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {
+			tournament.Set("scoringConfig", def.Id)
+			if err := app.Save(tournament); err != nil {
+				return err
+			}
+		}
+	}
+
+	if n, _ := app.CountRecords("teams", dbx.HashExp{"tournament": tournament.Id}); n > 0 {
 		return nil // already seeded
 	}
 
@@ -203,19 +226,56 @@ func Run(app core.App) error {
 	if err != nil {
 		return err
 	}
-	var ofTeams []ofTeam
-	if err := json.Unmarshal(teamsRaw, &ofTeams); err != nil {
-		return err
-	}
-
 	matchesRaw, err := dataFS.ReadFile("data/worldcup2026.json")
 	if err != nil {
 		return err
 	}
+	return SeedTournament(app, tournament, teamsRaw, matchesRaw)
+}
+
+// SeedTournament seeds one tournament's teams, groups and fixtures from
+// openfootball-format JSON: teamsRaw is the team meta array (name, fifa_code,
+// flag_unicode, group, confed), fixturesRaw the fixtures doc ({"matches":
+// [...]}) whose round labels map to stage codes via RoundStage. Refuses when
+// the tournament already has teams, and rejects fixtures whose derived stage
+// is missing from the tournament's structure.
+func SeedTournament(app core.App, tournament *core.Record, teamsRaw, fixturesRaw []byte) error {
+	if n, _ := app.CountRecords("teams", dbx.HashExp{"tournament": tournament.Id}); n > 0 {
+		return fmt.Errorf("tournament %s already has teams", tournament.GetString("slug"))
+	}
+	st, err := tournaments.StructureOf(tournament)
+	if err != nil {
+		return fmt.Errorf("structure: %w", err)
+	}
+	validStage := map[string]bool{}
+	for _, sc := range st.StageCodes() {
+		validStage[sc] = true
+	}
+
+	var ofTeams []ofTeam
+	if err := json.Unmarshal(teamsRaw, &ofTeams); err != nil {
+		return fmt.Errorf("teams meta: %w", err)
+	}
+	if len(ofTeams) == 0 {
+		return fmt.Errorf("teams meta: empty")
+	}
 	var wc struct {
 		Matches []ofMatch `json:"matches"`
 	}
-	if err := json.Unmarshal(matchesRaw, &wc); err != nil {
+	if err := json.Unmarshal(fixturesRaw, &wc); err != nil {
+		return fmt.Errorf("fixtures: %w", err)
+	}
+	if len(wc.Matches) == 0 {
+		return fmt.Errorf("fixtures: empty")
+	}
+	for _, m := range wc.Matches {
+		if stage := RoundStage(m.Round); !validStage[stage] {
+			return fmt.Errorf("fixtures: round %q maps to stage %q which is not in the tournament structure", m.Round, stage)
+		}
+	}
+
+	teamsCol, err := app.FindCollectionByNameOrId("teams")
+	if err != nil {
 		return err
 	}
 
@@ -229,6 +289,7 @@ func Run(app core.App) error {
 			if h, ok := HomeNationISO[t.FifaCode]; ok {
 				iso2 = h
 			}
+			rec.Set("tournament", tournament.Id)
 			rec.Set("fifaCode", t.FifaCode)
 			// Display name may be overridden (e.g. Türkiye); byName + ExtID below
 			// stay on the openfootball name so live-results matching is unchanged.
@@ -249,6 +310,7 @@ func Run(app core.App) error {
 		}
 		for letter, ids := range groupTeams {
 			rec := core.NewRecord(groupsCol)
+			rec.Set("tournament", tournament.Id)
 			rec.Set("letter", letter)
 			rec.Set("teams", ids)
 			if err := txApp.Save(rec); err != nil {
@@ -271,7 +333,8 @@ func Run(app core.App) error {
 				return fmt.Errorf("parse kickoff %q %q: %w", m.Date, m.Time, err)
 			}
 			rec := core.NewRecord(matchesCol)
-			rec.Set("extId", ExtID(m.Round, m.Num, m.Group, m.Team1, m.Team2))
+			rec.Set("tournament", tournament.Id)
+			rec.Set("extId", ExtID(tournament.GetString("extIdPrefix"), m.Round, m.Num, m.Group, m.Team1, m.Team2))
 			rec.Set("stage", stage)
 			rec.Set("num", m.Num)
 			rec.Set("roundLabel", m.Round)
@@ -297,4 +360,41 @@ func Run(app core.App) error {
 		}
 		return nil
 	})
+}
+
+// Register wires the admin seeding endpoint for new tournaments.
+// POST /api/admin/tournaments/{id}/seed with {"teams": [...], "fixtures":
+// {"matches": [...]}} in openfootball format.
+func Register(app core.App, se *core.ServeEvent) {
+	se.Router.POST("/api/admin/tournaments/{id}/seed", func(e *core.RequestEvent) error {
+		if e.Auth == nil || !users.IsAdmin(e.Auth) {
+			return apis.NewForbiddenError("admin only", nil)
+		}
+		t, err := app.FindRecordById("tournaments", e.Request.PathValue("id"))
+		if err != nil {
+			return apis.NewNotFoundError("no such tournament", nil)
+		}
+		raw, err := io.ReadAll(io.LimitReader(e.Request.Body, 4<<20))
+		if err != nil {
+			return apis.NewBadRequestError(err.Error(), nil)
+		}
+		var body struct {
+			Teams    json.RawMessage `json:"teams"`
+			Fixtures json.RawMessage `json:"fixtures"`
+		}
+		if err := json.Unmarshal(raw, &body); err != nil {
+			return apis.NewBadRequestError(err.Error(), nil)
+		}
+		if len(body.Teams) == 0 || len(body.Fixtures) == 0 {
+			return apis.NewBadRequestError("teams and fixtures are required", nil)
+		}
+		if err := SeedTournament(app, t, body.Teams, body.Fixtures); err != nil {
+			return apis.NewBadRequestError(err.Error(), nil)
+		}
+		nTeams, _ := app.CountRecords("teams", dbx.HashExp{"tournament": t.Id})
+		nMatches, _ := app.CountRecords("matches", dbx.HashExp{"tournament": t.Id})
+		return e.JSON(http.StatusOK, map[string]any{
+			"status": "ok", "teams": nTeams, "matches": nMatches,
+		})
+	}).Bind(apis.RequireAuth())
 }

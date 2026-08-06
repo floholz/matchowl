@@ -3,25 +3,32 @@ package scoring
 import (
 	"math/rand"
 	"sort"
+	"strconv"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
-var stageRank = map[string]int{
-	"R32": 0, "R16": 1, "QF": 2, "SF": 3, "3RD": 4, "FINAL": 5,
-}
-
-// RandomForecast builds a fully self-consistent random Forecast (group order,
-// 8 best thirds, and a bracket whose every winner is one of that match's
-// resolved participants) using the same resolver the scorer uses — so bot
-// players score coherently. Used by the dev bot generator.
-func RandomForecast(app core.App, rng *rand.Rand) (
+// RandomForecast builds a fully self-consistent random Forecast for one
+// tournament (group order, extra qualifiers, and a bracket whose every
+// winner is one of that match's resolved participants) using the same
+// resolver the scorer uses — so bot players score coherently. Used by the
+// dev bot generator.
+func RandomForecast(app core.App, tournament *core.Record, rng *rand.Rand) (
 	order map[string][]string,
 	thirds map[string]string,
 	bracket map[string]string,
 	err error,
 ) {
-	groups, err := app.FindRecordsByFilter("tournament_groups", "id != ''", "letter", 0, 0)
+	st, err := tournaments.StructureOf(tournament)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	eq := st.ExtraQualifiers
+
+	groups, err := app.FindRecordsByFilter("tournament_groups",
+		"tournament = {:t}", "letter", 0, 0, map[string]any{"t": tournament.Id})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -34,18 +41,37 @@ func RandomForecast(app core.App, rng *rand.Rand) (
 		letters = append(letters, g.GetString("letter"))
 	}
 
-	// Pick 8 of the 12 groups whose 3rd-placed team advances.
-	rng.Shuffle(len(letters), func(i, j int) { letters[i], letters[j] = letters[j], letters[i] })
+	// Pick the groups whose extra-qualifier-position team advances (WC2026:
+	// 8 of the 12 third-placed teams).
 	thirds = map[string]string{}
-	for _, l := range letters[:8] {
-		if len(order[l]) >= 3 {
-			thirds[l] = order[l][2]
+	if eq != nil {
+		rng.Shuffle(len(letters), func(i, j int) { letters[i], letters[j] = letters[j], letters[i] })
+		n := eq.Count
+		if n > len(letters) {
+			n = len(letters)
+		}
+		for _, l := range letters[:n] {
+			if len(order[l]) >= eq.FromPosition {
+				thirds[l] = order[l][eq.FromPosition-1]
+			}
 		}
 	}
 
-	koList, err := app.FindRecordsByFilter("matches", "stage != 'group'", "num", 0, 0)
+	stageRank := map[string]int{}
+	for i, stg := range st.Stages {
+		stageRank[stg.Code] = i
+	}
+
+	all, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "num", 0, 0, map[string]any{"t": tournament.Id})
 	if err != nil {
 		return nil, nil, nil, err
+	}
+	koList := make([]*core.Record, 0, len(all))
+	for _, m := range all {
+		if st.IsKnockout(m.GetString("stage")) {
+			koList = append(koList, m)
+		}
 	}
 	koByNum := map[int]*core.Record{}
 	for _, m := range koList {
@@ -62,12 +88,17 @@ func RandomForecast(app core.App, rng *rand.Rand) (
 		return koList[i].GetInt("num") < koList[j].GetInt("num")
 	})
 
+	slotPrefix := ""
+	if eq != nil {
+		slotPrefix = strconv.Itoa(eq.FromPosition)
+	}
 	bracket = map[string]string{}
 	r := &fcResolver{
 		order:      order,
-		thirdByNum: assignThirds(koList, thirds),
+		thirdByNum: assignThirds(koList, thirds, st),
 		bracket:    bracket,
 		ko:         koByNum,
+		slotPrefix: slotPrefix,
 	}
 	for _, m := range koList {
 		h := r.resolve(m.GetString("homeLabel"), m.GetInt("num"), map[int]bool{})

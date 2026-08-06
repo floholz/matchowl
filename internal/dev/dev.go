@@ -1,8 +1,8 @@
-// Package dev is a test harness, only active when WMP_DEV=1. It can pin a
+// Package dev is a test harness, only active when MATCHOWL_DEV=1. It can pin a
 // virtual clock and simulate match results up to a timestamp, reusing the
 // exact production paths (ApplyResult -> ResolveBracket -> Recompute) so the
 // simulation also exercises the real logic. The mutating routes are not
-// registered unless WMP_DEV=1, so it can never run in production.
+// registered unless MATCHOWL_DEV=1, so it can never run in production.
 package dev
 
 import (
@@ -26,6 +26,7 @@ import (
 	"github.com/floholz/matchowl/internal/scoring"
 	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tips"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 var botNames = []string{
@@ -41,11 +42,15 @@ const (
 	koWindow    = 140 * time.Minute // + extra time + penalties
 )
 
-func Enabled() bool { return os.Getenv("WMP_DEV") == "1" }
+// Enabled reports whether the dev harness is on. MATCHOWL_DEV is the
+// documented name; WMP_DEV is accepted for backward compatibility.
+func Enabled() bool {
+	return os.Getenv("MATCHOWL_DEV") == "1" || os.Getenv("WMP_DEV") == "1"
+}
 
 // LoadDotenv loads ./.env into the process environment so `go run .` /
 // `make run` see the same config docker-compose would inject — no container
-// rebuild for local dev. Only active when WMP_DEV=1, and variables already
+// rebuild for local dev. Only active when MATCHOWL_DEV=1, and variables already
 // set in the shell always win (so explicit overrides keep working).
 func LoadDotenv() {
 	if !Enabled() {
@@ -93,15 +98,15 @@ func rngFor(extID string) *rand.Rand {
 	return rand.New(rand.NewSource(int64(h.Sum64())))
 }
 
-func windowFor(stage string) time.Duration {
-	if stage == "group" {
-		return groupWindow
+func windowFor(knockout bool) time.Duration {
+	if knockout {
+		return koWindow
 	}
-	return koWindow
+	return groupWindow
 }
 
 // resetMatch returns a match to its pre-result state.
-func resetMatch(m *core.Record) {
+func resetMatch(m *core.Record, knockout bool) {
 	m.Set("status", "scheduled")
 	for _, f := range []string{"ftHome", "ftAway", "etHome", "etAway", "penHome", "penAway"} {
 		m.Set(f, 0)
@@ -109,7 +114,7 @@ func resetMatch(m *core.Record) {
 	m.Set("penWinner", "")
 	m.Set("advancer", "")
 	m.Set("finalizedAt", "")
-	if m.GetString("stage") != "group" {
+	if knockout {
 		// Knockout teams are only filled by the resolver from results.
 		m.Set("homeTeam", "")
 		m.Set("awayTeam", "")
@@ -118,6 +123,7 @@ func resetMatch(m *core.Record) {
 
 // simulate brings all matches to the state they'd be in at simNow.
 func simulate(app core.App, simNow time.Time) error {
+	structures := tournaments.NewStructureCache(app)
 	all, err := app.FindRecordsByFilter("matches", "id != ''", "kickoff", 0, 0)
 	if err != nil {
 		return err
@@ -125,7 +131,7 @@ func simulate(app core.App, simNow time.Time) error {
 	// Reset anything now in the future (supports moving the clock back).
 	for _, m := range all {
 		if simNow.Before(m.GetDateTime("kickoff").Time()) {
-			resetMatch(m)
+			resetMatch(m, structures.IsKnockoutMatch(m))
 			if err := app.Save(m); err != nil {
 				return err
 			}
@@ -147,11 +153,12 @@ func simulate(app core.App, simNow time.Time) error {
 			if m.GetString("status") == "finished" {
 				continue
 			}
+			knockout := structures.IsKnockoutMatch(m)
 			ko := m.GetDateTime("kickoff").Time()
 			if simNow.Before(ko) {
 				continue
 			}
-			if simNow.Before(ko.Add(windowFor(m.GetString("stage")))) {
+			if simNow.Before(ko.Add(windowFor(knockout))) {
 				if m.GetString("status") != "live" {
 					m.Set("status", "live")
 					m.Set("finalizedAt", "")
@@ -163,22 +170,22 @@ func simulate(app core.App, simNow time.Time) error {
 				continue
 			}
 			// Finished. Knockout needs both teams resolved first.
-			if m.GetString("stage") != "group" &&
+			if knockout &&
 				(m.GetString("homeTeam") == "" || m.GetString("awayTeam") == "") {
 				continue
 			}
 			r := rngFor(m.GetString("extId"))
-			if m.GetString("stage") == "group" {
-				wmsync.ApplyResult(m, "finished",
+			if !knockout {
+				wmsync.ApplyResult(app, m, "finished",
 					intp(r.Intn(5)), intp(r.Intn(5)), nil, nil, nil, nil)
 			} else {
 				h, a := r.Intn(4), r.Intn(4)
 				if h != a {
-					wmsync.ApplyResult(m, "finished",
+					wmsync.ApplyResult(app, m, "finished",
 						intp(h), intp(a), nil, nil, nil, nil)
 				} else {
 					// Drawn at 90' -> decided in extra time.
-					wmsync.ApplyResult(m, "finished",
+					wmsync.ApplyResult(app, m, "finished",
 						intp(h), intp(a),
 						intp(h+1), intp(a), nil, nil)
 				}
@@ -255,10 +262,16 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	matches, err := app.FindRecordsByFilter("matches", "id != ''", "kickoff", 0, 0)
+	tournament, err := tournaments.Current(app)
 	if err != nil {
 		return nil, err
 	}
+	matches, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "kickoff", 0, 0, map[string]any{"t": tournament.Id})
+	if err != nil {
+		return nil, err
+	}
+	structures := tournaments.NewStructureCache(app)
 
 	forecast.SetBypass(true)
 	tips.SetBypass(true)
@@ -287,12 +300,13 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 				return err
 			}
 
-			order, thirds, bracket, err := scoring.RandomForecast(tx, rng)
+			order, thirds, bracket, err := scoring.RandomForecast(tx, tournament, rng)
 			if err != nil {
 				return err
 			}
 			f := core.NewRecord(fcCol)
 			f.Set("user", u.Id)
+			f.Set("tournament", tournament.Id)
 			f.Set("groupOrder", order)
 			f.Set("thirdQualifiers", thirds)
 			f.Set("bracket", bracket)
@@ -310,7 +324,7 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 				// generation time (so we can't store an advancer id) — keep the
 				// tip decisive so the scoreline's winner arrow still works, and
 				// set the advancer when the matchup is already known.
-				if m.GetString("stage") != "group" {
+				if structures.IsKnockoutMatch(m) {
 					if fh == fa {
 						if rng.Intn(2) == 0 {
 							fh++
@@ -381,7 +395,7 @@ func state(app core.App) map[string]any {
 	return out
 }
 
-// Register wires /api/now (always) and, only when WMP_DEV=1, the dev
+// Register wires /api/now (always) and, only when MATCHOWL_DEV=1, the dev
 // mutating endpoints.
 func Register(app core.App, se *core.ServeEvent) {
 	se.Router.GET("/api/now", func(e *core.RequestEvent) error {
@@ -416,7 +430,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		ctx, cancel := context.WithTimeout(e.Request.Context(), 30*time.Second)
 		defer cancel()
-		client := football.New(key)
+		client := football.New(key, 0, yr)
 		out := map[string]any{}
 		if st, err := client.Status(ctx); err == nil {
 			out["account"] = st
@@ -496,8 +510,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
+		structures := tournaments.NewStructureCache(app)
 		for _, m := range matches {
-			resetMatch(m)
+			resetMatch(m, structures.IsKnockoutMatch(m))
 			if err := app.Save(m); err != nil {
 				return e.JSON(500, map[string]string{"error": err.Error()})
 			}

@@ -35,7 +35,7 @@ func Broadcast(ctx context.Context, app core.App, ann *core.Record) (*Result, er
 			Title:        ann.GetString("title"),
 			Body:         ann.GetString("body"),
 			HighPriority: highPriority,
-			CTAText:      "Open WM Tips",
+			CTAText:      "Open Matchowl",
 			CTAUrl:       base.url + "/",
 		}
 		r.dispatch(ctx, res, ncol, u, "announcement", dedupKey, data)

@@ -1,7 +1,8 @@
 // Package sync keeps the matches collection up to date: a cron job pulls
-// results from API-Football (one request per run), a superuser endpoint
-// forces a refresh, and another superuser endpoint applies manual results
-// when the provider is wrong or no API key is configured.
+// results for every active tournament from that tournament's configured
+// provider (API-Football or openfootball), a superuser endpoint forces a
+// refresh, and another superuser endpoint applies manual results when the
+// provider is wrong or no API key is configured.
 package sync
 
 import (
@@ -16,31 +17,34 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/football"
+	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 )
 
-// syncMetaKey is the app_meta row that stores the last results-sync outcome,
-// surfaced on the owner dashboard.
-const syncMetaKey = "results_sync"
+// syncMetaPrefix + tournament slug is the app_meta row that stores the last
+// results-sync outcome for that tournament, surfaced on the admin dashboard.
+const syncMetaPrefix = "results_sync:"
 
-// recordSyncStatus persists the outcome of a sync run (best effort) so the owner
-// dashboard can show when results last updated and whether it succeeded.
-func recordSyncStatus(app core.App, source string, updated int, runErr error) {
+// recordSyncStatus persists the outcome of a sync run (best effort) so the
+// admin dashboard can show when results last updated and whether it succeeded.
+func recordSyncStatus(app core.App, slug, source string, updated int, runErr error) {
 	col, err := app.FindCollectionByNameOrId("app_meta")
 	if err != nil {
 		return
 	}
+	key := syncMetaPrefix + slug
 	rec, err := app.FindFirstRecordByFilter("app_meta",
-		"key = {:k}", map[string]any{"k": syncMetaKey})
+		"key = {:k}", map[string]any{"k": key})
 	if err != nil {
 		rec = core.NewRecord(col)
-		rec.Set("key", syncMetaKey)
+		rec.Set("key", key)
 	}
 	val := map[string]any{
-		"at":      time.Now().UTC().Format(time.RFC3339),
-		"source":  source,
-		"updated": updated,
-		"ok":      runErr == nil,
+		"at":         time.Now().UTC().Format(time.RFC3339),
+		"tournament": slug,
+		"source":     source,
+		"updated":    updated,
+		"ok":         runErr == nil,
 	}
 	if runErr != nil {
 		val["error"] = runErr.Error()
@@ -51,23 +55,29 @@ func recordSyncStatus(app core.App, source string, updated int, runErr error) {
 	}
 }
 
-// readSyncStatus returns the last recorded sync outcome (nil if none yet).
+// readSyncStatus returns the last recorded sync outcome per tournament slug.
 func readSyncStatus(app core.App) map[string]any {
-	rec, err := app.FindFirstRecordByFilter("app_meta",
-		"key = {:k}", map[string]any{"k": syncMetaKey})
+	recs, err := app.FindRecordsByFilter("app_meta",
+		"key ~ {:p}", "", 0, 0, map[string]any{"p": syncMetaPrefix + "%"})
 	if err != nil {
 		return nil
 	}
-	var out map[string]any
-	if err := rec.UnmarshalJSONField("value", &out); err != nil {
+	out := map[string]any{}
+	for _, rec := range recs {
+		var v map[string]any
+		if err := rec.UnmarshalJSONField("value", &v); err == nil {
+			out[rec.GetString("key")[len(syncMetaPrefix):]] = v
+		}
+	}
+	if len(out) == 0 {
 		return nil
 	}
 	return out
 }
 
-// cronExpr is the default sync cadence: every 30 minutes => max 48 requests/day,
-// comfortably under the API-Football free tier (100/day). Override at runtime
-// with the SYNC_CRON env var (see Register).
+// cronExpr is the default sync cadence: every 30 minutes => max 48 requests/day
+// per active tournament, comfortably under the API-Football free tier
+// (100/day). Override at runtime with the SYNC_CRON env var (see Register).
 const cronExpr = "*/30 * * * *"
 
 // nameAliases maps API-Football names that differ from the openfootball seed
@@ -91,48 +101,106 @@ func canonName(s string) string {
 	return n
 }
 
-// pickProvider decides the live-results source: API-Football when its key can
-// actually reach WC2026 (a paid plan — free can't), otherwise the free
-// openfootball JSON. RESULTS_SOURCE=apifootball|openfootball forces it.
-// Returns a label and a sync function (nil = none / manual-only). The sync
-// function reports how many match records changed.
-func pickProvider(app core.App) (string, func(context.Context) (int, error)) {
+// runner is a tournament's resolved live-results source.
+type runner struct {
+	slug   string
+	source string
+	run    func(context.Context) (int, error)
+}
+
+// pickProvider resolves a tournament's live-results source from its sync
+// config. RESULTS_SOURCE=apifootball|openfootball still forces the choice
+// globally. Returns a label and a sync function (nil = manual-only).
+func pickProvider(app core.App, t *core.Record) (string, func(context.Context) (int, error)) {
+	cfg, err := tournaments.SyncOf(t)
+	if err != nil {
+		log.Printf("[sync] %s: bad sync config: %v", t.GetString("slug"), err)
+		return "", nil
+	}
 	key := os.Getenv("API_FOOTBALL_KEY")
 	mode := os.Getenv("RESULTS_SOURCE")
 
 	apiFn := func(ctx context.Context) (int, error) {
-		return SyncOnce(ctx, app, football.New(key))
+		return SyncOnce(ctx, app, football.New(key, cfg.APIFootballLeague, cfg.Season), t)
 	}
 	ofFn := func(ctx context.Context) (int, error) {
-		return openfootballSync(ctx, app)
+		return openfootballSync(ctx, app, t, cfg.OpenfootballURL)
 	}
 
+	provider := cfg.Provider
 	if mode == "openfootball" {
-		return "openfootball", ofFn
+		provider = tournaments.ProviderOpenfootball
+	} else if mode == "apifootball" {
+		provider = tournaments.ProviderAPIFootball
 	}
-	if mode == "apifootball" {
+
+	switch provider {
+	case tournaments.ProviderManual:
+		return "", nil
+	case tournaments.ProviderOpenfootball:
+		if cfg.OpenfootballURL == "" {
+			return "", nil
+		}
+		return "openfootball", ofFn
+	case tournaments.ProviderAPIFootball:
 		if key == "" {
 			return "", nil
 		}
 		return "api-football", apiFn
-	}
-	// auto: prefer API-Football only if the key can actually fetch 2026.
-	if key != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		if fx, err := football.New(key).Fixtures(ctx); err == nil && len(fx) > 0 {
-			return "api-football", apiFn
+	default: // auto: prefer API-Football only if the key can actually fetch the season.
+		if key != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if fx, err := football.New(key, cfg.APIFootballLeague, cfg.Season).Fixtures(ctx); err == nil && len(fx) > 0 {
+				return "api-football", apiFn
+			}
+			log.Printf("[sync] %s: API-Football key can't reach season %d (free plan?) — using openfootball",
+				t.GetString("slug"), cfg.Season)
 		}
-		log.Printf("[sync] API-Football key can't reach WC2026 (free plan?) — using openfootball")
+		if cfg.OpenfootballURL == "" {
+			return "", nil
+		}
+		return "openfootball", ofFn
 	}
-	return "openfootball", ofFn
+}
+
+// activeRunners resolves the sync source for every active tournament.
+func activeRunners(app core.App) []runner {
+	recs, err := tournaments.Active(app)
+	if err != nil {
+		log.Printf("[sync] list active tournaments: %v", err)
+		return nil
+	}
+	out := make([]runner, 0, len(recs))
+	for _, t := range recs {
+		source, run := pickProvider(app, t)
+		if run == nil {
+			continue
+		}
+		out = append(out, runner{slug: t.GetString("slug"), source: source, run: run})
+	}
+	return out
+}
+
+// runAll executes every active tournament's sync and records each outcome.
+// Returns the total number of updated match records and the first error.
+func runAll(ctx context.Context, app core.App, rs []runner) (int, error) {
+	total := 0
+	var firstErr error
+	for _, r := range rs {
+		n, err := r.run(ctx)
+		recordSyncStatus(app, r.slug, r.source, n, err)
+		total += n
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return total, firstErr
 }
 
 // Register wires the live-results cron + manual override endpoints.
 // Called from the OnServe hook.
 func Register(app core.App, se *core.ServeEvent) {
-	source, run := pickProvider(app)
-
 	// SYNC_CRON overrides the default cadence without a rebuild — e.g. tighten
 	// to "*/5 * * * *" for near-instant scores during matches.
 	expr := os.Getenv("SYNC_CRON")
@@ -140,34 +208,34 @@ func Register(app core.App, se *core.ServeEvent) {
 		expr = cronExpr
 	}
 
-	if run != nil {
-		app.Cron().MustAdd("results-sync", expr, func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
-			n, err := run(ctx)
-			recordSyncStatus(app, source, n, err)
-			if err != nil {
-				log.Printf("[sync] %v", err)
-			}
-		})
-		log.Printf("[sync] auto-sync enabled via %s (%s)", source, expr)
-	} else {
-		log.Printf("[sync] no results source — manual override only")
-	}
+	// The provider probe runs per cron tick (not once at boot) so activating
+	// a tournament or fixing a key doesn't need a restart.
+	app.Cron().MustAdd("results-sync", expr, func() {
+		rs := activeRunners(app)
+		if len(rs) == 0 {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		if _, err := runAll(ctx, app, rs); err != nil {
+			log.Printf("[sync] %v", err)
+		}
+	})
+	log.Printf("[sync] auto-sync cron registered (%s) — sources resolve per active tournament", expr)
 
 	// Force a sync now (superuser).
 	se.Router.POST("/api/sync/refresh", func(e *core.RequestEvent) error {
-		if run == nil {
-			return e.JSON(400, map[string]string{"error": "no results source configured"})
+		rs := activeRunners(app)
+		if len(rs) == 0 {
+			return e.JSON(400, map[string]string{"error": "no active tournament with a results source"})
 		}
-		ctx, cancel := context.WithTimeout(e.Request.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(e.Request.Context(), 60*time.Second)
 		defer cancel()
-		n, err := run(ctx)
-		recordSyncStatus(app, source, n, err)
+		n, err := runAll(ctx, app, rs)
 		if err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
-		return e.JSON(200, map[string]any{"status": "ok", "source": source, "updated": n})
+		return e.JSON(200, map[string]any{"status": "ok", "updated": n})
 	}).Bind(apis.RequireSuperuserAuth())
 
 	// Admin-gated sync dashboard: live status + a manual "sync now" button.
@@ -180,20 +248,29 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.Next()
 	})
 
-	// GET /api/admin/sync/status — active source, cadence, last run, and (for
-	// API-Football) the plan + request quota.
+	// GET /api/admin/sync/status — per-tournament source, cadence, last runs,
+	// and (when any source is API-Football) the plan + request quota.
 	sg.GET("/status", func(e *core.RequestEvent) error {
+		rs := activeRunners(app)
+		sources := make([]map[string]any, 0, len(rs))
+		hasAPI := false
+		for _, r := range rs {
+			sources = append(sources, map[string]any{"tournament": r.slug, "source": r.source})
+			if r.source == "api-football" {
+				hasAPI = true
+			}
+		}
 		out := map[string]any{
-			"source":   source,
-			"autoSync": run != nil,
+			"sources":  sources,
+			"autoSync": len(rs) > 0,
 			"cron":     expr,
 			"lastRun":  readSyncStatus(app),
 		}
-		if source == "api-football" {
+		if hasAPI {
 			if key := os.Getenv("API_FOOTBALL_KEY"); key != "" {
 				ctx, cancel := context.WithTimeout(e.Request.Context(), 12*time.Second)
 				defer cancel()
-				if st, err := football.New(key).Status(ctx); err == nil {
+				if st, err := football.New(key, 0, 0).Status(ctx); err == nil {
 					out["account"] = st
 				} else {
 					out["accountError"] = err.Error()
@@ -205,13 +282,13 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/admin/sync/run — force a sync now and return the outcome.
 	sg.POST("/run", func(e *core.RequestEvent) error {
-		if run == nil {
-			return e.JSON(400, map[string]string{"error": "no results source configured"})
+		rs := activeRunners(app)
+		if len(rs) == 0 {
+			return e.JSON(400, map[string]string{"error": "no active tournament with a results source"})
 		}
-		ctx, cancel := context.WithTimeout(e.Request.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(e.Request.Context(), 60*time.Second)
 		defer cancel()
-		n, err := run(ctx)
-		recordSyncStatus(app, source, n, err)
+		n, err := runAll(ctx, app, rs)
 		if err != nil {
 			return e.JSON(500, map[string]any{"error": err.Error(), "lastRun": readSyncStatus(app)})
 		}
@@ -235,7 +312,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err := e.BindBody(&body); err != nil {
 			return e.JSON(400, map[string]string{"error": err.Error()})
 		}
-		applyResult(rec, body.Status, body.FTHome, body.FTAway, body.ETHome, body.ETAway, body.PenHome, body.PenAway)
+		applyResult(rec, isKnockout(app, rec), body.Status, body.FTHome, body.FTAway, body.ETHome, body.ETAway, body.PenHome, body.PenAway)
 		if err := app.Save(rec); err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
@@ -246,15 +323,21 @@ func Register(app core.App, se *core.ServeEvent) {
 	}).Bind(apis.RequireSuperuserAuth())
 }
 
-// SyncOnce pulls all fixtures once and updates matched records, returning how
-// many records changed.
-func SyncOnce(ctx context.Context, app core.App, client *football.Client) (int, error) {
+// SyncOnce pulls one tournament's fixtures once and updates matched records,
+// returning how many records changed.
+func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *core.Record) (int, error) {
 	fixtures, err := client.Fixtures(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("fetch fixtures: %w", err)
 	}
 
-	matches, err := app.FindRecordsByFilter("matches", "id != ''", "kickoff", 0, 0)
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return 0, fmt.Errorf("structure: %w", err)
+	}
+
+	matches, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "kickoff", 0, 0, map[string]any{"t": t.Id})
 	if err != nil {
 		return 0, fmt.Errorf("load matches: %w", err)
 	}
@@ -262,9 +345,10 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client) (int, 
 	// Index our matches by the normalized team-name pair (group stage) so we
 	// can line them up with provider fixtures regardless of fixture ids.
 	teamName := map[string]string{} // teamId -> normalized name
-	teams, _ := app.FindRecordsByFilter("teams", "id != ''", "", 0, 0)
-	for _, t := range teams {
-		teamName[t.Id] = canonName(t.GetString("name"))
+	teams, _ := app.FindRecordsByFilter("teams",
+		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id})
+	for _, tm := range teams {
+		teamName[tm.Id] = canonName(tm.GetString("name"))
 	}
 
 	byPair := map[string]*core.Record{}
@@ -318,7 +402,7 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client) (int, 
 			rec.GetInt("penHome") == ip(f.PenHome) && rec.GetInt("penAway") == ip(f.PenAway) {
 			continue
 		}
-		applyResult(rec, status, ftH, ftA, etH, etA, f.PenHome, f.PenAway)
+		applyResult(rec, st.IsKnockout(rec.GetString("stage")), status, ftH, ftA, etH, etA, f.PenHome, f.PenAway)
 		if app.Save(rec) == nil {
 			updated++
 		}
@@ -327,7 +411,7 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client) (int, 
 	if err := ResolveBracket(app); err != nil {
 		log.Printf("[sync] resolve bracket: %v", err)
 	}
-	log.Printf("[sync] fixtures=%d updated=%d", len(fixtures), updated)
+	log.Printf("[sync] %s: fixtures=%d updated=%d", t.GetString("slug"), len(fixtures), updated)
 	return updated, nil
 }
 
@@ -420,16 +504,33 @@ func ip(v *int) int {
 	return *v
 }
 
+// isKnockout reports whether a match's stage is a knockout stage per its
+// tournament's structure (fallback for unreadable structures: anything not
+// literally "group").
+func isKnockout(app core.App, rec *core.Record) bool {
+	stage := rec.GetString("stage")
+	t, err := app.FindRecordById("tournaments", rec.GetString("tournament"))
+	if err != nil {
+		return stage != "group"
+	}
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return stage != "group"
+	}
+	return st.IsKnockout(stage)
+}
+
 // ApplyResult is the exported entry point (used by the dev simulator) that
 // writes a result onto a match record using the same logic as live sync /
-// manual override.
-func ApplyResult(rec *core.Record, status string, ftH, ftA, etH, etA, penH, penA *int) {
-	applyResult(rec, status, ftH, ftA, etH, etA, penH, penA)
+// manual override. It resolves the knockout-ness of the match from its
+// tournament's structure.
+func ApplyResult(app core.App, rec *core.Record, status string, ftH, ftA, etH, etA, penH, penA *int) {
+	applyResult(rec, isKnockout(app, rec), status, ftH, ftA, etH, etA, penH, penA)
 }
 
 // applyResult writes scores/status onto a match record and, for knockout
-// matches, derives the advancer (ET > penalties > regulation).
-func applyResult(rec *core.Record, status string, ftH, ftA, etH, etA, penH, penA *int) {
+// matches, derives the advancer (penalties > ET > regulation).
+func applyResult(rec *core.Record, knockout bool, status string, ftH, ftA, etH, etA, penH, penA *int) {
 	if status != "" {
 		rec.Set("status", status)
 	}
@@ -449,7 +550,7 @@ func applyResult(rec *core.Record, status string, ftH, ftA, etH, etA, penH, penA
 		rec.Set("finalizedAt", time.Now().UTC())
 	}
 
-	if rec.GetString("stage") == "group" || !finished {
+	if !knockout || !finished {
 		return
 	}
 	// Knockout advancer resolution.

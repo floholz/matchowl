@@ -1,4 +1,4 @@
-// Command wm-pickems is a single-binary WC 2026 prediction app: it runs the
+// Command matchowl is a single-binary football prediction app: it runs the
 // PocketBase backend (auth + SQLite + REST) and serves the embedded SvelteKit
 // SPA from the same process, so the whole thing ships as one Docker image.
 package main
@@ -30,13 +30,14 @@ import (
 	"github.com/floholz/matchowl/internal/survey"
 	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tips"
+	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 	"github.com/floholz/matchowl/internal/web"
 	_ "github.com/floholz/matchowl/migrations"
 )
 
 func main() {
-	// Local dev only (WMP_DEV=1): pull ./.env into the environment so go run /
+	// Local dev only (MATCHOWL_DEV=1): pull ./.env into the environment so go run /
 	// make run match what docker-compose injects. Must happen before anything
 	// reads env (cron config, mail provider selection, etc.).
 	dev.LoadDotenv()
@@ -57,6 +58,8 @@ func main() {
 		}
 		oauth.Register(e.App)
 		users.Register(e.App)
+		tournaments.Register(e.App, e)
+		seed.Register(e.App, e)
 		wmsync.Register(e.App, e)
 		leagues.Register(e.App, e)
 		tips.Register(e.App, e)
@@ -73,7 +76,7 @@ func main() {
 
 		// Serve the web manifest with the correct MIME so it installs as a
 		// proper PWA (apis.Static would send text/plain for .webmanifest). In
-		// dev (WMP_DEV=1) the manifest gets a distinct id/name/theme so the
+		// dev (MATCHOWL_DEV=1) the manifest gets a distinct id/name/theme so the
 		// browser treats the dev build as a separate installable app from prod.
 		e.Router.GET("/manifest.webmanifest", func(re *core.RequestEvent) error {
 			b, err := fs.ReadFile(web.DistFS(), "manifest.webmanifest")
@@ -118,10 +121,10 @@ func devManifest(b []byte) ([]byte, error) {
 		return nil, err
 	}
 	m["id"] = "/?dev"
-	m["name"] = "WM Tips (Dev)"
-	m["short_name"] = "WM Tips Dev"
-	m["theme_color"] = "#ff5a36"
-	m["background_color"] = "#1a0f0a"
+	m["name"] = "Matchowl (Dev)"
+	m["short_name"] = "Matchowl Dev"
+	m["theme_color"] = "#ff7700"
+	m["background_color"] = "#120c07"
 	m["icons"] = []any{
 		map[string]any{"src": "/icons/maskable_icon_dev_x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
 		map[string]any{"src": "/icons/maskable_icon_dev_x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},

@@ -11,34 +11,22 @@ import (
 
 	"github.com/floholz/matchowl/internal/push"
 	"github.com/floholz/matchowl/internal/scoring"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
-
-// stageOrder is the canonical tournament progression; stageName maps the stored
-// codes to human labels used in emails.
-var stageOrder = []string{"group", "R32", "R16", "QF", "SF", "3RD", "FINAL"}
-
-var stageName = map[string]string{
-	"group": "Group Stage",
-	"R32":   "Round of 32",
-	"R16":   "Round of 16",
-	"QF":    "Quarter-finals",
-	"SF":    "Semi-finals",
-	"3RD":   "Third-place Play-off",
-	"FINAL": "Final",
-}
 
 func (r *Runner) notificationsCol() (*core.Collection, error) {
 	return r.app.FindCollectionByNameOrId("notifications")
 }
 
 // detectStageStarting emails everyone when a stage's first kickoff enters the
-// lead window. One email per stage (dedup stage_starting:<stage>).
+// lead window. Stage order and names come from the tournament's structure.
+// One email per stage (dedup stage_starting:<tournament>:<stage>).
 func (r *Runner) detectStageStarting(ctx context.Context, res *Result, now time.Time,
-	lead time.Duration, matches []*core.Record, recipients []*core.Record, base baseInfo) error {
+	lead time.Duration, tinfo *tournamentInfo, recipients []*core.Record, base baseInfo) error {
 
 	// Earliest kickoff per stage.
 	starts := map[string]time.Time{}
-	for _, m := range matches {
+	for _, m := range tinfo.matches {
 		st := m.GetString("stage")
 		ko := m.GetDateTime("kickoff").Time()
 		if cur, ok := starts[st]; !ok || ko.Before(cur) {
@@ -50,13 +38,13 @@ func (r *Runner) detectStageStarting(ctx context.Context, res *Result, now time.
 	if err != nil {
 		return err
 	}
-	for _, st := range stageOrder {
-		start, ok := starts[st]
+	for _, stage := range tinfo.structure.Stages {
+		start, ok := starts[stage.Code]
 		if !ok || !inLeadWindow(now, start, lead) {
 			continue
 		}
 		data := tplData{
-			StageName: stageName[st],
+			StageName: stage.Name,
 			StartsIn:  humanizeDur(start.Sub(now)),
 			WhenText:  formatKickoff(start),
 			CTAText:   "Open your tips",
@@ -65,25 +53,27 @@ func (r *Runner) detectStageStarting(ctx context.Context, res *Result, now time.
 		for _, u := range recipients {
 			// Dedup key is per-user (and channel, via the ledger index) so every
 			// recipient is reminded — not just the first.
-			r.dispatch(ctx, res, ncol, u, "stage_starting", "stage_starting:"+st+":"+u.Id, data)
+			r.dispatch(ctx, res, ncol, u, "stage_starting",
+				"stage_starting:"+tinfo.slug+":"+stage.Code+":"+u.Id, data)
 		}
 	}
 	return nil
 }
 
-// detectForecastReminder nudges users whose Forecast is incomplete as the global
-// lock (tournament first kickoff) approaches.
+// detectForecastReminder nudges users whose Forecast is incomplete as the
+// tournament's lock (first kickoff) approaches.
 func (r *Runner) detectForecastReminder(ctx context.Context, res *Result, now time.Time,
-	lead time.Duration, matches []*core.Record, recipients []*core.Record, base baseInfo) error {
+	lead time.Duration, tinfo *tournamentInfo, recipients []*core.Record, base baseInfo) error {
 
-	if len(matches) == 0 {
+	if len(tinfo.matches) == 0 {
 		return nil
 	}
-	start := matches[0].GetDateTime("kickoff").Time() // sorted by kickoff asc
+	start := tinfo.matches[0].GetDateTime("kickoff").Time() // sorted by kickoff asc
 	if !inLeadWindow(now, start, lead) {
 		return nil
 	}
-	groupCount, err := r.app.CountRecords("tournament_groups")
+	groupCount, err := r.app.CountRecords("tournament_groups",
+		dbx.HashExp{"tournament": tinfo.id})
 	if err != nil {
 		return err
 	}
@@ -98,10 +88,11 @@ func (r *Runner) detectForecastReminder(ctx context.Context, res *Result, now ti
 		CTAUrl:   base.url + "/forecast",
 	}
 	for _, u := range recipients {
-		if !r.forecastIncomplete(u.Id, int(groupCount)) {
+		if !r.forecastIncomplete(u.Id, tinfo, int(groupCount)) {
 			continue
 		}
-		r.dispatch(ctx, res, ncol, u, "forecast_reminder", "forecast_reminder:"+u.Id, data)
+		r.dispatch(ctx, res, ncol, u, "forecast_reminder",
+			"forecast_reminder:"+tinfo.slug+":"+u.Id, data)
 	}
 	return nil
 }
@@ -142,7 +133,7 @@ func (r *Runner) detectKickoffCountdown(ctx context.Context, res *Result, now ti
 	data := tplData{
 		DaysLeft: daysLeft,
 		WhenText: formatKickoff(start),
-		CTAText:  "Open WM Tips",
+		CTAText:  "Open Matchowl",
 		CTAUrl:   base.url + "/",
 	}
 	for _, u := range recipients {
@@ -364,8 +355,12 @@ func (r *Runner) detectLeagueLead(ctx context.Context, res *Result,
 	if err != nil {
 		return err
 	}
+	cur, curErr := tournaments.Current(r.app)
+	if curErr != nil {
+		return nil
+	}
 	for _, lg := range leagues {
-		lb, err := scoring.Leaderboard(r.app, lg.Id)
+		lb, err := scoring.Leaderboard(r.app, lg.Id, cur.Id)
 		if err != nil {
 			continue
 		}

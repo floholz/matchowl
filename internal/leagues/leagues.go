@@ -17,6 +17,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/scoring"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 const codeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no ambiguous chars
@@ -259,7 +260,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, map[string]any{"leagues": out})
 	})
 
-	// GET /api/leagues/{id}/leaderboard
+	// GET /api/leagues/{id}/leaderboard?tournament=<slug> — standings for one
+	// tournament (default: current). Leagues persist across tournaments.
 	g.GET("/{id}/leaderboard", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
 		if _, err := app.FindFirstRecordByFilter("league_members",
@@ -267,10 +269,21 @@ func Register(app core.App, se *core.ServeEvent) {
 			map[string]any{"l": id, "u": e.Auth.Id}); err != nil {
 			return bad(e, http.StatusForbidden, "not a member of this league")
 		}
-		lb, err := scoring.Leaderboard(app, id)
+		var trec *core.Record
+		var terr error
+		if slug := e.Request.URL.Query().Get("tournament"); slug != "" {
+			trec, terr = tournaments.BySlug(app, slug)
+		} else {
+			trec, terr = tournaments.Current(app)
+		}
+		if terr != nil {
+			return bad(e, http.StatusNotFound, "no such tournament")
+		}
+		lb, err := scoring.Leaderboard(app, id, trec.Id)
 		if err != nil {
 			return bad(e, http.StatusNotFound, "league not found")
 		}
+		lb["tournament"] = trec.GetString("slug")
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
 		if lg, err := app.FindRecordById("leagues", id); err == nil {

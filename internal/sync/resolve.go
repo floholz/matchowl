@@ -8,25 +8,40 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/bracket"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // ResolveBracket fills knockout matches' homeTeam/awayTeam from their
-// placeholder labels once the referenced results are known. This is what makes
-// a knockout Tip become available (Phase 3): a Tip opens as soon as both teams
-// of a matchup are resolved.
+// placeholder labels once the referenced results are known, for every
+// tournament with a knockout stage. This is what makes a knockout Tip become
+// available: a Tip opens as soon as both teams of a matchup are resolved.
 //
-// Resolvable labels:
-//   - "1A".."2L"      group winner / runner-up (once that group is complete)
-//   - "3A/B/C/D/F"     a best-third slot (greedy interim allocation, see note)
+// Resolvable labels (digit = group position per the tournament's structure):
+//   - "1A".."2L"       group position (once that group is complete)
+//   - "3A/B/C/D/F"     an extra-qualifier slot (position digit + candidate
+//     groups); allocated via the structure's official table
+//     when registered, else a greedy interim fill
 //   - "W73" / "L101"   winner / loser of a finished knockout match
-//
-// NOTE: the best-third -> R32 slot mapping currently uses a greedy ranked
-// allocation. FIFA uses a fixed combination table keyed by which group letters
-// produced the 8 qualifying thirds; that exact table is implemented in Phase 4
-// (it is also needed for the Forecast slotting) and will replace the greedy
-// fill here.
 func ResolveBracket(app core.App) error {
-	matches, err := app.FindRecordsByFilter("matches", "id != ''", "num", 0, 0)
+	recs, err := tournaments.All(app)
+	if err != nil {
+		return err
+	}
+	for _, t := range recs {
+		st, err := tournaments.StructureOf(t)
+		if err != nil || len(st.KnockoutStages()) == 0 {
+			continue
+		}
+		if err := resolveTournament(app, t.Id, st); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveTournament(app core.App, tournamentID string, st *tournaments.Structure) error {
+	matches, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "num", 0, 0, map[string]any{"t": tournamentID})
 	if err != nil {
 		return err
 	}
@@ -38,65 +53,72 @@ func ResolveBracket(app core.App) error {
 		}
 	}
 
-	first, second, thirds := groupStandings(matches)
+	positions, extras, extraTeam := groupStandings(matches, st)
 
-	// Resolve the 8 R32 third-slots. With all 8 best thirds known, use FIFA's
-	// official Annex C table; otherwise fall back to a deterministic greedy
-	// fill (only hit while the group stage is still incomplete, when the
-	// bracket can't be resolved yet anyway).
-	quals := make([]string, 0, len(thirds))
-	for _, st := range thirds {
-		quals = append(quals, st.group)
+	// Resolve the extra-qualifier slots (WC2026: the 8 best thirds → R32).
+	// With the full qualifier set known, use the structure's official table;
+	// otherwise fall back to a deterministic greedy fill (only hit while the
+	// group stage is still incomplete, when the bracket can't be resolved yet
+	// anyway — or for tournaments without an official table).
+	eq := st.ExtraQualifiers
+	slotPrefix := ""
+	if eq != nil {
+		slotPrefix = strconv.Itoa(eq.FromPosition)
+	}
+	isSlotLabel := func(lbl string) bool {
+		return eq != nil && strings.HasPrefix(lbl, slotPrefix) && strings.Contains(lbl, "/")
+	}
+
+	quals := make([]string, 0, len(extras))
+	for _, s := range extras {
+		quals = append(quals, s.group)
 	}
 	thirdByNum := map[int]string{}
-	if tbl, ok := bracket.Lookup(quals); ok {
-		for _, m := range matches {
-			if m.GetString("stage") != "R32" {
-				continue
-			}
-			home, away := m.GetString("homeLabel"), m.GetString("awayLabel")
-			isSlot := (strings.HasPrefix(home, "3") && strings.Contains(home, "/")) ||
-				(strings.HasPrefix(away, "3") && strings.Contains(away, "/"))
-			if !isSlot {
-				continue
-			}
-			if w, ok := bracket.WinnerLetter(home, away); ok {
-				thirdByNum[m.GetInt("num")] = thirdTeam[tbl[w]]
-			}
-		}
-	} else {
-		thirdQueue := make([]string, len(quals))
-		copy(thirdQueue, quals)
-		r32 := []*core.Record{}
-		for _, m := range matches {
-			if m.GetString("stage") == "R32" {
-				r32 = append(r32, m)
-			}
-		}
-		sort.Slice(r32, func(i, j int) bool {
-			return r32[i].GetInt("num") < r32[j].GetInt("num")
-		})
-		for _, m := range r32 {
-			for _, lbl := range []string{m.GetString("homeLabel"), m.GetString("awayLabel")} {
-				if !strings.HasPrefix(lbl, "3") || !strings.Contains(lbl, "/") {
+	if eq != nil {
+		if tbl, ok := bracket.Lookup(eq.TableKey, quals); ok && len(quals) == eq.Count {
+			for _, m := range matches {
+				home, away := m.GetString("homeLabel"), m.GetString("awayLabel")
+				if !isSlotLabel(home) && !isSlotLabel(away) {
 					continue
 				}
-				allowed := strings.Split(strings.TrimPrefix(lbl, "3"), "/")
-				for i, g := range thirdQueue {
-					if g == "" {
+				if w, ok := bracket.WinnerLetter(home, away); ok {
+					thirdByNum[m.GetInt("num")] = extraTeam[tbl[w]]
+				}
+			}
+		} else {
+			thirdQueue := make([]string, len(quals))
+			copy(thirdQueue, quals)
+			slotted := []*core.Record{}
+			for _, m := range matches {
+				if isSlotLabel(m.GetString("homeLabel")) || isSlotLabel(m.GetString("awayLabel")) {
+					slotted = append(slotted, m)
+				}
+			}
+			sort.Slice(slotted, func(i, j int) bool {
+				return slotted[i].GetInt("num") < slotted[j].GetInt("num")
+			})
+			for _, m := range slotted {
+				for _, lbl := range []string{m.GetString("homeLabel"), m.GetString("awayLabel")} {
+					if !isSlotLabel(lbl) {
 						continue
 					}
-					ok := false
-					for _, a := range allowed {
-						if g == a {
-							ok = true
+					allowed := strings.Split(strings.TrimPrefix(lbl, slotPrefix), "/")
+					for i, g := range thirdQueue {
+						if g == "" {
+							continue
+						}
+						ok := false
+						for _, a := range allowed {
+							if g == a {
+								ok = true
+								break
+							}
+						}
+						if ok {
+							thirdByNum[m.GetInt("num")] = extraTeam[g]
+							thirdQueue[i] = ""
 							break
 						}
-					}
-					if ok {
-						thirdByNum[m.GetInt("num")] = thirdTeam[g]
-						thirdQueue[i] = ""
-						break
 					}
 				}
 			}
@@ -107,14 +129,13 @@ func ResolveBracket(app core.App) error {
 		if label == "" {
 			return ""
 		}
-		switch label[0] {
-		case '1':
-			return first[label[1:]]
-		case '2':
-			return second[label[1:]]
-		case '3':
-			return thirdByNum[num]
-		case 'W', 'L':
+		switch c := label[0]; {
+		case c >= '1' && c <= '9':
+			if isSlotLabel(label) {
+				return thirdByNum[num]
+			}
+			return positions[int(c-'0')][label[1:]]
+		case c == 'W' || c == 'L':
 			n, err := strconv.Atoi(label[1:])
 			if err != nil {
 				return ""
@@ -124,7 +145,7 @@ func ResolveBracket(app core.App) error {
 				return ""
 			}
 			adv := src.GetString("advancer")
-			if label[0] == 'W' {
+			if c == 'W' {
 				return adv
 			}
 			// loser = the side that is not the advancer
@@ -141,7 +162,7 @@ func ResolveBracket(app core.App) error {
 	}
 
 	for _, m := range matches {
-		if m.GetString("stage") == "group" {
+		if !st.IsKnockout(m.GetString("stage")) {
 			continue
 		}
 		changed := false
@@ -167,10 +188,6 @@ func ResolveBracket(app core.App) error {
 	return nil
 }
 
-// thirdTeam maps a group letter to that group's third-placed team id; filled
-// by groupStandings and read by the greedy best-third allocation above.
-var thirdTeam = map[string]string{}
-
 type standing struct {
 	group string
 	team  string
@@ -179,18 +196,25 @@ type standing struct {
 	gf    int
 }
 
-// groupStandings computes, from finished group matches only, the 1st/2nd team
-// id per group letter (only when that group's 6 matches are all finished) plus
-// the globally ranked list of third-placed teams.
-func groupStandings(matches []*core.Record) (first, second map[string]string, thirds []standing) {
-	first = map[string]string{}
-	second = map[string]string{}
+// groupStandings computes, from finished group matches only:
+//   - positions[pos][letter] = team id at that 1-based position, only once the
+//     group is complete (all teams played structure.gamesPerTeam games)
+//   - the globally ranked extra-qualifier candidates (the fromPosition-placed
+//     team of each complete group, capped at extraQualifiers.count)
+//   - extraTeam[letter] = that group's fromPosition-placed team id
+func groupStandings(matches []*core.Record, st *tournaments.Structure) (positions map[int]map[string]string, extras []standing, extraTeam map[string]string) {
+	positions = map[int]map[string]string{}
+	extraTeam = map[string]string{}
+	if !st.HasGroups() {
+		return positions, nil, extraTeam
+	}
+	groupCode := st.GroupStage().Code
 
 	type agg struct{ pts, gd, gf, played int }
 	groups := map[string]map[string]*agg{} // letter -> teamId -> agg
 
 	for _, m := range matches {
-		if m.GetString("stage") != "group" || m.GetString("finalizedAt") == "" {
+		if m.GetString("stage") != groupCode || m.GetString("finalizedAt") == "" {
 			continue
 		}
 		g := m.GetString("groupLetter")
@@ -213,12 +237,12 @@ func groupStandings(matches []*core.Record) (first, second map[string]string, th
 		aa.gd += ag - hg
 		switch {
 		case hg > ag:
-			ha.pts += 3
+			ha.pts += st.PointsWin
 		case ag > hg:
-			aa.pts += 3
+			aa.pts += st.PointsWin
 		default:
-			ha.pts++
-			aa.pts++
+			ha.pts += st.PointsDraw
+			aa.pts += st.PointsDraw
 		}
 	}
 
@@ -227,11 +251,11 @@ func groupStandings(matches []*core.Record) (first, second map[string]string, th
 		complete := true
 		for id, v := range tbl {
 			order = append(order, standing{group: g, team: id, pts: v.pts, gd: v.gd, gf: v.gf})
-			if v.played < 3 { // each team plays 3 group games
+			if v.played < st.GamesPerTeam {
 				complete = false
 			}
 		}
-		if len(tbl) < 4 {
+		if len(tbl) < st.GroupSize {
 			complete = false
 		}
 		sort.Slice(order, func(i, j int) bool {
@@ -243,25 +267,32 @@ func groupStandings(matches []*core.Record) (first, second map[string]string, th
 			}
 			return order[i].gf > order[j].gf
 		})
-		if complete && len(order) >= 3 {
-			first[g] = order[0].team
-			second[g] = order[1].team
-			thirds = append(thirds, order[2])
-			thirdTeam[g] = order[2].team
+		if !complete {
+			continue
+		}
+		for pos, s := range order {
+			if positions[pos+1] == nil {
+				positions[pos+1] = map[string]string{}
+			}
+			positions[pos+1][g] = s.team
+		}
+		if eq := st.ExtraQualifiers; eq != nil && len(order) >= eq.FromPosition {
+			extras = append(extras, order[eq.FromPosition-1])
+			extraTeam[g] = order[eq.FromPosition-1].team
 		}
 	}
 
-	sort.Slice(thirds, func(i, j int) bool {
-		if thirds[i].pts != thirds[j].pts {
-			return thirds[i].pts > thirds[j].pts
+	sort.Slice(extras, func(i, j int) bool {
+		if extras[i].pts != extras[j].pts {
+			return extras[i].pts > extras[j].pts
 		}
-		if thirds[i].gd != thirds[j].gd {
-			return thirds[i].gd > thirds[j].gd
+		if extras[i].gd != extras[j].gd {
+			return extras[i].gd > extras[j].gd
 		}
-		return thirds[i].gf > thirds[j].gf
+		return extras[i].gf > extras[j].gf
 	})
-	if len(thirds) > 8 {
-		thirds = thirds[:8]
+	if eq := st.ExtraQualifiers; eq != nil && len(extras) > eq.Count {
+		extras = extras[:eq.Count]
 	}
-	return first, second, thirds
+	return positions, extras, extraTeam
 }

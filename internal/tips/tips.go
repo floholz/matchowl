@@ -17,6 +17,7 @@ import (
 
 	"github.com/floholz/matchowl/internal/clock"
 	"github.com/floholz/matchowl/internal/scoring"
+	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 )
 
@@ -57,7 +58,7 @@ func validateAndDerive(app core.App, tip *core.Record) error {
 		return apis.NewBadRequestError("scores out of range", nil)
 	}
 
-	if match.GetString("stage") == "group" {
+	if !tournaments.NewStructureCache(app).IsKnockoutMatch(match) {
 		tip.Set("etHome", 0)
 		tip.Set("etAway", 0)
 		tip.Set("penWinner", "")
@@ -175,6 +176,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		// On a finished match we can attach each tip's points (and sort by them).
 		cfg, cfgErr := scoring.DefaultConfig(app)
 		scored := finished(match) && cfgErr == nil
+		knockout := tournaments.NewStructureCache(app).IsKnockoutMatch(match)
 
 		rowFor := func(t *core.Record, u *core.Record) map[string]any {
 			row := map[string]any{
@@ -189,7 +191,7 @@ func Register(app core.App, se *core.ServeEvent) {
 				"rationale": t.GetString("rationale"),
 			}
 			if scored {
-				row["points"] = scoring.ScoreTip(cfg, match, t)
+				row["points"] = scoring.ScoreTip(cfg, knockout, match, t)
 			}
 			return row
 		}
@@ -239,7 +241,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			names := make([]string, 0, 10)
 			total := 0
 			for _, t := range allTips {
-				if scoring.ScoreTip(cfg, match, t) != max {
+				if scoring.ScoreTip(cfg, knockout, match, t) != max {
 					continue
 				}
 				total++

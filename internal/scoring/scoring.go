@@ -1,10 +1,12 @@
 // Package scoring computes match (Tip) and tournament (Forecast) points from
 // a per-League scoring config, recomputes on every result change, and builds
-// League leaderboards with the agreed tiebreakers.
+// League leaderboards with the agreed tiebreakers. All tournament shape
+// (group size, qualifier rules, stage list) comes from the tournament's
+// structure — nothing here is specific to one event.
 //
-// Scale is tiny (friends app: a handful of users, 104 matches), so every
-// result change triggers a full, idempotent recompute — simplest and always
-// correct.
+// Scale is tiny (friends app: a handful of users, ~100 matches per
+// tournament), so every result change triggers a full, idempotent recompute —
+// simplest and always correct.
 package scoring
 
 import (
@@ -13,9 +15,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/bracket"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // ---- Config ----
@@ -112,15 +116,16 @@ func DefaultConfig(app core.App) (Config, error) {
 
 // ScoreTip returns the points a Tip earns for a finished match under cfg. It
 // uses the same reference-score rule as the leaderboard, so knockout games
-// scored in extra time are compared against the after-ET score.
-func ScoreTip(cfg Config, match, tip *core.Record) int {
-	return scoreTip(cfg, match, tip).points()
+// scored in extra time are compared against the after-ET score. knockout
+// comes from the tournament structure (see tournaments.StructureCache).
+func ScoreTip(cfg Config, knockout bool, match, tip *core.Record) int {
+	return scoreTip(cfg, knockout, match, tip).points()
 }
 
 // MatchResult / TipPrediction are the plain inputs to the pure scorer, so the
 // rules are unit-testable without a database.
 type MatchResult struct {
-	Stage    string
+	Knockout bool
 	FtH, FtA int
 	EtH, EtA int
 	Advancer string
@@ -144,7 +149,7 @@ func scoreValues(cfg Config, m MatchResult, p TipPrediction) tipComponents {
 	// Reference scores for the accuracy components.
 	aH, aA := m.FtH, m.FtA
 	pH, pA := p.FtH, p.FtA
-	if m.Stage != "group" {
+	if m.Knockout {
 		wentET := m.EtH != 0 || m.EtA != 0
 		if wentET {
 			aH, aA = m.EtH, m.EtA
@@ -154,7 +159,7 @@ func scoreValues(cfg Config, m MatchResult, p TipPrediction) tipComponents {
 		}
 	}
 
-	if m.Stage == "group" {
+	if !m.Knockout {
 		if sign(p.FtH-p.FtA) == sign(m.FtH-m.FtA) {
 			r.Tendency = cfg.Match.Tendency
 		}
@@ -179,10 +184,10 @@ func scoreValues(cfg Config, m MatchResult, p TipPrediction) tipComponents {
 	return r
 }
 
-func scoreTip(cfg Config, match, tip *core.Record) tipComponents {
+func scoreTip(cfg Config, knockout bool, match, tip *core.Record) tipComponents {
 	return scoreValues(cfg,
 		MatchResult{
-			Stage:    match.GetString("stage"),
+			Knockout: knockout,
 			FtH:      match.GetInt("ftHome"),
 			FtA:      match.GetInt("ftAway"),
 			EtH:      match.GetInt("etHome"),
@@ -206,12 +211,17 @@ type teamAgg struct {
 	pts, gd, gf, games int
 }
 
-// finalGroups returns, for each fully-finished group, the ordered team ids
-// (1st..4th) and collects the 12 third-placed teams for the best-third rank.
-func finalGroups(app core.App) (order map[string][]string, thirds []teamAgg) {
+// finalGroups returns, for each fully-finished group of the tournament, the
+// ordered team ids (1st..groupSize) and collects each group's
+// extra-qualifier-position team for the qualifier rank.
+func finalGroups(app core.App, tournamentID string, st *tournaments.Structure) (order map[string][]string, thirds []teamAgg) {
 	order = map[string][]string{}
+	if !st.HasGroups() {
+		return order, nil
+	}
 	ms, _ := app.FindRecordsByFilter("matches",
-		"stage = 'group' && finalizedAt != ''", "", 0, 0)
+		"tournament = {:t} && stage = {:g} && finalizedAt != ''", "", 0, 0,
+		map[string]any{"t": tournamentID, "g": st.GroupStage().Code})
 	groups := map[string]map[string]*teamAgg{}
 	for _, m := range ms {
 		g := m.GetString("groupLetter")
@@ -234,23 +244,23 @@ func finalGroups(app core.App) (order map[string][]string, thirds []teamAgg) {
 		A.gd += ag - hg
 		switch {
 		case hg > ag:
-			H.pts += 3
+			H.pts += st.PointsWin
 		case ag > hg:
-			A.pts += 3
+			A.pts += st.PointsWin
 		default:
-			H.pts++
-			A.pts++
+			H.pts += st.PointsDraw
+			A.pts += st.PointsDraw
 		}
 	}
 	for g, tbl := range groups {
-		if len(tbl) < 4 {
+		if len(tbl) < st.GroupSize {
 			continue
 		}
-		arr := make([]teamAgg, 0, 4)
+		arr := make([]teamAgg, 0, len(tbl))
 		complete := true
 		for _, v := range tbl {
 			arr = append(arr, *v)
-			if v.games < 3 {
+			if v.games < st.GamesPerTeam {
 				complete = false
 			}
 		}
@@ -263,7 +273,9 @@ func finalGroups(app core.App) (order map[string][]string, thirds []teamAgg) {
 			ids[i] = v.id
 		}
 		order[g] = ids
-		thirds = append(thirds, arr[2])
+		if eq := st.ExtraQualifiers; eq != nil && len(arr) >= eq.FromPosition {
+			thirds = append(thirds, arr[eq.FromPosition-1])
+		}
 	}
 	return order, thirds
 }
@@ -280,11 +292,11 @@ func sortAggs(a []teamAgg) {
 	})
 }
 
-func bestThirdSet(thirds []teamAgg) map[string]bool {
+func bestThirdSet(thirds []teamAgg, count int) map[string]bool {
 	sortAggs(thirds)
 	set := map[string]bool{}
 	for i, t := range thirds {
-		if i >= 8 {
+		if i >= count {
 			break
 		}
 		set[t.id] = true
@@ -295,22 +307,31 @@ func bestThirdSet(thirds []teamAgg) map[string]bool {
 // ---- Forecast scoring ----
 
 // actualRoundTeams maps stage -> set(teamId) of teams that actually reached
-// that round, plus the actual champion.
-func actualRoundTeams(app core.App) (map[string]map[string]bool, string) {
+// that round, plus the actual champion (winner of the structure's champion
+// stage).
+func actualRoundTeams(app core.App, tournamentID string, st *tournaments.Structure) (map[string]map[string]bool, string) {
 	res := map[string]map[string]bool{}
 	champion := ""
-	ms, _ := app.FindRecordsByFilter("matches", "stage != 'group'", "num", 0, 0)
+	champCode := ""
+	if c := st.ChampionStage(); c != nil {
+		champCode = c.Code
+	}
+	ms, _ := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "num", 0, 0, map[string]any{"t": tournamentID})
 	for _, m := range ms {
-		st := m.GetString("stage")
-		if res[st] == nil {
-			res[st] = map[string]bool{}
+		stage := m.GetString("stage")
+		if !st.IsKnockout(stage) {
+			continue
+		}
+		if res[stage] == nil {
+			res[stage] = map[string]bool{}
 		}
 		for _, f := range []string{"homeTeam", "awayTeam"} {
 			if id := m.GetString(f); id != "" {
-				res[st][id] = true
+				res[stage][id] = true
 			}
 		}
-		if st == "FINAL" && m.GetString("finalizedAt") != "" {
+		if stage == champCode && m.GetString("finalizedAt") != "" {
 			champion = m.GetString("advancer")
 		}
 	}
@@ -319,18 +340,25 @@ func actualRoundTeams(app core.App) (map[string]map[string]bool, string) {
 
 type fcResolver struct {
 	order      map[string][]string
-	thirdByNum map[int]string // R32 match num -> chosen third teamId
+	thirdByNum map[int]string // slot match num -> chosen extra-qualifier teamId
 	bracket    map[string]string
 	ko         map[int]*core.Record
+	slotPrefix string // extra-qualifier position digit ("" = no extra qualifiers)
 }
 
-// assignThirds maps the user's chosen best thirds ({groupLetter: teamId})
-// onto the 8 R32 third-slots. It uses FIFA's official Annex C allocation
-// table for the given combination of 8 qualifying groups; if the combination
-// isn't exactly 8 / not in the table it falls back to a deterministic
-// backtracking matching. Identical logic on the frontend so the predicted
-// Forecast bracket and its scoring always agree.
-func assignThirds(koList []*core.Record, thirds map[string]string) map[int]string {
+// assignThirds maps the user's chosen extra qualifiers ({groupLetter:
+// teamId}) onto the bracket's qualifier slots. It uses the structure's
+// official allocation table (e.g. FIFA Annex C) for the given qualifying-
+// group combination; without a registered table (or an off-table
+// combination) it falls back to a deterministic backtracking matching.
+// Identical logic on the frontend so the predicted Forecast bracket and its
+// scoring always agree.
+func assignThirds(koList []*core.Record, thirds map[string]string, st *tournaments.Structure) map[int]string {
+	eq := st.ExtraQualifiers
+	if eq == nil {
+		return map[int]string{}
+	}
+	slotPrefix := strconv.Itoa(eq.FromPosition)
 	type slot struct {
 		num     int
 		winner  string
@@ -338,17 +366,14 @@ func assignThirds(koList []*core.Record, thirds map[string]string) map[int]strin
 	}
 	var slots []slot
 	for _, mt := range koList {
-		if mt.GetString("stage") != "R32" {
-			continue
-		}
 		home, away := mt.GetString("homeLabel"), mt.GetString("awayLabel")
 		for _, lbl := range []string{home, away} {
-			if strings.HasPrefix(lbl, "3") && strings.Contains(lbl, "/") {
+			if strings.HasPrefix(lbl, slotPrefix) && strings.Contains(lbl, "/") {
 				w, _ := bracket.WinnerLetter(home, away)
 				slots = append(slots, slot{
 					num:     mt.GetInt("num"),
 					winner:  w,
-					allowed: strings.Split(strings.TrimPrefix(lbl, "3"), "/"),
+					allowed: strings.Split(strings.TrimPrefix(lbl, slotPrefix), "/"),
 				})
 			}
 		}
@@ -361,8 +386,8 @@ func assignThirds(koList []*core.Record, thirds map[string]string) map[int]strin
 	}
 	sort.Strings(chosen)
 
-	// Official FIFA table for this exact set of 8 qualifying groups.
-	if m, ok := bracket.Lookup(chosen); ok {
+	// Official table for this exact set of qualifying groups.
+	if m, ok := bracket.Lookup(eq.TableKey, chosen); ok {
 		out := map[int]string{}
 		for _, s := range slots {
 			if g, ok := m[s.winner]; ok {
@@ -423,27 +448,26 @@ func (r *fcResolver) resolve(label string, forNum int, seen map[int]bool) string
 	if label == "" {
 		return ""
 	}
-	switch label[0] {
-	case '1', '2':
-		idx := 0
-		if label[0] == '2' {
-			idx = 1
+	switch c := label[0]; {
+	case c >= '1' && c <= '9':
+		// Extra-qualifier slot ("3A/B/C/D/F") vs plain group position ("1A").
+		if r.slotPrefix != "" && strings.HasPrefix(label, r.slotPrefix) && strings.Contains(label, "/") {
+			return r.thirdByNum[forNum]
 		}
+		idx := int(c - '1')
 		o := r.order[label[1:]]
 		if len(o) > idx {
 			return o[idx]
 		}
 		return ""
-	case '3':
-		return r.thirdByNum[forNum]
-	case 'W', 'L':
+	case c == 'W' || c == 'L':
 		n, _ := strconv.Atoi(label[1:])
 		if seen[n] {
 			return ""
 		}
 		seen[n] = true
 		w := r.bracket[strconv.Itoa(n)]
-		if label[0] == 'W' {
+		if c == 'W' {
 			return w
 		}
 		src := r.ko[n]
@@ -490,6 +514,16 @@ func (b fcBreakdown) total() int {
 func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int) {
 	b := fcBreakdown{RoundCorrect: map[string]int{}}
 
+	trec, err := app.FindRecordById("tournaments", fc.GetString("tournament"))
+	if err != nil {
+		return b, 0
+	}
+	st, err := tournaments.StructureOf(trec)
+	if err != nil {
+		return b, 0
+	}
+	eq := st.ExtraQualifiers
+
 	var order map[string][]string
 	_ = fc.UnmarshalJSONField("groupOrder", &order)
 	var thirds map[string]string
@@ -497,11 +531,11 @@ func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int)
 	var bracket map[string]string
 	_ = fc.UnmarshalJSONField("bracket", &bracket)
 
-	actualOrder, thirdAggs := finalGroups(app)
+	actualOrder, thirdAggs := finalGroups(app, trec.Id, st)
 	for g, actual := range actualOrder {
 		pred := order[g]
-		allCorrect := len(pred) == 4
-		for i := 0; i < 4 && i < len(actual); i++ {
+		allCorrect := len(pred) == st.GroupSize
+		for i := 0; i < st.GroupSize && i < len(actual); i++ {
 			if i < len(pred) && pred[i] == actual[i] {
 				b.Groups += cfg.Forecast.GroupPosition
 				b.GroupsCorrect++
@@ -514,74 +548,92 @@ func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int)
 		}
 	}
 
-	// Advancement: +Advance for each predicted advancer (a group's top 2, or
-	// one of the user's best-third picks) that actually advances.
+	// Advancement: +Advance for each predicted advancer (a group's direct
+	// qualifiers, or one of the user's extra-qualifier picks) that actually
+	// advances.
 	best := map[string]bool{}
-	if len(thirdAggs) >= 12 { // all groups done -> best-8 fixed
-		best = bestThirdSet(thirdAggs)
+	if eq != nil {
+		groupCount, _ := app.CountRecords("tournament_groups",
+			dbx.HashExp{"tournament": trec.Id})
+		if groupCount > 0 && len(thirdAggs) >= int(groupCount) { // all groups done -> qualifier set fixed
+			best = bestThirdSet(thirdAggs, eq.Count)
+		}
 	}
 	actualAdv := map[string]bool{}
 	for _, actual := range actualOrder {
-		if len(actual) >= 2 {
-			actualAdv[actual[0]] = true
-			actualAdv[actual[1]] = true
+		for i := 0; i < st.DirectQualifiers && i < len(actual); i++ {
+			actualAdv[actual[i]] = true
 		}
 	}
 	for id := range best {
 		actualAdv[id] = true
 	}
 	for g, pred := range order {
-		if len(pred) >= 2 {
-			for _, pid := range []string{pred[0], pred[1]} {
-				if actualAdv[pid] {
-					b.Advance += cfg.Forecast.Advance
-					b.AdvanceCorrect++
-				}
+		for i := 0; i < st.DirectQualifiers && i < len(pred); i++ {
+			if actualAdv[pred[i]] {
+				b.Advance += cfg.Forecast.Advance
+				b.AdvanceCorrect++
 			}
 		}
-		// 3rd-place pick only counts if the user chose this group as a best
-		// third.
-		if len(pred) >= 3 && thirds[g] != "" && actualAdv[pred[2]] {
+		// The extra-qualifier pick only counts if the user chose this group
+		// as one of their qualifying groups.
+		if eq != nil && len(pred) >= eq.FromPosition && thirds[g] != "" && actualAdv[pred[eq.FromPosition-1]] {
 			b.Advance += cfg.Forecast.Advance
 			b.AdvanceCorrect++
 		}
 	}
 
-	actualRounds, actualChamp := actualRoundTeams(app)
-	koList, _ := app.FindRecordsByFilter("matches", "stage != 'group'", "num", 0, 0)
+	actualRounds, actualChamp := actualRoundTeams(app, trec.Id, st)
+	all, _ := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "num", 0, 0, map[string]any{"t": trec.Id})
+	koList := make([]*core.Record, 0, len(all))
+	for _, m := range all {
+		if st.IsKnockout(m.GetString("stage")) {
+			koList = append(koList, m)
+		}
+	}
 	koByNum := map[int]*core.Record{}
 	for _, m := range koList {
 		if n := m.GetInt("num"); n > 0 {
 			koByNum[n] = m
 		}
 	}
+	slotPrefix := ""
+	if eq != nil {
+		slotPrefix = strconv.Itoa(eq.FromPosition)
+	}
 	r := &fcResolver{
 		order:      order,
-		thirdByNum: assignThirds(koList, thirds),
+		thirdByNum: assignThirds(koList, thirds, st),
 		bracket:    bracket,
 		ko:         koByNum,
+		slotPrefix: slotPrefix,
 	}
 
 	for _, m := range koList {
-		st := m.GetString("stage")
-		w := cfg.Forecast.Round[st]
+		stage := m.GetString("stage")
+		w := cfg.Forecast.Round[stage]
 		if w == 0 {
 			continue
 		}
 		predHome := r.resolve(m.GetString("homeLabel"), m.GetInt("num"), map[int]bool{})
 		predAway := r.resolve(m.GetString("awayLabel"), m.GetInt("num"), map[int]bool{})
 		for _, pid := range []string{predHome, predAway} {
-			if pid != "" && actualRounds[st] != nil && actualRounds[st][pid] {
+			if pid != "" && actualRounds[stage] != nil && actualRounds[stage][pid] {
 				b.Knockout += w
-				b.RoundCorrect[st]++
+				b.RoundCorrect[stage]++
 			}
 		}
 	}
 
 	if actualChamp != "" {
+		champCode := ""
+		if c := st.ChampionStage(); c != nil {
+			champCode = c.Code
+		}
 		var champKey string
 		for _, m := range koList {
-			if m.GetString("stage") == "FINAL" {
+			if champCode != "" && m.GetString("stage") == champCode {
 				champKey = koStableKey(m)
 			}
 		}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -27,16 +26,18 @@ type Row struct {
 	lastEdit string         // earliest-wins; not serialized
 }
 
-// Leaderboard builds a League's standings using its scoring config and the
-// agreed tiebreakers: points → #exact → #correct winners → smaller aggregate
-// goal-difference deviation → fewer tips submitted → earliest last edit.
-// Users who never submitted a tip are sorted to the bottom regardless.
+// Leaderboard builds a League's standings for one tournament using the
+// league's scoring config and the agreed tiebreakers: points → #exact →
+// #correct winners → smaller aggregate goal-difference deviation → fewer
+// tips submitted → earliest last edit. Users who never submitted a tip are
+// sorted to the bottom regardless. Leagues are persistent across
+// tournaments, so every standing is per-(league, tournament).
 //
 // Note: the sort order below is hardcoded — the scoring_configs.tiebreakers
 // list is consumed only by the frontend legend for display. Keep the two in
 // sync when changing tiebreakers (update this function, the seeded default
 // in internal/seed, and add a migration for existing DBs).
-func Leaderboard(app core.App, leagueID string) (map[string]any, error) {
+func Leaderboard(app core.App, leagueID, tournamentID string) (map[string]any, error) {
 	league, err := app.FindRecordById("leagues", leagueID)
 	if err != nil {
 		return nil, err
@@ -64,8 +65,8 @@ func Leaderboard(app core.App, leagueID string) (map[string]any, error) {
 		row := Row{UserID: uid, Name: u.GetString("name"), Avatar: u.GetString("avatar"), Role: u.GetString("role")}
 
 		ms, _ := app.FindRecordsByFilter("match_scores",
-			"user = {:u} && config = {:c}", "", 0, 0,
-			map[string]any{"u": uid, "c": cfgID})
+			"user = {:u} && config = {:c} && match.tournament = {:t}", "", 0, 0,
+			map[string]any{"u": uid, "c": cfgID, "t": tournamentID})
 		for _, s := range ms {
 			row.TipsPoints += s.GetInt("points")
 			var comp tipComponents
@@ -80,8 +81,8 @@ func Leaderboard(app core.App, leagueID string) (map[string]any, error) {
 		}
 
 		if fs, err := app.FindFirstRecordByFilter("forecast_scores",
-			"user = {:u} && config = {:c}",
-			map[string]any{"u": uid, "c": cfgID}); err == nil {
+			"user = {:u} && config = {:c} && tournament = {:t}",
+			map[string]any{"u": uid, "c": cfgID, "t": tournamentID}); err == nil {
 			row.ForecastPoints = fs.GetInt("points")
 			var bd struct {
 				GroupsCorrect   int            `json:"groupsCorrect"`
@@ -104,15 +105,16 @@ func Leaderboard(app core.App, leagueID string) (map[string]any, error) {
 
 		row.Total = row.TipsPoints + row.ForecastPoints
 
-		if n, err := app.CountRecords("tips", dbx.HashExp{"user": uid}); err == nil {
-			row.Predicted = int(n)
-		}
-
-		// Earliest last-edit across this user's tips (earlier = better).
 		if tps, _ := app.FindRecordsByFilter("tips",
-			"user = {:u}", "-updated", 1, 0,
-			map[string]any{"u": uid}); len(tps) > 0 {
-			row.lastEdit = tps[0].GetString("updated")
+			"user = {:u} && match.tournament = {:t}", "", 0, 0,
+			map[string]any{"u": uid, "t": tournamentID}); len(tps) > 0 {
+			row.Predicted = len(tps)
+			// Earliest last-edit across this user's tips (earlier = better).
+			for _, t := range tps {
+				if u := t.GetString("updated"); row.lastEdit == "" || u > row.lastEdit {
+					row.lastEdit = u
+				}
+			}
 		}
 		rows = append(rows, row)
 	}
@@ -142,7 +144,8 @@ func Leaderboard(app core.App, leagueID string) (map[string]any, error) {
 	})
 
 	return map[string]any{
-		"league": map[string]any{"id": league.Id, "name": league.GetString("name")},
-		"rows":   rows,
+		"league":     map[string]any{"id": league.Id, "name": league.GetString("name")},
+		"tournament": tournamentID,
+		"rows":       rows,
 	}, nil
 }

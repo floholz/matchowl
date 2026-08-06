@@ -1,6 +1,7 @@
 // Package football is a thin client for the API-Football (api-sports.io) free
-// tier. One /fixtures call returns all 104 WC2026 matches, so a periodic sync
-// costs a single request and stays well within the 100/day free limit.
+// tier. One /fixtures call returns a whole season's fixtures for a league, so
+// a periodic sync costs a single request and stays well within the 100/day
+// free limit. League and season come from the tournament's sync config.
 package football
 
 import (
@@ -12,19 +13,24 @@ import (
 	"time"
 )
 
-const (
-	baseURL  = "https://v3.football.api-sports.io"
-	leagueID = 1    // FIFA World Cup
-	season   = 2026 // WC 2026
-)
+const baseURL = "https://v3.football.api-sports.io"
+
+// DefaultLeague is API-Football's FIFA World Cup league id, used when a
+// tournament's sync config omits one.
+const DefaultLeague = 1
 
 type Client struct {
-	key  string
-	http *http.Client
+	key    string
+	league int
+	season int
+	http   *http.Client
 }
 
-func New(key string) *Client {
-	return &Client{key: key, http: &http.Client{Timeout: 20 * time.Second}}
+func New(key string, league, season int) *Client {
+	if league == 0 {
+		league = DefaultLeague
+	}
+	return &Client{key: key, league: league, season: season, http: &http.Client{Timeout: 20 * time.Second}}
 }
 
 // Fixture is the subset of the API-Football fixture payload we use.
@@ -102,15 +108,16 @@ type scorePair struct {
 	Away *int `json:"away"`
 }
 
-// Fixtures returns every WC2026 fixture in a single request.
+// Fixtures returns every fixture of the configured league+season in a single
+// request.
 func (c *Client) Fixtures(ctx context.Context) ([]Fixture, error) {
-	return c.FixturesForSeason(ctx, season)
+	return c.FixturesForSeason(ctx, c.season)
 }
 
-// FixturesForSeason fetches the World Cup fixtures for any season (used by the
-// dev API diagnostic to replay a finished tournament, e.g. 2022).
+// FixturesForSeason fetches the configured league's fixtures for any season
+// (used by the dev API diagnostic to replay a finished tournament, e.g. 2022).
 func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, error) {
-	url := fmt.Sprintf("%s/fixtures?league=%d&season=%d", baseURL, leagueID, yr)
+	url := fmt.Sprintf("%s/fixtures?league=%d&season=%d", baseURL, c.league, yr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

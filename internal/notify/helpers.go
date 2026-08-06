@@ -11,6 +11,7 @@ import (
 
 	"github.com/floholz/matchowl/internal/mailer"
 	"github.com/floholz/matchowl/internal/scoring"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // pushIcon maps an event (and its data) to its contextual notification icon
@@ -141,12 +142,46 @@ func (r *Runner) teamLabel(m *core.Record, relField, labelField string, names ma
 	return "TBD"
 }
 
-// forecastIncomplete reports whether a user's Forecast is missing or unfinished:
-// no record, fewer filled groups than there are tournament groups, any group
-// without 4 picks, or an empty bracket.
-func (r *Runner) forecastIncomplete(userID string, groupCount int) bool {
+// tournamentInfo bundles the current tournament's identity, structure and
+// (kickoff-sorted) matches for one notify pass.
+type tournamentInfo struct {
+	id        string
+	slug      string
+	structure *tournaments.Structure
+	matches   []*core.Record
+}
+
+// currentTournament loads the current tournament with its structure and
+// matches; errors when there is no usable tournament.
+func (r *Runner) currentTournament() (*tournamentInfo, error) {
+	t, err := tournaments.Current(r.app)
+	if err != nil {
+		return nil, err
+	}
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return nil, err
+	}
+	matches, err := r.app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "kickoff", 0, 0, map[string]any{"t": t.Id})
+	if err != nil {
+		return nil, err
+	}
+	return &tournamentInfo{
+		id:        t.Id,
+		slug:      t.GetString("slug"),
+		structure: st,
+		matches:   matches,
+	}, nil
+}
+
+// forecastIncomplete reports whether a user's Forecast for the tournament is
+// missing or unfinished: no record, fewer filled groups than there are
+// tournament groups, any group without a full ordering, or an empty bracket.
+func (r *Runner) forecastIncomplete(userID string, tinfo *tournamentInfo, groupCount int) bool {
 	rec, err := r.app.FindFirstRecordByFilter("forecasts",
-		"user = {:u}", map[string]any{"u": userID})
+		"user = {:u} && tournament = {:t}",
+		map[string]any{"u": userID, "t": tinfo.id})
 	if err != nil {
 		return true
 	}
@@ -163,7 +198,7 @@ func (r *Runner) forecastIncomplete(userID string, groupCount int) bool {
 				got++
 			}
 		}
-		if got >= 4 {
+		if got >= tinfo.structure.GroupSize {
 			filled++
 		}
 	}
@@ -216,13 +251,17 @@ func (r *Runner) userRanks(userID string, cache map[string][]scoring.Row) []rank
 	if err != nil {
 		return nil
 	}
+	cur, curErr := tournaments.Current(r.app)
+	if curErr != nil {
+		return nil
+	}
 	var out []rankLine
 	for _, mem := range mems {
 		lid := mem.GetString("league")
 		rows, ok := cache[lid]
 		name := ""
 		if !ok {
-			lb, err := scoring.Leaderboard(r.app, lid)
+			lb, err := scoring.Leaderboard(r.app, lid, cur.Id)
 			if err != nil {
 				continue
 			}

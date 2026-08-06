@@ -10,14 +10,14 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/seed"
+	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // openfootball is the free live-results source: the same project we seed
-// from publishes scores into 2026/worldcup.json during the tournament.
-// Matches map 1:1 to our rows by the shared deterministic ExtID (no team
-// name aliasing), and its `score.et` is already the cumulative after-120
-// score — exactly our model.
-const ofLiveURL = "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json"
+// from publishes scores into its season JSON during the tournament. The URL
+// comes from the tournament's sync config. Matches map 1:1 to our rows by
+// the shared deterministic ExtID (no team name aliasing), and its `score.et`
+// is already the cumulative after-120 score — exactly our model.
 
 type ofScore struct {
 	FT []int `json:"ft"`
@@ -35,10 +35,16 @@ type ofLiveMatch struct {
 
 func pi(v int) *int { return &v }
 
-// openfootballSync pulls openfootball's live JSON and applies any results.
-// Idempotent: a record is only saved when something actually changed.
-func openfootballSync(ctx context.Context, app core.App) (int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ofLiveURL, nil)
+// openfootballSync pulls a tournament's openfootball live JSON and applies
+// any results. Idempotent: a record is only saved when something actually
+// changed.
+func openfootballSync(ctx context.Context, app core.App, t *core.Record, url string) (int, error) {
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return 0, fmt.Errorf("structure: %w", err)
+	}
+	prefix := t.GetString("extIdPrefix")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -59,7 +65,8 @@ func openfootballSync(ctx context.Context, app core.App) (int, error) {
 	}
 
 	byExt := map[string]*core.Record{}
-	recs, err := app.FindRecordsByFilter("matches", "id != ''", "", 0, 0)
+	recs, err := app.FindRecordsByFilter("matches",
+		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id})
 	if err != nil {
 		return 0, err
 	}
@@ -72,7 +79,7 @@ func openfootballSync(ctx context.Context, app core.App) (int, error) {
 		if m.Score == nil || len(m.Score.FT) != 2 {
 			continue // not played yet
 		}
-		rec := byExt[seed.ExtID(m.Round, m.Num, m.Group, m.Team1, m.Team2)]
+		rec := byExt[seed.ExtID(prefix, m.Round, m.Num, m.Group, m.Team1, m.Team2)]
 		if rec == nil {
 			continue
 		}
@@ -91,7 +98,7 @@ func openfootballSync(ctx context.Context, app core.App) (int, error) {
 			rec.GetInt("etHome") == ip(etH) && rec.GetInt("etAway") == ip(etA) {
 			continue
 		}
-		applyResult(rec, "finished", pi(ftH), pi(ftA), etH, etA, penH, penA)
+		applyResult(rec, st.IsKnockout(rec.GetString("stage")), "finished", pi(ftH), pi(ftA), etH, etA, penH, penA)
 		if app.Save(rec) == nil {
 			updated++
 		}
