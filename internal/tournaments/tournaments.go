@@ -209,19 +209,28 @@ func (p *payload) applyTo(app core.App, rec *core.Record) error {
 // and an admin CRUD group. Fixture seeding for new tournaments is a separate
 // concern (internal/seed).
 func Register(app core.App, se *core.ServeEvent) {
-	// GET /api/tournaments — non-draft tournaments plus the current pick.
+	// GET /api/tournaments — non-draft tournaments plus the current pick,
+	// each with its competition embedded (the catalog groups by it).
 	se.Router.GET("/api/tournaments", func(e *core.RequestEvent) error {
 		recs, err := All(app)
 		if err != nil {
 			return err
 		}
+		comps := map[string]map[string]any{}
 		out := make([]map[string]any, 0, len(recs))
 		var current *core.Record
 		for _, r := range recs {
 			if r.GetString("status") == StatusDraft {
 				continue
 			}
-			out = append(out, view(r))
+			v := view(r)
+			if cid := r.GetString("competition"); cid != "" {
+				if _, ok := comps[cid]; !ok {
+					comps[cid] = CompetitionView(competitionOf(app, r))
+				}
+				v["competition"] = comps[cid]
+			}
+			out = append(out, v)
 			if current == nil || rankLess(r, current) {
 				current = r
 			}
@@ -246,7 +255,11 @@ func Register(app core.App, se *core.ServeEvent) {
 			(e.Auth == nil || !users.IsAdmin(e.Auth)) {
 			return apis.NewNotFoundError("no such tournament", nil)
 		}
-		return e.JSON(http.StatusOK, view(rec))
+		v := view(rec)
+		if c := competitionOf(app, rec); c != nil {
+			v["competition"] = CompetitionView(c)
+		}
+		return e.JSON(http.StatusOK, v)
 	})
 
 	g := se.Router.Group("/api/admin/tournaments")
@@ -317,6 +330,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, view(rec))
 	})
 
+	registerClone(app, g)
+
 	// DELETE /api/admin/tournaments/{id} — draft tournaments only. Deleting
 	// a played tournament would cascade through teams/matches into user data.
 	g.DELETE("/{id}", func(e *core.RequestEvent) error {
@@ -332,4 +347,6 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		return e.JSON(http.StatusOK, map[string]any{"ok": true})
 	})
+
+	registerCompetitions(app, se)
 }

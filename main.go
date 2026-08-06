@@ -23,6 +23,7 @@ import (
 	"github.com/floholz/matchowl/internal/leagues"
 	"github.com/floholz/matchowl/internal/notify"
 	"github.com/floholz/matchowl/internal/oauth"
+	"github.com/floholz/matchowl/internal/players"
 	"github.com/floholz/matchowl/internal/push"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/seed"
@@ -59,6 +60,7 @@ func main() {
 		oauth.Register(e.App)
 		users.Register(e.App)
 		tournaments.Register(e.App, e)
+		players.Register(e.App, e)
 		seed.Register(e.App, e)
 		wmsync.Register(e.App, e)
 		leagues.Register(e.App, e)
