@@ -11,16 +11,23 @@ API and the embedded SvelteKit app).
 
 > Naming note: **Matchowl** is the successor of **WM Tips**, the World Cup
 > 2026 prediction game (archived at [`wm-pickems`](https://github.com/floholz/wm-pickems)).
-> The rebrand is in progress — the module path and app UI still say
-> `wm-pickems` / "WM Tips" for now.
+> The WC 2026 data lives on inside Matchowl as its first (archived)
+> tournament.
+
+Matchowl is **multi-tournament**: tournaments are records, not code. Each one
+carries its structure (stages, group shape, qualifier rules) and results-sync
+config as data, so a Euro, a World Cup, or a straight-knockout cup can be
+added from the admin API without touching the codebase (see
+[`PLAN-rework.md`](PLAN-rework.md)).
 
 ## Features
 
-- **Tips** — predict the score of every one of the 104 matches. Editable
+- **Tips** — predict the score of every match of the tournament. Editable
   until kickoff; knockout entry is progressive (90′ → extra time → penalty
   winner). After kickoff your tip locks and you can see friends' picks.
-- **Forecast** — one pre-tournament call: full group standings (1st–4th),
-  the 8 best-third qualifiers, and the whole knockout bracket. Locks at the
+- **Forecast** — one pre-tournament call: full group standings, any
+  extra qualifiers (WC2026: the 8 best thirds), and the whole knockout
+  bracket. Locks at the
   first kickoff; correctness is shown per stage as results come in
   (exact / advanced-but-wrong-slot / missed).
 - **Leagues** — private competitions you join via invite code or a
@@ -94,7 +101,7 @@ internal/
   bracket/              FIFA Annex C best-third → R32 allocation table
   oauth/                Google sign-in wiring from env (idempotent)
   clock/                overridable "now" (dev virtual clock)
-  dev/                  WMP_DEV-only simulator + bot generator
+  dev/                  MATCHOWL_DEV-only simulator + bot generator
   web/                  go:embed of the built SPA
 frontend/               SvelteKit app
 bots/                   standalone bot player (algo / Claude) — own Go module
@@ -136,7 +143,7 @@ see [DEPLOY.md](DEPLOY.md).
 
 ## Dev / test harness
 
-Run with `WMP_DEV=1` to unlock the **/dev** page (also linked in the user
+Run with `MATCHOWL_DEV=1` to unlock the **/dev** page (also linked in the user
 menu):
 
 - **Advance** to any timestamp — matches before it are simulated finished
@@ -146,7 +153,7 @@ menu):
   joined to your leagues, for instant leaderboard testing.
 - **Reset** — clear all results and the clock.
 
-The dev endpoints are **not registered** unless `WMP_DEV=1`.
+The dev endpoints are **not registered** unless `MATCHOWL_DEV=1`.
 
 ## Data
 
