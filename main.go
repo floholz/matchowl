@@ -124,7 +124,7 @@ func devManifest(b []byte) ([]byte, error) {
 	m["name"] = "Matchowl (Dev)"
 	m["short_name"] = "Matchowl Dev"
 	m["theme_color"] = "#ff7700"
-	m["background_color"] = "#120c07"
+	m["background_color"] = "#161310"
 	m["icons"] = []any{
 		map[string]any{"src": "/icons/maskable_icon_dev_x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
 		map[string]any{"src": "/icons/maskable_icon_dev_x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},

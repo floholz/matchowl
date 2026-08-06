@@ -22,13 +22,14 @@
 	--accent-ink: #1c0e00; /* ink on a bright accent gradient */
 	--peach: #ffd7b4; /* the mark's plumage — tints, chips, empty states */
 
-	/* ---- Surfaces & text: warm night (dark default) ---- */
-	--bg: #120c07; /* midnight, warmed toward the owl */
-	--surface: #1c140c; /* cards, bars */
-	--surface-2: #271c11; /* insets, chips, hover */
-	--border: #3d2e1e; /* hairlines */
-	--text: #fff3e6; /* primary text */
-	--muted: #b39a82; /* secondary text */
+	/* ---- Surfaces & text: warm night (dark default) ----
+	   Values align with the matchowl.app reference page. */
+	--bg: #161310; /* midnight, warmed toward the owl */
+	--surface: #201a14; /* cards, bars */
+	--surface-2: #2b231a; /* insets, chips, hover */
+	--border: #3f362a; /* hairlines */
+	--text: #f2e5d5; /* primary text */
+	--muted: #a8917a; /* secondary text */
 
 	/* ---- Status ---- */
 	--danger: #f4504a;
@@ -74,7 +75,7 @@
 
 	/* The PWA theme-color per theme (read by theme.svelte.ts into the
 	   <meta name="theme-color">). */
-	--theme-color: #120c07;
+	--theme-color: #161310;
 
 	color-scheme: dark;
 }
@@ -84,18 +85,19 @@
 	color-scheme: dark;
 }
 
-/* ---- Peach paper (light) ---- */
+/* ---- Peach paper (light) — the mark's own background, per the
+   matchowl.app reference. ---- */
 :root[data-theme='light'] {
-	--accent: #f26a00; /* a step deeper for AA contrast on paper */
-	--accent-2: #ff8b26;
+	--accent: #cc5800; /* deeper for contrast on peach */
+	--accent-2: #f26a00;
 	--peach: #ffd7b4;
 
-	--bg: #fff3e6; /* warm paper, from the mark's background */
-	--surface: #fffdfa;
-	--surface-2: #ffe6cd;
-	--border: #eccfae;
-	--text: #241505;
-	--muted: #83674e;
+	--bg: #ffd7b4; /* the mark's plumage, full strength */
+	--surface: #fff6ec;
+	--surface-2: #ffc999;
+	--border: #e8b98d;
+	--text: #141210;
+	--muted: #7a5a3c;
 
 	--danger: #d92d27;
 	--success: #1e8a47;
@@ -111,30 +113,45 @@
 	--bg-atmosphere:
 		radial-gradient(
 			110% 70% at 50% -20%,
-			rgba(255, 119, 0, 0.09),
-			transparent 55%
+			rgba(255, 246, 236, 0.75),
+			transparent 60%
 		),
 		radial-gradient(
-			80% 60% at 0% 0%,
-			rgba(255, 215, 180, 0.5),
+			80% 60% at 100% 0%,
+			rgba(255, 119, 0, 0.07),
 			transparent 55%
 		);
 
-	--theme-color: #fff3e6;
+	--theme-color: #ffd7b4;
 
 	color-scheme: light;
 }
 
-/* ---- True black (AMOLED) — dark, but every surface drops to black-ish so
-   OLED screens switch pixels off. Borders carry the separation instead of
-   surface contrast. ---- */
+/* ---- True black (AMOLED) — optimized for OLED phone displays: the
+   background is pure black so pixels switch off, and every COLORED area is
+   muted (dimmer, lower-chroma orange, no glow, toned-down status colors) so
+   nothing sears next to black at night. Borders carry the separation
+   instead of surface contrast. ---- */
 :root[data-theme='amoled'] {
+	--accent: #d96f14;
+	--accent-2: #d98a45;
+	--peach: #d3ac8b;
+
 	--bg: #000000;
-	--surface: #0c0805;
-	--surface-2: #191009;
-	--border: #33261a;
+	--surface: #0d0a07;
+	--surface-2: #171310;
+	--border: #2b241c;
+	--text: #f2e5d5;
+	--muted: #a8917a;
+
+	--danger: #cc4742;
+	--success: #3f8f56;
+	--warning: #cc9433;
+	--live: #cc3a2d;
+	--gold: #cc9e2e;
 
 	--shadow-pop: none;
+	--glow: none;
 	--bg-atmosphere: none;
 
 	--theme-color: #000000;
