@@ -142,13 +142,14 @@ func (r *Runner) teamLabel(m *core.Record, relField, labelField string, names ma
 	return "TBD"
 }
 
-// tournamentInfo bundles the current tournament's identity, structure and
-// (kickoff-sorted) matches for one notify pass.
+// tournamentInfo bundles the current tournament's identity, structure,
+// (kickoff-sorted) matches and player set for one notify pass.
 type tournamentInfo struct {
 	id        string
 	slug      string
 	structure *tournaments.Structure
 	matches   []*core.Record
+	players   map[string]bool // user ids playing this tournament
 }
 
 // currentTournament loads the current tournament with its structure and
@@ -167,11 +168,19 @@ func (r *Runner) currentTournament() (*tournamentInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+	playerSet := map[string]bool{}
+	if rows, err := r.app.FindRecordsByFilter("tournament_players",
+		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id}); err == nil {
+		for _, p := range rows {
+			playerSet[p.GetString("user")] = true
+		}
+	}
 	return &tournamentInfo{
 		id:        t.Id,
 		slug:      t.GetString("slug"),
 		structure: st,
 		matches:   matches,
+		players:   playerSet,
 	}, nil
 }
 

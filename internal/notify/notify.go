@@ -256,22 +256,31 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 	}
 	matches := tinfo.matches
 
-	if err := r.detectStageStarting(ctx, res, now, lead, tinfo, recipients, base); err != nil {
+	// Match-driven detectors only nudge people who PLAY this tournament —
+	// with the feed model, not every user follows every tournament.
+	playerRecipients := make([]*core.Record, 0, len(recipients))
+	for _, u := range recipients {
+		if tinfo.players[u.Id] {
+			playerRecipients = append(playerRecipients, u)
+		}
+	}
+
+	if err := r.detectStageStarting(ctx, res, now, lead, tinfo, playerRecipients, base); err != nil {
 		log.Printf("[notify] stage_starting: %v", err)
 	}
-	if err := r.detectForecastReminder(ctx, res, now, lead, tinfo, recipients, base); err != nil {
+	if err := r.detectForecastReminder(ctx, res, now, lead, tinfo, playerRecipients, base); err != nil {
 		log.Printf("[notify] forecast_reminder: %v", err)
 	}
 	if now.Hour() >= cfg.CountdownHourUTC {
-		if err := r.detectKickoffCountdown(ctx, res, now, matches, recipients, base); err != nil {
+		if err := r.detectKickoffCountdown(ctx, res, now, matches, playerRecipients, base); err != nil {
 			log.Printf("[notify] kickoff_countdown: %v", err)
 		}
 	}
-	if err := r.detectTipsReminder(ctx, res, now, lead, matches, recipients, base); err != nil {
+	if err := r.detectTipsReminder(ctx, res, now, lead, matches, playerRecipients, base); err != nil {
 		log.Printf("[notify] tips_reminder: %v", err)
 	}
 	if now.Hour() == cfg.RecapHourUTC {
-		if err := r.detectResultsRecap(ctx, res, now, matches, recipients, base); err != nil {
+		if err := r.detectResultsRecap(ctx, res, now, matches, playerRecipients, base); err != nil {
 			log.Printf("[notify] results_recap: %v", err)
 		}
 	}

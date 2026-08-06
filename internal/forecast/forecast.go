@@ -20,9 +20,9 @@ import (
 	"github.com/floholz/matchowl/internal/tournaments"
 )
 
-// startOf returns a tournament's Forecast deadline: its startsAt when set,
+// StartOf returns a tournament's Forecast deadline: its startsAt when set,
 // else the earliest kickoff of its matches.
-func startOf(app core.App, t *core.Record) (time.Time, error) {
+func StartOf(app core.App, t *core.Record) (time.Time, error) {
 	if ts := t.GetDateTime("startsAt").Time(); !ts.IsZero() {
 		return ts, nil
 	}
@@ -35,7 +35,7 @@ func startOf(app core.App, t *core.Record) (time.Time, error) {
 }
 
 func locked(app core.App, t *core.Record) bool {
-	ts, err := startOf(app, t)
+	ts, err := StartOf(app, t)
 	if err != nil || ts.IsZero() {
 		return false
 	}
@@ -229,7 +229,7 @@ func structurePayload(app core.App, t *core.Record) (map[string]any, error) {
 	if eq != nil {
 		thirdTable = bracket.Table(eq.TableKey)
 	}
-	ts, _ := startOf(app, t)
+	ts, _ := StartOf(app, t)
 	return map[string]any{
 		"tournament": map[string]any{
 			"id":        t.Id,
