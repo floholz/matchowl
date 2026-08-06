@@ -16,7 +16,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/scoring"
+	"github.com/floholz/matchowl/internal/scoring"
 )
 
 const codeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no ambiguous chars

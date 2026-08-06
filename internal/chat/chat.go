@@ -15,7 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/users"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 const (

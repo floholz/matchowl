@@ -15,8 +15,8 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/football"
-	"github.com/floholz/wm-pickems/internal/users"
+	"github.com/floholz/matchowl/internal/football"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 // syncMetaKey is the app_meta row that stores the last results-sync outcome,

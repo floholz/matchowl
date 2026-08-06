@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Client is a thin wrapper over the wm-pickems public REST API. A bot is just a
+// Client is a thin wrapper over the matchowl public REST API. A bot is just a
 // normal authenticated user, so it goes through the same endpoints — and the
 // same server-side locks — as a human player. No bypass anywhere.
 type Client struct {

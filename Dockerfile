@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 # Replace the committed placeholder with the freshly built SPA before embed.
 COPY --from=frontend /app/internal/web/build ./internal/web/build
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /wm-pickems .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /matchowl .
 
 # ---- Stage 3: minimal runtime ----
 FROM alpine:3.20
@@ -27,10 +27,10 @@ FROM alpine:3.20
 ARG VERSION=dev
 ARG REVISION=unknown
 ARG CREATED=
-LABEL org.opencontainers.image.title="wm-pickems" \
+LABEL org.opencontainers.image.title="matchowl" \
       org.opencontainers.image.description="World Cup 2026 prediction game" \
-      org.opencontainers.image.url="https://github.com/floholz/wm-pickems" \
-      org.opencontainers.image.source="https://github.com/floholz/wm-pickems" \
+      org.opencontainers.image.url="https://github.com/floholz/matchowl" \
+      org.opencontainers.image.source="https://github.com/floholz/matchowl" \
       org.opencontainers.image.licenses="GPL-3.0-only" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
@@ -40,11 +40,11 @@ RUN apk add --no-cache ca-certificates tzdata wget \
 	&& adduser -D -u 10001 app \
 	&& mkdir -p /pb_data \
 	&& chown -R app:app /pb_data
-COPY --from=backend /wm-pickems /usr/local/bin/wm-pickems
+COPY --from=backend /matchowl /usr/local/bin/matchowl
 USER app
 EXPOSE 8090
 VOLUME ["/pb_data"]
 HEALTHCHECK --interval=30s --timeout=4s --start-period=10s \
 	CMD wget -qO- http://127.0.0.1:8090/api/health >/dev/null 2>&1 || exit 1
-ENTRYPOINT ["wm-pickems"]
+ENTRYPOINT ["matchowl"]
 CMD ["serve", "--http=0.0.0.0:8090", "--dir=/pb_data"]

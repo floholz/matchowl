@@ -7,7 +7,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/bracket"
+	"github.com/floholz/matchowl/internal/bracket"
 )
 
 // ResolveBracket fills knockout matches' homeTeam/awayTeam from their

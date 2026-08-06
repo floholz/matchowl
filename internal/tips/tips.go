@@ -15,9 +15,9 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/clock"
-	"github.com/floholz/wm-pickems/internal/scoring"
-	"github.com/floholz/wm-pickems/internal/users"
+	"github.com/floholz/matchowl/internal/clock"
+	"github.com/floholz/matchowl/internal/scoring"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 func matchKickoff(m *core.Record) time.Time {

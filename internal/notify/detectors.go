@@ -9,8 +9,8 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/push"
-	"github.com/floholz/wm-pickems/internal/scoring"
+	"github.com/floholz/matchowl/internal/push"
+	"github.com/floholz/matchowl/internal/scoring"
 )
 
 // stageOrder is the canonical tournament progression; stageName maps the stored

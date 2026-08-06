@@ -1,5 +1,5 @@
-// Command wm-pickems-bot is a standalone side project: it logs in to a
-// wm-pickems deployment as a bot user and submits a Forecast and per-match
+// Command matchowl-bot is a standalone side project: it logs in to a
+// matchowl deployment as a bot user and submits a Forecast and per-match
 // Tips through the public REST API — playing by the same server-side locks as
 // any human. Run it once (cron) or with --loop; --once forces a single pass
 // (overrides --loop). In --loop mode, signals trigger work on demand: SIGHUP =

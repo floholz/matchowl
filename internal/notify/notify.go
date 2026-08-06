@@ -22,10 +22,10 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/clock"
-	"github.com/floholz/wm-pickems/internal/mailer"
-	"github.com/floholz/wm-pickems/internal/push"
-	"github.com/floholz/wm-pickems/internal/users"
+	"github.com/floholz/matchowl/internal/clock"
+	"github.com/floholz/matchowl/internal/mailer"
+	"github.com/floholz/matchowl/internal/push"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 // Runner holds the dependencies for one notify pass.

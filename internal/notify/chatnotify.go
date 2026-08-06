@@ -10,8 +10,8 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/push"
-	"github.com/floholz/wm-pickems/internal/users"
+	"github.com/floholz/matchowl/internal/push"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 // League-chat push (v2). High-frequency and real-time, so it runs on its own

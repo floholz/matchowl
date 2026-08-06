@@ -23,7 +23,7 @@ import (
 //
 // It's a hand-rolled HTTP client rather than a vendored SDK: OpenRouter is a
 // single, stable endpoint, and this keeps the module lean (the same approach as
-// client.go for the wm-pickems API).
+// client.go for the matchowl API).
 //
 // Not every provider honors strict json_schema. When the strict path fails, the
 // completer degrades (via degrade()) to JSON mode with the schema moved into the
@@ -76,7 +76,7 @@ func (o *openrouterCompleter) complete(ctx context.Context, label, task string, 
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+o.apiKey)
-	req.Header.Set("X-Title", "wm-pickems") // OpenRouter dashboard attribution (optional)
+	req.Header.Set("X-Title", "matchowl") // OpenRouter dashboard attribution (optional)
 
 	resp, err := o.http.Do(req)
 	if err != nil {

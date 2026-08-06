@@ -9,7 +9,7 @@ services:
   # The algorithmic bot — same image, BOT_KIND=algo, no API key needed.
   elo:
     build: .
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_elo
     restart: unless-stopped
     env_file: .elo.env # BOT_EMAIL, BOT_PASSWORD, BOT_KIND=algo, WMP_BASE_URL, ...
@@ -17,7 +17,7 @@ services:
     networks: [wmpickems]
 
   # anthropic:
-  #   image: wm-pickems/bot:latest
+  #   image: matchowl/bot:latest
   #   container_name: wmp_bot_claude
   #   restart: unless-stopped
   #   env_file: .claude-native.env # BOT_EMAIL, BOT_PASSWORD, ANTHROPIC_API_KEY, WMP_BASE_URL, ...
@@ -28,7 +28,7 @@ services:
   # More model bots via OpenRouter — same image, BOT_KIND=openrouter, one
   # OPENROUTER_API_KEY shared across them; only OPENROUTER_MODEL differs per env.
   # chatgpt:
-  #   image: wm-pickems/bot:latest
+  #   image: matchowl/bot:latest
   #   container_name: wmp_bot_chatgpt
   #   restart: unless-stopped
   #   env_file: .chatgpt.env # ...BOT_KIND=openrouter, OPENROUTER_API_KEY, OPENROUTER_MODEL=openai/gpt-5.1
@@ -37,7 +37,7 @@ services:
   #   depends_on: [claude]
 
   gemini:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_gemini
     restart: unless-stopped
     env_file: .gemini.env # ...BOT_KIND=openrouter, OPENROUTER_API_KEY, OPENROUTER_MODEL=google/gemini-2.5-pro
@@ -46,7 +46,7 @@ services:
     depends_on: [elo]
 
   claude:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_claude
     restart: unless-stopped
     env_file: .claude.env
@@ -55,7 +55,7 @@ services:
     depends_on: [elo]
 
   gpt:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_gpt
     restart: unless-stopped
     env_file: .gpt.env
@@ -64,7 +64,7 @@ services:
     depends_on: [elo]
 
   deepseek:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_deepseek
     restart: unless-stopped
     env_file: .deepseek.env
@@ -73,7 +73,7 @@ services:
     depends_on: [elo]
 
   grok:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_grok
     restart: unless-stopped
     env_file: .grok.env
@@ -82,7 +82,7 @@ services:
     depends_on: [elo]
 
   kimi:
-    image: wm-pickems/bot:latest
+    image: matchowl/bot:latest
     container_name: wmp_bot_kimi
     restart: unless-stopped
     env_file: .kimi.env

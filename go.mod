@@ -1,4 +1,4 @@
-module github.com/floholz/wm-pickems
+module github.com/floholz/matchowl
 
 go 1.26.3
 

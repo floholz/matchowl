@@ -1,4 +1,4 @@
-module github.com/floholz/wm-pickems/bots
+module github.com/floholz/matchowl/bots
 
 go 1.26.3
 

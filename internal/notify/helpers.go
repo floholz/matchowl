@@ -9,8 +9,8 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/mailer"
-	"github.com/floholz/wm-pickems/internal/scoring"
+	"github.com/floholz/matchowl/internal/mailer"
+	"github.com/floholz/matchowl/internal/scoring"
 )
 
 // pushIcon maps an event (and its data) to its contextual notification icon

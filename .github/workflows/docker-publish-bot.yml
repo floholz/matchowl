@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Nested package under the repo: ghcr.io/floholz/wm-pickems/bot
+  # Nested package under the repo: ghcr.io/floholz/matchowl/bot
   IMAGE_NAME: ${{ github.repository }}/bot
 
 jobs:

@@ -9,7 +9,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/seed"
+	"github.com/floholz/matchowl/internal/seed"
 )
 
 // openfootball is the free live-results source: the same project we seed
@@ -42,7 +42,7 @@ func openfootballSync(ctx context.Context, app core.App) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("User-Agent", "wm-tips/1.0")
+	req.Header.Set("User-Agent", "matchowl/1.0")
 	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("openfootball fetch: %w", err)

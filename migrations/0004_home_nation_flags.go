@@ -4,7 +4,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
 
-	"github.com/floholz/wm-pickems/internal/seed"
+	"github.com/floholz/matchowl/internal/seed"
 )
 
 // Backfill iso2 for UK home nations (England/Scotland/Wales/N.Ireland) on

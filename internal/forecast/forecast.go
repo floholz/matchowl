@@ -13,8 +13,8 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/bracket"
-	"github.com/floholz/wm-pickems/internal/clock"
+	"github.com/floholz/matchowl/internal/bracket"
+	"github.com/floholz/matchowl/internal/clock"
 )
 
 // tournamentStart returns the earliest match kickoff (the global Forecast

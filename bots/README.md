@@ -1,6 +1,6 @@
-# wm-pickems bots
+# Matchowl bots
 
-A standalone side project that plays [wm-pickems](../) as a bot. It logs in as a bot user and submits a tournament **Forecast** and per-match **Tips** through the public REST API, playing by the exact same server-side locks as a human:
+A standalone side project that plays [Matchowl](../) as a bot. It logs in as a bot user and submits a tournament **Forecast** and per-match **Tips** through the public REST API, playing by the exact same server-side locks as a human:
 
 - can't tip after kickoff,
 - can't tip a knockout match before both teams are resolved,
@@ -25,7 +25,7 @@ The prediction "brain" is selected by `BOT_KIND`; everything else (auth, the bra
 2. **Forecast** (once, before the tournament locks): asks Claude to rank every group 1–4 and pick the 8 best thirds, then walks the knockout rounds R32→FINAL, resolving each match's two concrete teams and asking Claude who advances. The bracket-resolution logic mirrors the server's scoring engine (`bracket.go`) so the Forecast scores correctly. Uses FIFA's official Annex C third-place table served by `/api/forecast/structure`.
 3. **Tips** (every run, idempotent): finds every match that's still open (kickoff in the future, matchup resolved) and not already tipped, then asks Claude for a scoreline — a decisive 90' result for knockouts so the server derives the advancer. Skips matches it has already tipped.
 
-It reads the server clock from `/api/now`, so it also works against the `WMP_DEV=1` simulator — you can advance the virtual clock and watch Claude play a whole tournament before June 2026.
+It reads the server clock from `/api/now`, so it also works against the `MATCHOWL_DEV=1` simulator — you can advance the virtual clock and watch Claude play a whole tournament before June 2026.
 
 ## Feedback loop
 
@@ -66,7 +66,7 @@ go run . --once     # single pass, even if --loop is set (overrides the containe
 
 ### Triggering a run manually
 
-A no-flag invocation is already a single run, so the simplest one-off is just `go run .` (or `./wm-pickems-bot`).
+A no-flag invocation is already a single run, so the simplest one-off is just `go run .` (or `./matchowl-bot`).
 
 For a bot that's **already running in `--loop`** (the container default), send it a signal to act now without waiting for the next tick — it reuses the live process and its env:
 
@@ -88,7 +88,7 @@ A fresh one-off against the deployment without touching the running loop (`--onc
 
 ```sh
 docker compose run --rm bot-claude --once
-docker run --rm --env-file claude.env wm-pickems/bot:latest --once
+docker run --rm --env-file claude.env matchowl/bot:latest --once
 ```
 
 Or build and run via cron / a systemd timer:
@@ -104,11 +104,11 @@ One image, **one container per bot** — the same image runs every bot; each con
 
 ```sh
 # Build (context is this bots/ directory — separate module from the app)
-docker build -t wm-pickems/bot:latest .
+docker build -t matchowl/bot:latest .
 
 # Run one bot, continuously
 docker run -d --name wmp_bot_claude --restart unless-stopped \
-  --env-file claude.env wm-pickems/bot:latest
+  --env-file claude.env matchowl/bot:latest
 ```
 
 `claude.env` holds the same variables as `.env.example`. For a second bot later, run another container with its own env file off the same image.
@@ -121,7 +121,7 @@ The bot has its **own** release tags, independent of the app. Pushing a `bot-v*`
 
 ```sh
 git tag bot-v0.1.0 && git push origin bot-v0.1.0
-# -> ghcr.io/floholz/wm-pickems/bot : 0.1.0, 0, latest
+# -> ghcr.io/floholz/matchowl/bot : 0.1.0, 0, latest
 ```
 
 The package is private by default; flip visibility in GHCR if you want public pulls.

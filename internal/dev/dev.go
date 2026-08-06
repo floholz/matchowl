@@ -20,12 +20,12 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/floholz/wm-pickems/internal/clock"
-	"github.com/floholz/wm-pickems/internal/football"
-	"github.com/floholz/wm-pickems/internal/forecast"
-	"github.com/floholz/wm-pickems/internal/scoring"
-	wmsync "github.com/floholz/wm-pickems/internal/sync"
-	"github.com/floholz/wm-pickems/internal/tips"
+	"github.com/floholz/matchowl/internal/clock"
+	"github.com/floholz/matchowl/internal/football"
+	"github.com/floholz/matchowl/internal/forecast"
+	"github.com/floholz/matchowl/internal/scoring"
+	wmsync "github.com/floholz/matchowl/internal/sync"
+	"github.com/floholz/matchowl/internal/tips"
 )
 
 var botNames = []string{

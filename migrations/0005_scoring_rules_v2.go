@@ -4,7 +4,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	m "github.com/pocketbase/pocketbase/migrations"
 
-	"github.com/floholz/wm-pickems/internal/seed"
+	"github.com/floholz/matchowl/internal/seed"
 )
 
 // Rewrite the default scoring config to the v2 rules: max 6 per game (no

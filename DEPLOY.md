@@ -1,6 +1,6 @@
 # Deploy
 
-WM Pickems ships as **one self-contained Docker image**: the Go binary serves
+Matchowl ships as **one self-contained Docker image**: the Go binary serves
 the API and the embedded SvelteKit SPA from a single port, with SQLite data on
 a mounted volume.
 
@@ -63,7 +63,7 @@ The PocketBase admin UI (`/_/`) and the admin endpoints
 `/api/admin/recompute`) require a superuser:
 
 ```sh
-docker compose exec app wm-pickems superuser create you@example.com 'a-strong-pass' --dir=/pb_data
+docker compose exec app matchowl superuser create you@example.com 'a-strong-pass' --dir=/pb_data
 ```
 
 ## 4. Operating
@@ -87,7 +87,7 @@ docker compose exec app wm-pickems superuser create you@example.com 'a-strong-pa
 The whole state is the volume. Snapshot it while running:
 
 ```sh
-docker run --rm -v wm-pickems_pb_data:/d -v "$PWD":/b alpine \
+docker run --rm -v matchowl_pb_data:/d -v "$PWD":/b alpine \
   tar czf /b/pb_data-backup.tgz -C /d .
 ```
 
