@@ -95,16 +95,18 @@ func rankLess(a, b *core.Record) bool {
 }
 
 func view(r *core.Record) map[string]any {
+	spec, _ := ForecastSpecOf(r)
 	return map[string]any{
-		"id":          r.Id,
-		"slug":        r.GetString("slug"),
-		"name":        r.GetString("name"),
-		"shortName":   r.GetString("shortName"),
-		"status":      r.GetString("status"),
-		"startsAt":    r.GetString("startsAt"),
-		"endsAt":      r.GetString("endsAt"),
-		"structure":   r.Get("structure"),
-		"extIdPrefix": r.GetString("extIdPrefix"),
+		"id":           r.Id,
+		"slug":         r.GetString("slug"),
+		"name":         r.GetString("name"),
+		"shortName":    r.GetString("shortName"),
+		"status":       r.GetString("status"),
+		"startsAt":     r.GetString("startsAt"),
+		"endsAt":       r.GetString("endsAt"),
+		"structure":    r.Get("structure"),
+		"forecastSpec": spec,
+		"extIdPrefix":  r.GetString("extIdPrefix"),
 	}
 }
 
@@ -119,6 +121,7 @@ type payload struct {
 	EndsAt        *string         `json:"endsAt"`
 	Structure     json.RawMessage `json:"structure"`
 	Sync          json.RawMessage `json:"sync"`
+	ForecastSpec  json.RawMessage `json:"forecastSpec"`
 	ExtIDPrefix   *string         `json:"extIdPrefix"`
 	ScoringConfig *string         `json:"scoringConfig"`
 }
@@ -187,6 +190,13 @@ func (p *payload) applyTo(app core.App, rec *core.Record) error {
 		}
 		rec.Set("sync", string(p.Sync))
 	}
+	if len(p.ForecastSpec) > 0 {
+		f := &ForecastSpec{}
+		if err := json.Unmarshal(p.ForecastSpec, f); err != nil {
+			return apis.NewBadRequestError("forecastSpec: "+err.Error(), nil)
+		}
+		rec.Set("forecastSpec", string(p.ForecastSpec))
+	}
 	if p.ExtIDPrefix != nil {
 		pre := strings.TrimSpace(*p.ExtIDPrefix)
 		if pre == "" || len(pre) > 16 {
@@ -202,6 +212,25 @@ func (p *payload) applyTo(app core.App, rec *core.Record) error {
 		}
 		rec.Set("scoringConfig", *p.ScoringConfig)
 	}
+	return nil
+}
+
+// validateSpec checks the record's forecastSpec against its structure and
+// persists the normalized form (teamset counts filled from zones).
+func validateSpec(rec *core.Record) error {
+	st, err := StructureOf(rec)
+	if err != nil {
+		return nil // structure invalid/absent is caught elsewhere
+	}
+	spec, _ := ForecastSpecOf(rec)
+	if err := spec.Validate(st); err != nil {
+		return apis.NewBadRequestError(err.Error(), nil)
+	}
+	norm, err := json.Marshal(spec)
+	if err != nil {
+		return err
+	}
+	rec.Set("forecastSpec", string(norm))
 	return nil
 }
 
@@ -305,6 +334,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err := body.applyTo(app, rec); err != nil {
 			return err
 		}
+		if err := validateSpec(rec); err != nil {
+			return err
+		}
 		if err := app.Save(rec); err != nil {
 			return err
 		}
@@ -322,6 +354,9 @@ func Register(app core.App, se *core.ServeEvent) {
 			return apis.NewBadRequestError(err.Error(), nil)
 		}
 		if err := body.applyTo(app, rec); err != nil {
+			return err
+		}
+		if err := validateSpec(rec); err != nil {
 			return err
 		}
 		if err := app.Save(rec); err != nil {

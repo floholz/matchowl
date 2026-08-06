@@ -3,6 +3,22 @@ import { auth } from './auth.svelte';
 import type { Team } from './tips.svelte';
 import { tournamentStore, type Structure } from './tournament.svelte';
 
+/** One headline pick of a calls-mode forecast (mirrors the Go spec). */
+export interface ForecastCall {
+	key: string;
+	name: string;
+	type: 'team' | 'teamset';
+	points: number;
+	zone?: string;
+	stage?: string;
+	count?: number;
+}
+
+export interface ForecastSpec {
+	mode: 'full' | 'calls' | 'none';
+	calls?: ForecastCall[];
+}
+
 export interface KOMatch {
 	num: number;
 	stage: string;
@@ -31,6 +47,7 @@ export class ForecastStore {
 	locked = $state(false);
 	tournamentStart = $state<string>('');
 	structure = $state<Structure>({ stages: [] });
+	spec = $state<ForecastSpec>({ mode: 'full' });
 	teams = $state<Record<string, Team>>({});
 	groups = $state<GroupDef[]>([]);
 	knockout = $state<KOMatch[]>([]);
@@ -44,6 +61,7 @@ export class ForecastStore {
 	groupOrder = $state<Record<string, string[]>>({}); // letter -> [id x4]
 	thirds = $state<Record<string, string>>({}); // matchNum -> teamId
 	bracket = $state<Record<string, string>>({}); // koKey -> winner teamId
+	calls = $state<Record<string, string | string[]>>({}); // callKey -> pick(s)
 
 	// Actual results, for post-stage correctness indicators.
 	results = $state<
@@ -71,6 +89,7 @@ export class ForecastStore {
 			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` })
 		]);
 		this.structure = structure.structure ?? tournamentStore.structure;
+		this.spec = structure.forecastSpec ?? { mode: 'full' };
 		this.results = (matches as unknown[]).map((m) => {
 			const r = m as Record<string, unknown>;
 			return {
@@ -109,6 +128,7 @@ export class ForecastStore {
 		groupOrder?: Record<string, string[]>;
 		thirdQualifiers?: Record<string, string>;
 		bracket?: Record<string, string>;
+		calls?: Record<string, string | string[]>;
 	}) {
 		const order: Record<string, string[]> = {};
 		for (const g of this.groups)
@@ -118,6 +138,7 @@ export class ForecastStore {
 		this.groupOrder = order;
 		this.thirds = f?.thirdQualifiers ?? {};
 		this.bracket = f?.bracket ?? {};
+		this.calls = f?.calls ?? {};
 	}
 
 	private loadedFor = '';
@@ -328,6 +349,31 @@ export class ForecastStore {
 		}
 	}
 
+	/** Toggle a team inside a call's pick (single for team calls, capped
+	 *  multi for teamsets). */
+	toggleCall(call: ForecastCall, teamId: string) {
+		if (call.type === 'team') {
+			this.calls = {
+				...this.calls,
+				[call.key]: this.calls[call.key] === teamId ? '' : teamId
+			};
+			return;
+		}
+		const cur = Array.isArray(this.calls[call.key])
+			? [...(this.calls[call.key] as string[])]
+			: [];
+		const i = cur.indexOf(teamId);
+		if (i >= 0) cur.splice(i, 1);
+		else if (cur.length < (call.count ?? 99)) cur.push(teamId);
+		this.calls = { ...this.calls, [call.key]: cur };
+	}
+
+	/** Whether a team is part of a call's current pick. */
+	inCall(call: ForecastCall, teamId: string): boolean {
+		const v = this.calls[call.key];
+		return Array.isArray(v) ? v.includes(teamId) : v === teamId;
+	}
+
 	/** Slot the chosen thirds into the 8 R32 third-slots. Uses FIFA's official
 	 *  Annex C table (served from the backend) for the chosen combination of 8
 	 *  groups; falls back to a deterministic backtracking matching otherwise.
@@ -386,7 +432,8 @@ export class ForecastStore {
 			tournament: tournamentStore.current?.id,
 			groupOrder: this.groupOrder,
 			thirdQualifiers,
-			bracket: this.bracket
+			bracket: this.bracket,
+			calls: this.calls
 		};
 		const rec = this.recId
 			? await pb.collection('forecasts').update(this.recId, data)

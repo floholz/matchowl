@@ -211,7 +211,7 @@ func registerClone(app core.App, g *router.RouterGroup[*core.RequestEvent]) {
 		rec.Set("status", StatusDraft)
 		rec.Set("extIdPrefix", body.ExtIDPrefix)
 		rec.Set("structure", src.Get("structure"))
-		// forecastSpec is copied here too once phase 4 adds the field.
+		rec.Set("forecastSpec", src.Get("forecastSpec"))
 		rec.Set("competition", src.GetString("competition"))
 		rec.Set("scoringConfig", src.GetString("scoringConfig"))
 		rec.Set("startsAt", strings.TrimSpace(body.StartsAt))

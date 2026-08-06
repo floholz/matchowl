@@ -49,6 +49,16 @@ type ExtraQualifiers struct {
 	TableKey     string `json:"tableKey,omitempty"`
 }
 
+// Zone is a named position range of the final table (league shapes): "1-4
+// Champions League", "18-20 relegated". Zones color the standings UI and are
+// the targets of forecast teamset calls.
+type Zone struct {
+	Key  string `json:"key"`
+	Name string `json:"name"`
+	From int    `json:"from"`
+	To   int    `json:"to"`
+}
+
 // Structure is the parsed `structure` JSON of a tournament record. Group
 // shape fields are only meaningful when a group-kind stage exists.
 type Structure struct {
@@ -57,8 +67,19 @@ type Structure struct {
 	GamesPerTeam     int              `json:"gamesPerTeam,omitempty"`
 	DirectQualifiers int              `json:"directQualifiers,omitempty"`
 	ExtraQualifiers  *ExtraQualifiers `json:"extraQualifiers,omitempty"`
+	Zones            []Zone           `json:"zones,omitempty"`
 	PointsWin        int              `json:"pointsWin,omitempty"`
 	PointsDraw       int              `json:"pointsDraw,omitempty"`
+}
+
+// Zone returns the zone with the given key, or nil.
+func (s *Structure) Zone(key string) *Zone {
+	for i := range s.Zones {
+		if s.Zones[i].Key == key {
+			return &s.Zones[i]
+		}
+	}
+	return nil
 }
 
 var stageCodeRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,12}$`)
@@ -97,8 +118,9 @@ func (s *Structure) Validate() error {
 		return fmt.Errorf("structure: at most one group stage is supported")
 	}
 	if groups == 1 {
-		if s.GroupSize < 2 || s.GroupSize > 8 {
-			return fmt.Errorf("structure: groupSize must be 2..8")
+		// 24 covers big league seasons (Serie A = 20); WC-style groups are 4.
+		if s.GroupSize < 2 || s.GroupSize > 24 {
+			return fmt.Errorf("structure: groupSize must be 2..24")
 		}
 		if s.GamesPerTeam < 1 {
 			return fmt.Errorf("structure: gamesPerTeam must be >= 1")
@@ -116,6 +138,25 @@ func (s *Structure) Validate() error {
 		}
 	} else if s.ExtraQualifiers != nil {
 		return fmt.Errorf("structure: extraQualifiers requires a group stage")
+	}
+	if len(s.Zones) > 0 && groups == 0 {
+		return fmt.Errorf("structure: zones require a group stage")
+	}
+	seenZone := map[string]bool{}
+	for _, z := range s.Zones {
+		if !stageCodeRe.MatchString(z.Key) {
+			return fmt.Errorf("structure: zone key %q invalid", z.Key)
+		}
+		if seenZone[z.Key] {
+			return fmt.Errorf("structure: duplicate zone %q", z.Key)
+		}
+		seenZone[z.Key] = true
+		if z.Name == "" || len(z.Name) > 64 {
+			return fmt.Errorf("structure: zone %q needs a name (max 64 chars)", z.Key)
+		}
+		if z.From < 1 || z.To < z.From || z.To > s.GroupSize {
+			return fmt.Errorf("structure: zone %q range %d-%d invalid for groupSize %d", z.Key, z.From, z.To, s.GroupSize)
+		}
 	}
 	if s.PointsWin < 0 || s.PointsDraw < 0 || (s.PointsWin > 0 && s.PointsDraw > s.PointsWin) {
 		return fmt.Errorf("structure: invalid pointsWin/pointsDraw")

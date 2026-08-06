@@ -1,8 +1,10 @@
 # Feed, Navigation & Forecast Rework — Plan
 
-> Status: planned, not yet implemented. Written 2026-08-06 after the
-> multi-tournament rework (PLAN-rework.md, phases 0–4 shipped). Decisions
-> below were made with floholz in conversation.
+> Status: phases 1–4 implemented (2026-08-06); phase 5's league-season
+> proof was exercised as part of phase 4's verification (a seeded 4-club
+> double round-robin with zones + calls, simulated end-to-end). Written
+> after the multi-tournament rework (PLAN-rework.md). Decisions below were
+> made with floholz in conversation. Bots and polish work: deferred.
 
 ## The mental-model shift
 

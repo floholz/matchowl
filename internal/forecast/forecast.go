@@ -83,6 +83,9 @@ func validate(app core.App, rec *core.Record) error {
 	if locked(app, t) {
 		return apis.NewBadRequestError("the tournament has started — the Forecast is locked", nil)
 	}
+	if err := validateCalls(app, t, rec); err != nil {
+		return err
+	}
 	groups, err := groupTeams(app, t.Id)
 	if err != nil {
 		return err
@@ -106,6 +109,70 @@ func validate(app core.App, rec *core.Record) error {
 			}
 			if seen[id] {
 				return apis.NewBadRequestError("duplicate team in group "+letter, nil)
+			}
+			seen[id] = true
+		}
+	}
+	return nil
+}
+
+// validateCalls checks calls-mode picks: known call keys, team ids that
+// belong to the tournament, and teamset sizes within the call's count.
+// Partial picks are allowed (filled over multiple sessions).
+func validateCalls(app core.App, t *core.Record, rec *core.Record) error {
+	spec, _ := tournaments.ForecastSpecOf(t)
+	if spec.Mode != tournaments.ForecastCalls {
+		return nil
+	}
+	var picks map[string]any
+	if err := rec.UnmarshalJSONField("calls", &picks); err != nil || len(picks) == 0 {
+		return nil
+	}
+	byKey := map[string]*tournaments.Call{}
+	for i := range spec.Calls {
+		byKey[spec.Calls[i].Key] = &spec.Calls[i]
+	}
+	valid := map[string]bool{}
+	if ts, err := app.FindRecordsByFilter("teams",
+		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id}); err == nil {
+		for _, tm := range ts {
+			valid[tm.Id] = true
+		}
+	}
+	for key, v := range picks {
+		c := byKey[key]
+		if c == nil {
+			return apis.NewBadRequestError("unknown call "+key, nil)
+		}
+		var ids []string
+		switch x := v.(type) {
+		case string:
+			ids = []string{x}
+		case []any:
+			for _, e := range x {
+				if s, ok := e.(string); ok {
+					ids = append(ids, s)
+				}
+			}
+		default:
+			return apis.NewBadRequestError("bad pick for call "+key, nil)
+		}
+		if c.Type == tournaments.CallTeam && len(ids) > 1 {
+			return apis.NewBadRequestError(key+" takes a single team", nil)
+		}
+		if c.Type == tournaments.CallTeamset && c.Count > 0 && len(ids) > c.Count {
+			return apis.NewBadRequestError(key+" takes at most "+strconv.Itoa(c.Count)+" teams", nil)
+		}
+		seen := map[string]bool{}
+		for _, id := range ids {
+			if id == "" {
+				continue
+			}
+			if !valid[id] {
+				return apis.NewBadRequestError("a pick in "+key+" is not a team of this tournament", nil)
+			}
+			if seen[id] {
+				return apis.NewBadRequestError("duplicate team in "+key, nil)
 			}
 			seen[id] = true
 		}
@@ -229,8 +296,10 @@ func structurePayload(app core.App, t *core.Record) (map[string]any, error) {
 	if eq != nil {
 		thirdTable = bracket.Table(eq.TableKey)
 	}
+	spec, _ := tournaments.ForecastSpecOf(t)
 	ts, _ := StartOf(app, t)
 	return map[string]any{
+		"forecastSpec": spec,
 		"tournament": map[string]any{
 			"id":        t.Id,
 			"slug":      t.GetString("slug"),
@@ -291,15 +360,18 @@ func Register(app core.App, se *core.ServeEvent) {
 		var order, bracket map[string]any
 		var thirds map[string]any
 		var rationale map[string]any
+		var calls map[string]any
 		_ = fc.UnmarshalJSONField("groupOrder", &order)
 		_ = fc.UnmarshalJSONField("thirdQualifiers", &thirds)
 		_ = fc.UnmarshalJSONField("bracket", &bracket)
 		_ = fc.UnmarshalJSONField("rationale", &rationale)
+		_ = fc.UnmarshalJSONField("calls", &calls)
 		out["forecast"] = map[string]any{
 			"groupOrder":      order,
 			"thirdQualifiers": thirds,
 			"bracket":         bracket,
 			"rationale":       rationale,
+			"calls":           calls,
 		}
 		return e.JSON(http.StatusOK, out)
 	}).Bind(apis.RequireAuth())

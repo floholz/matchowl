@@ -300,7 +300,10 @@ func SeedTournament(app core.App, tournament *core.Record, teamsRaw, fixturesRaw
 				return fmt.Errorf("save team %s: %w", t.Name, err)
 			}
 			byName[t.Name] = rec
-			groupTeams[t.Group] = append(groupTeams[t.Group], rec.Id)
+			// Team meta may carry "A" (WC meta) or "Group A" (openfootball
+			// fixture style) — normalize to the bare letter.
+			letter := strings.TrimPrefix(t.Group, "Group ")
+			groupTeams[letter] = append(groupTeams[letter], rec.Id)
 		}
 
 		// Tournament groups A..L.

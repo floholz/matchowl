@@ -500,15 +500,17 @@ type fcBreakdown struct {
 	Advance  int `json:"advance"`  // predicted advancers that actually advanced
 	Knockout int `json:"knockout"` // predicted teams reaching KO rounds
 	Champion int `json:"champion"`
+	Calls    int `json:"calls"` // calls-mode headline picks
 	// Correct-pick counts (for the Forecast leaderboard view).
 	GroupsCorrect   int            `json:"groupsCorrect"`
 	AdvanceCorrect  int            `json:"advanceCorrect"`
 	RoundCorrect    map[string]int `json:"roundCorrect"` // R32..FINAL
 	ChampionCorrect int            `json:"championCorrect"`
+	CallCorrect     map[string]int `json:"callCorrect"` // callKey -> correct members
 }
 
 func (b fcBreakdown) total() int {
-	return b.Groups + b.Advance + b.Knockout + b.Champion
+	return b.Groups + b.Advance + b.Knockout + b.Champion + b.Calls
 }
 
 func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int) {
@@ -521,6 +523,15 @@ func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int)
 	st, err := tournaments.StructureOf(trec)
 	if err != nil {
 		return b, 0
+	}
+	// The forecast's SHAPE is per-tournament config: the full builder (the
+	// path below), a short list of headline calls, or nothing.
+	spec, _ := tournaments.ForecastSpecOf(trec)
+	switch spec.Mode {
+	case tournaments.ForecastNone:
+		return b, 0
+	case tournaments.ForecastCalls:
+		return scoreCalls(app, spec, st, trec, fc)
 	}
 	eq := st.ExtraQualifiers
 
@@ -643,5 +654,85 @@ func scoreForecast(app core.App, cfg Config, fc *core.Record) (fcBreakdown, int)
 		}
 	}
 
+	return b, b.total()
+}
+
+// scoreCalls evaluates a calls-mode forecast: each call carries its own
+// points. team = the champion (knockout winner, or table position 1 for a
+// pure league shape); teamset = per correct member of a final-table zone or
+// a reached knockout stage. Only decided targets score — an unfinished
+// table simply contributes nothing yet.
+func scoreCalls(app core.App, spec *tournaments.ForecastSpec, st *tournaments.Structure, trec, fc *core.Record) (fcBreakdown, int) {
+	b := fcBreakdown{RoundCorrect: map[string]int{}, CallCorrect: map[string]int{}}
+	var picks map[string]any
+	_ = fc.UnmarshalJSONField("calls", &picks)
+	if len(picks) == 0 {
+		return b, 0
+	}
+
+	actualOrder, _ := finalGroups(app, trec.Id, st)
+	var table []string
+	if len(actualOrder) == 1 { // league shape: THE final table
+		for _, v := range actualOrder {
+			table = v
+		}
+	}
+	actualRounds, actualChamp := actualRoundTeams(app, trec.Id, st)
+	if actualChamp == "" && len(st.KnockoutStages()) == 0 && len(table) > 0 {
+		actualChamp = table[0]
+	}
+
+	asIDs := func(v any) []string {
+		switch x := v.(type) {
+		case string:
+			return []string{x}
+		case []any:
+			out := make([]string, 0, len(x))
+			for _, e := range x {
+				if s, ok := e.(string); ok {
+					out = append(out, s)
+				}
+			}
+			return out
+		}
+		return nil
+	}
+
+	for _, c := range spec.Calls {
+		pick, ok := picks[c.Key]
+		if !ok {
+			continue
+		}
+		switch c.Type {
+		case tournaments.CallTeam:
+			ids := asIDs(pick)
+			if len(ids) == 1 && ids[0] != "" && ids[0] == actualChamp {
+				b.Calls += c.Points
+				b.CallCorrect[c.Key] = 1
+			}
+		case tournaments.CallTeamset:
+			var actual map[string]bool
+			switch {
+			case c.Zone != "":
+				if z := st.Zone(c.Zone); z != nil && len(table) >= z.To {
+					actual = map[string]bool{}
+					for _, id := range table[z.From-1 : z.To] {
+						actual[id] = true
+					}
+				}
+			case c.Stage != "":
+				actual = actualRounds[c.Stage]
+			}
+			if actual == nil {
+				continue
+			}
+			for _, id := range asIDs(pick) {
+				if actual[id] {
+					b.Calls += c.Points
+					b.CallCorrect[c.Key]++
+				}
+			}
+		}
+	}
 	return b, b.total()
 }

@@ -89,6 +89,7 @@ func Leaderboard(app core.App, leagueID, tournamentID string) (map[string]any, e
 				AdvanceCorrect  int            `json:"advanceCorrect"`
 				RoundCorrect    map[string]int `json:"roundCorrect"`
 				ChampionCorrect int            `json:"championCorrect"`
+				CallCorrect     map[string]int `json:"callCorrect"`
 			}
 			if json.Unmarshal([]byte(fs.GetString("breakdown")), &bd) == nil {
 				f := map[string]int{
@@ -98,6 +99,9 @@ func Leaderboard(app core.App, leagueID, tournamentID string) (map[string]any, e
 				}
 				for k, v := range bd.RoundCorrect {
 					f[k] = v
+				}
+				for k, v := range bd.CallCorrect {
+					f["call:"+k] = v
 				}
 				row.Forecast = f
 			}

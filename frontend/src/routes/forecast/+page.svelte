@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { forecastStore as fs, koKey, type KOMatch } from '$lib/forecast.svelte';
+	import CallsForecast from '$lib/components/CallsForecast.svelte';
 	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import {
@@ -41,7 +42,8 @@
 		const snapshot = JSON.stringify([
 			fs.groupOrder,
 			fs.thirds,
-			fs.bracket
+			fs.bracket,
+			fs.calls
 		]);
 		if (!fs.loaded || fs.locked) return;
 		if (!primed) {
@@ -128,7 +130,7 @@
 			</p>
 		</div>
 	</div>
-	{#if fs.loaded}
+	{#if fs.loaded && fs.spec.mode === 'full'}
 		<div class="seg">
 			<button class:on={section === 'groups'} onclick={() => (section = 'groups')}>Groups</button>
 			{#if fs.maxThirds > 0}
@@ -148,7 +150,16 @@
 		<div class="card lockbar"><Lock size={16} /> The tournament has started — your Forecast is final.</div>
 	{/if}
 
-	{#if section === 'groups'}
+	{#if fs.spec.mode === 'none'}
+		<div class="card" style="text-align:center; padding:2rem;">
+			<p class="muted">This tournament has no forecast — it's tips only.</p>
+		</div>
+	{:else if fs.spec.mode === 'calls'}
+		<p class="muted small">
+			The headline calls. One shot — pick before kickoff.
+		</p>
+		<CallsForecast store={fs} />
+	{:else if section === 'groups'}
 		<p class="muted small">
 			Order each group 1st → {ord(fs.groupSize)}. Top {dq} advance{#if eq}; {ord(
 					eq.fromPosition
