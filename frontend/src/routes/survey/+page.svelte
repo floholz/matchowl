@@ -125,7 +125,7 @@
 	}
 </script>
 
-<svelte:head><title>Survey · WM Tips</title></svelte:head>
+<svelte:head><title>Survey · Matchowl</title></svelte:head>
 
 <header>
 	<p class="kicker">Feedback</p>
@@ -142,7 +142,7 @@
 			<h3>{justSubmitted ? 'Thank you!' : 'Already answered — thank you!'}</h3>
 			<p class="muted">
 				{justSubmitted
-					? 'Your answers are in. They directly decide whether WM Tips returns for future tournaments and seasons.'
+					? 'Your answers are in. They directly decide whether Matchowl returns for future tournaments and seasons.'
 					: 'Your answers are in — and you can still refine them if something new comes to mind.'}
 			</p>
 			<div class="done-actions">
@@ -158,7 +158,7 @@
 	<div class="stagger">
 		<!-- 1 · overall -->
 		<section class="card q">
-			<h3><span class="qn">1</span> Overall, how much did you enjoy WM Tips?</h3>
+			<h3><span class="qn">1</span> Overall, how much did you enjoy Matchowl?</h3>
 			<div class="scale" role="radiogroup" aria-label="Enjoyment from 1 to 5">
 				{#each [1, 2, 3, 4, 5] as n (n)}
 					<button
@@ -188,7 +188,7 @@
 				>
 			</div>
 			{#if playedOther}
-				<p class="follow">Compared to those, WM Tips was…</p>
+				<p class="follow">Compared to those, Matchowl was…</p>
 				<div class="seg">
 					<button type="button" class:on={comparison === 'better'} onclick={() => (comparison = 'better')}
 						>Better</button
@@ -312,7 +312,7 @@
 		<!-- 7 · fair price -->
 		<section class="card q">
 			<h3>
-				<span class="qn">7</span> WM Tips was free this time. If it continued, what would feel
+				<span class="qn">7</span> Matchowl was free this time. If it continued, what would feel
 				fair?
 			</h3>
 			<div class="opts">

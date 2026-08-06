@@ -12,7 +12,7 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 	{
 		key: 'kickoff_countdown',
 		label: 'Countdown to kickoff',
-		hint: 'A daily reminder in the final days before the World Cup kicks off.'
+		hint: 'A daily reminder in the final days before the tournament kicks off.'
 	},
 	{
 		key: 'stage_starting',

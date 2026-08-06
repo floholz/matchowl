@@ -31,7 +31,7 @@
 		onclick={() => pwa.closeIosHelp()}
 	></button>
 	<div class="ios-sheet" role="dialog" aria-label="Install instructions">
-		<h3>Add WM Tips to your Home Screen</h3>
+		<h3>Add Matchowl to your Home Screen</h3>
 		<ol>
 			<li>
 				Tap the <span class="kbd"><Share size={14} /> Share</span> button in the Safari toolbar.

@@ -1,5 +1,10 @@
-/* Design system — structure + FLOODLIGHT treatment. ALL colours/fonts/radii
-   come from the tokens in ./lib/theme.css (the single place to re-theme). */
+/* Design system — structure + NIGHT OWL treatment. ALL colours/fonts/radii
+   come from the tokens in ./lib/theme.css (the single place to re-theme).
+   Fonts are self-hosted (Fontsource) so nothing render-blocking leaves the
+   origin. */
+@import '@fontsource-variable/baloo-2';
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/red-hat-mono';
 @import './lib/theme.css';
 
 * {
@@ -47,37 +52,25 @@ body {
 	background-attachment: fixed;
 }
 
-/* Fine film-grain overlay for broadcast texture. */
-body::after {
-	content: '';
-	position: fixed;
-	inset: 0;
-	z-index: 1;
-	pointer-events: none;
-	opacity: 0.035;
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 a {
 	color: var(--accent);
 	text-decoration: none;
 }
 
-/* Condensed poster headlines. */
+/* Round, friendly display headlines — set in the owl's voice, not shouted. */
 h1,
 h2 {
 	font-family: var(--font-display);
-	font-weight: 400;
-	letter-spacing: 0.005em;
-	line-height: 0.98;
-	text-transform: uppercase;
+	font-weight: 700;
+	letter-spacing: -0.015em;
+	line-height: 1.04;
 	margin: 0;
 }
 h1 {
-	font-size: clamp(2.1rem, 6vw, 3rem);
+	font-size: clamp(1.9rem, 5.5vw, 2.7rem);
 }
 h2 {
-	font-size: clamp(1.6rem, 4.5vw, 2.1rem);
+	font-size: clamp(1.45rem, 4vw, 1.9rem);
 }
 h3 {
 	font-weight: 700;

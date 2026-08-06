@@ -716,6 +716,7 @@
 	/* Armed (second tap deletes): a red "Delete? 🗑" pill. */
 	.del.confirm {
 		opacity: 1;
+		/* Intentional literal: white on danger red works on all themes. */
 		color: #fff;
 		background: var(--danger);
 		padding: 0.1rem 0.5rem;

@@ -1,67 +1,145 @@
 /* =========================================================================
-   THEME — single source of truth. "FLOODLIGHT": matchday-broadcast look.
-   Midnight stadium · electric pitch-lime · sunset-orange "live" · condensed
-   poster headlines · mono scoreboard digits · grain + diagonal energy.
+   THEME — single source of truth. "NIGHT OWL": the Matchowl identity.
+   Owl-orange on warm night · peach paper by day · true black for OLED ·
+   round friendly shapes (the mark is built from circles) · mono scoreboard
+   digits. No pitch green anywhere — orange IS the brand.
+
+   Three themes, switched by data-theme on <html> (see theme.svelte.ts):
+     :root                      warm-dark (default; also [data-theme='dark'])
+     [data-theme='light']       peach paper
+     [data-theme='amoled']      true-black OLED variant of dark
 
    Re-skin the whole app by editing ONLY this file. No colour/font/radius
-   literals live anywhere else. (Light theme could override under
-   :root[data-theme='light'].)
+   literals live anywhere else. Fonts are self-hosted via Fontsource
+   (imported in app.css) — no external font requests.
    ========================================================================= */
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Spline+Sans+Mono:wght@500;700&display=swap');
 
 :root {
-	/* ---- Brand ---- */
-	--accent: #c8fb50; /* pitch-lime — primary actions, links, focus */
-	--accent-2: #eafe56; /* electric yellow-lime — highlights, accents */
-	--accent-fg: #08110a; /* ink on a solid lime fill */
-	--accent-ink: #08110a; /* ink on a bright accent gradient */
+	/* ---- Brand (constant across themes) ---- */
+	--accent: #ff7700; /* owl orange — primary actions, links, focus */
+	--accent-2: #ffa149; /* soft orange — highlights, hover */
+	--accent-fg: #1c0e00; /* ink on a solid orange fill */
+	--accent-ink: #1c0e00; /* ink on a bright accent gradient */
+	--peach: #ffd7b4; /* the mark's plumage — tints, chips, empty states */
 
-	/* ---- Surfaces & text ---- */
-	--bg: #080b14; /* stadium night */
-	--surface: #10131f; /* cards, bars */
-	--surface-2: #181d2e; /* insets, chips, hover */
-	--border: #283047; /* hairlines */
-	--text: #f3f5fb; /* primary text */
-	--muted: #8b93b0; /* secondary text */
+	/* ---- Surfaces & text: warm night (dark default) ---- */
+	--bg: #120c07; /* midnight, warmed toward the owl */
+	--surface: #1c140c; /* cards, bars */
+	--surface-2: #271c11; /* insets, chips, hover */
+	--border: #3d2e1e; /* hairlines */
+	--text: #fff3e6; /* primary text */
+	--muted: #b39a82; /* secondary text */
 
 	/* ---- Status ---- */
-	--danger: #ff4d5e;
-	--success: #c8fb50;
+	--danger: #f4504a;
+	--success: #4fb56d;
 	--warning: #ffb43d;
-	--live: #ff5a36;
-	--gold: #ffcf3a; /* champion / trophy highlight */
+	--live: #ff3d2e; /* hotter than the accent so LIVE still pops */
+	--gold: #ffc633; /* champion / trophy highlight */
 
 	/* ---- Effects ---- */
-	--radius: 16px;
-	--radius-sm: 10px;
+	--radius: 20px; /* round like the mark */
+	--radius-sm: 12px;
 	--radius-pill: 999px;
 	--ring: 2px solid var(--accent);
-	--shadow-pop: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
-	--glow: 0 0 0 1px rgba(200, 251, 80, 0.25), 0 8px 30px -8px rgba(200, 251, 80, 0.35);
+	--shadow-pop: 0 18px 44px -12px rgba(0, 0, 0, 0.65);
+	--glow:
+		0 0 0 1px rgba(255, 119, 0, 0.28),
+		0 8px 30px -8px rgba(255, 119, 0, 0.38);
 
-	/* Atmosphere: floodlight glow + diagonal pitch wash, layered on --bg. */
+	/* Atmosphere: a faint warm glow from above, like a porch light the owl
+	   sits under. Layered on --bg. */
 	--bg-atmosphere:
 		radial-gradient(
-			120% 80% at 85% -10%,
-			rgba(145, 207, 0, 0.11),
+			110% 70% at 50% -20%,
+			rgba(255, 119, 0, 0.1),
 			transparent 55%
 		),
 		radial-gradient(
-			90% 70% at 0% 0%,
-			rgba(200, 251, 80, 0.1),
+			80% 60% at 100% 0%,
+			rgba(255, 215, 180, 0.05),
 			transparent 50%
 		);
 
 	/* ---- Type ---- */
-	--font: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-	--font-display: 'Anton', 'Archivo', sans-serif; /* condensed poster */
-	--font-mono: 'Spline Sans Mono', ui-monospace, monospace; /* scoreboard */
+	--font: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Baloo 2 Variable', 'Figtree Variable', sans-serif; /* round + warm */
+	--font-mono: 'Red Hat Mono Variable', ui-monospace, monospace; /* scoreboard */
 
 	/* ---- Layout metrics ---- */
 	--maxw: 740px;
 	--nav-h: 66px;
 	--topbar-h: 58px;
 	--rail-w: 240px;
+
+	/* The PWA theme-color per theme (read by theme.svelte.ts into the
+	   <meta name="theme-color">). */
+	--theme-color: #120c07;
+
+	color-scheme: dark;
+}
+
+/* Explicit dark is identical to the default. */
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* ---- Peach paper (light) ---- */
+:root[data-theme='light'] {
+	--accent: #f26a00; /* a step deeper for AA contrast on paper */
+	--accent-2: #ff8b26;
+	--peach: #ffd7b4;
+
+	--bg: #fff3e6; /* warm paper, from the mark's background */
+	--surface: #fffdfa;
+	--surface-2: #ffe6cd;
+	--border: #eccfae;
+	--text: #241505;
+	--muted: #83674e;
+
+	--danger: #d92d27;
+	--success: #1e8a47;
+	--warning: #b26a00;
+	--live: #e02412;
+	--gold: #b98200;
+
+	--shadow-pop: 0 16px 40px -14px rgba(120, 70, 20, 0.28);
+	--glow:
+		0 0 0 1px rgba(242, 106, 0, 0.25),
+		0 8px 26px -10px rgba(242, 106, 0, 0.3);
+
+	--bg-atmosphere:
+		radial-gradient(
+			110% 70% at 50% -20%,
+			rgba(255, 119, 0, 0.09),
+			transparent 55%
+		),
+		radial-gradient(
+			80% 60% at 0% 0%,
+			rgba(255, 215, 180, 0.5),
+			transparent 55%
+		);
+
+	--theme-color: #fff3e6;
+
+	color-scheme: light;
+}
+
+/* ---- True black (AMOLED) — dark, but every surface drops to black-ish so
+   OLED screens switch pixels off. Borders carry the separation instead of
+   surface contrast. ---- */
+:root[data-theme='amoled'] {
+	--bg: #000000;
+	--surface: #0c0805;
+	--surface-2: #191009;
+	--border: #33261a;
+
+	--shadow-pop: none;
+	--bg-atmosphere: none;
+
+	--theme-color: #000000;
+
+	color-scheme: dark;
 }
 
 @media (min-width: 900px) {

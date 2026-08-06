@@ -74,7 +74,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		ctx, cancel := context.WithTimeout(e.Request.Context(), 15*time.Second)
 		defer cancel()
 		n := Notification{
-			Title: "WM Tips",
+			Title: "Matchowl",
 			Body:  "Push notifications are on 🎉 — you're all set.",
 			URL:   "/settings",
 			Tag:   "test",

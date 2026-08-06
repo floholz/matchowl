@@ -14,7 +14,7 @@
 		<a class="wrap" href={appConfig.kofiUrl} target="_blank" rel="noopener">
 			<span class="ci"><Coffee size={20} /></span>
 			<span class="txt">
-				<span class="t">Enjoying WM Tips?</span>
+				<span class="t">Enjoying Matchowl?</span>
 				<span class="muted s">It's free with no ads — say thanks with a coffee.</span>
 			</span>
 			<!-- Official Ko-fi symbol (storage.ko-fi.com/cdn/brandasset); its cup

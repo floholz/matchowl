@@ -70,6 +70,8 @@
 		display: grid;
 		place-items: center;
 		border-radius: 999px;
+		/* Intentional literals: a functional dark scrim + white glyph over media
+		   thumbnails — theme-independent by design. */
 		background: rgba(0, 0, 0, 0.5);
 		color: #fff;
 		pointer-events: none;

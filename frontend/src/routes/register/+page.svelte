@@ -41,7 +41,7 @@
 
 <div class="auth">
 	<h1>Create account</h1>
-	<p class="muted">Join the World Cup prediction game.</p>
+	<p class="muted">Join the football prediction game.</p>
 
 	<form class="card" onsubmit={submit}>
 		<div class="field">

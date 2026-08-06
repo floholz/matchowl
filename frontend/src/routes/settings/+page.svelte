@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
 	import { push } from '$lib/push.svelte';
+	import { theme } from '$lib/theme.svelte';
 	import { goto } from '$app/navigation';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import { NOTIFY_EVENTS } from '$lib/notify';
@@ -264,6 +265,26 @@
 	</form>
 
 	<section class="card">
+		<h3>Appearance</h3>
+		<p class="muted small">Choose how Matchowl looks on this device.</p>
+		<div class="theme-grid" role="radiogroup" aria-label="Theme">
+			{#each theme.modes as m (m.value)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={theme.mode === m.value}
+					class="theme-opt"
+					class:on={theme.mode === m.value}
+					onclick={() => theme.set(m.value)}
+				>
+					<span class="theme-label">{m.label}</span>
+					<span class="theme-hint">{m.hint}</span>
+				</button>
+			{/each}
+		</div>
+	</section>
+
+	<section class="card">
 		<h3>Email</h3>
 		<p class="muted small">
 			You're signed in as <strong>{auth.user?.email ?? ''}</strong>. Enter a
@@ -524,6 +545,57 @@
 		list-style: none;
 		margin: 0.5rem 0 0;
 		padding: 0;
+	}
+	/* Appearance: radio-cards for the four theme modes, all token-derived. */
+	.theme-grid {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 0.5rem;
+	}
+	@media (min-width: 560px) {
+		.theme-grid {
+			grid-template-columns: repeat(4, 1fr);
+		}
+	}
+	.theme-opt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		padding: 0.7rem 0.75rem;
+		text-align: left;
+		background: var(--surface-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--text);
+		font: inherit;
+		cursor: pointer;
+		transition:
+			border-color 0.15s ease,
+			background 0.15s ease;
+	}
+	.theme-opt:hover {
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	}
+	.theme-opt:focus-visible {
+		outline: var(--ring);
+		outline-offset: 2px;
+	}
+	.theme-opt.on {
+		border-color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+		box-shadow: inset 0 0 0 1px var(--accent);
+	}
+	.theme-opt.on .theme-label {
+		color: var(--accent);
+	}
+	.theme-label {
+		font-weight: 700;
+		font-size: 0.9rem;
+	}
+	.theme-hint {
+		font-size: 0.75rem;
+		line-height: 1.35;
+		color: var(--muted);
 	}
 	.push-device {
 		margin: 0 0 0.5rem;

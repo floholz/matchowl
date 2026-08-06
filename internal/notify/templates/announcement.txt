@@ -2,7 +2,7 @@
 
 {{.Body}}
 
-Open WM Tips: {{.CTAUrl}}
+Open Matchowl: {{.CTAUrl}}
 
 —
 Manage your notifications: {{.SettingsUrl}}

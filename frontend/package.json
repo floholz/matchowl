@@ -19,6 +19,9 @@
     "vite": "^6.0.0"
   },
   "dependencies": {
+    "@fontsource-variable/baloo-2": "^5.3.0",
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/red-hat-mono": "^5.3.0",
     "@lucide/svelte": "^1.16.0",
     "pocketbase": "^0.26.0",
     "svelte-confetti": "^2.3.2"

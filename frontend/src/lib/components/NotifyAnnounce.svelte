@@ -63,7 +63,7 @@
 		<div class="icon"><BellRing size={22} /></div>
 		<h3>Notifications are here ⚽</h3>
 		<p class="body">
-			WM Tips can now nudge you before kickoff and picks lock, recap
+			Matchowl can now nudge you before kickoff and picks lock, recap
 			your matchday, and ping you when you hit&nbsp;#1.
 			<br>
 			Email reminders are <strong>already enabled</strong>. Turn on push
@@ -79,7 +79,7 @@
 				Install the app for push
 			</button>
 			<p class="hint muted">
-				On iPhone, add WM Tips to your Home Screen first, then turn on push.
+				On iPhone, add Matchowl to your Home Screen first, then turn on push.
 			</p>
 		{:else if push.blocked}
 			<p class="hint muted">

@@ -111,6 +111,7 @@
 	}
 	.cd-confirm.danger {
 		background: var(--danger);
+		/* Intentional literal: white on danger red works on all themes. */
 		color: #fff;
 		border-color: transparent;
 	}

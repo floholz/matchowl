@@ -12,10 +12,14 @@
 	import VerifyEmailAnnounce from '$lib/components/VerifyEmailAnnounce.svelte';
 	import AnnounceBanner from '$lib/components/AnnounceBanner.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
+	import { theme } from '$lib/theme.svelte';
 	import '$lib/keyboard'; // tracks the on-screen keyboard → `kb-open` class + `--kb` var
 	import { CircleHelp } from '@lucide/svelte';
 
 	let { children } = $props();
+
+	// Apply the saved (or device) theme before anything renders.
+	theme.init();
 
 	// Pull the (possibly simulated) server clock once so lock checks and the
 	// dev-tools link are correct app-wide.
@@ -69,7 +73,7 @@
 	<header class="topbar">
 		<Logo />
 		<div class="spacer"></div>
-		<a class="topbar-help" href="/welcome" aria-label="What is WM Tips?">
+		<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">
 			<CircleHelp size={20} />
 		</a>
 		<PwaInstallButton />

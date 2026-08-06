@@ -220,7 +220,7 @@
 	}
 	.pa.warn .pahead {
 		background: var(--warning);
-		color: #20160a;
+		color: var(--accent-ink);
 	}
 	.pa.warn .pabody {
 		background: color-mix(in srgb, var(--warning) 12%, var(--surface));
@@ -296,7 +296,7 @@
 	}
 	.banner.warn .ico {
 		background: var(--warning);
-		color: #20160a;
+		color: var(--accent-ink);
 	}
 	.ico {
 		display: inline-grid;

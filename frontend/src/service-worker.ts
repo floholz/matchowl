@@ -6,7 +6,7 @@
 import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
-const CACHE = `wmtips-${version}`;
+const CACHE = `matchowl-${version}`;
 
 // Precache the app shell + light static assets. Skip the heavy stuff
 // (flags / screenshots) — those are cached on demand instead.
@@ -102,7 +102,7 @@ sw.addEventListener('push', (e) => {
 	} catch {
 		data = { body: e.data?.text() };
 	}
-	const title = data.title || 'WM Pickems';
+	const title = data.title || 'Matchowl';
 	// High-priority messages (requireInteraction) stay on screen until acted on
 	// and buzz; `vibrate` isn't in the TS NotificationOptions type yet.
 	const opts: NotificationOptions & { vibrate?: number[] } = {

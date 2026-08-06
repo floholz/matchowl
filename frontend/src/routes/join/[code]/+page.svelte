@@ -42,8 +42,8 @@
 </script>
 
 <div class="auth">
-	<h1>WM Tips</h1>
-	<p class="muted">Predict the World Cup. Beat your friends.</p>
+	<h1>Matchowl</h1>
+	<p class="muted">Predict the tournament. Beat your friends.</p>
 
 	<div class="card">
 		{#if phase === 'loading'}
