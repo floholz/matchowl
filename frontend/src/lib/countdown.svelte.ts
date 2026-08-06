@@ -1,5 +1,6 @@
 import { pb } from './pb';
 import { serverClock } from './serverclock.svelte';
+import { tournamentStore } from './tournament.svelte';
 
 // Drives the landing-page countdown to the forecast / first-matchup lock.
 // Both lock at the tournament's opening kickoff (the earliest match), which is
@@ -33,9 +34,13 @@ class Countdown {
 			this.#loaded = true;
 			await serverClock.refresh();
 			try {
-				const r = await pb
-					.collection('matches')
-					.getList(1, 1, { sort: 'kickoff', fields: 'kickoff' });
+				await tournamentStore.ready();
+				const t = tournamentStore.current;
+				const r = await pb.collection('matches').getList(1, 1, {
+					sort: 'kickoff',
+					fields: 'kickoff',
+					filter: t ? `tournament = "${t.id}"` : ''
+				});
 				const first = r.items[0]?.kickoff;
 				this.kickoff = first ? new Date(first).getTime() : null;
 			} catch {

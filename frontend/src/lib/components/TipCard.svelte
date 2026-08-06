@@ -7,6 +7,7 @@
 		type FriendTip,
 		type PerfectScorers
 	} from '$lib/tips.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from './Flag.svelte';
 	import Scoreline from './Scoreline.svelte';
 	import Stepper from './Stepper.svelte';
@@ -24,7 +25,7 @@
 	let home = $derived(tipsStore.team(match.homeTeam));
 	let away = $derived(tipsStore.team(match.awayTeam));
 	let existing = $derived(tipsStore.tips[match.id]);
-	let isKO = $derived(match.stage !== 'group');
+	let isKO = $derived(tournamentStore.isKnockout(match.stage));
 	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
 	let live = $derived(match.status === 'live');
 	let pts = $derived(tipsStore.scores[match.id]);
@@ -216,7 +217,7 @@
 		</div>
 		<div class="meta">
 			<span class="muted"
-				>{match.stage === 'group'
+				>{tournamentStore.isGroup(match.stage)
 					? `Group ${match.groupLetter} · ${match.roundLabel}`
 					: match.roundLabel} · {kickoff}</span
 			>

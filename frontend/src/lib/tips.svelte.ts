@@ -1,6 +1,7 @@
 import { pb } from './pb';
 import { auth } from './auth.svelte';
 import { serverClock } from './serverclock.svelte';
+import { tournamentStore } from './tournament.svelte';
 
 export interface Team {
 	id: string;
@@ -11,7 +12,7 @@ export interface Team {
 
 export interface Match {
 	id: string;
-	stage: string; // group | R32 | R16 | QF | SF | 3RD | FINAL
+	stage: string; // a stage code from the tournament's structure
 	groupLetter: string;
 	roundLabel: string;
 	num: number;
@@ -81,13 +82,15 @@ class TipsStore {
 	private subscribed = false;
 
 	async load() {
+		await tournamentStore.ready();
+		const tid = tournamentStore.current?.id ?? '';
 		const [teams, matches, mine, tgroups] = await Promise.all([
-			pb.collection('teams').getFullList({ sort: 'name' }),
-			pb.collection('matches').getFullList({ sort: 'kickoff' }),
+			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"` }),
+			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` }),
 			pb
 				.collection('tips')
-				.getFullList({ filter: `user = "${auth.user?.id}"` }),
-			pb.collection('tournament_groups').getFullList({ sort: 'letter' }),
+				.getFullList({ filter: `user = "${auth.user?.id}" && match.tournament = "${tid}"` }),
+			pb.collection('tournament_groups').getFullList({ sort: 'letter', filter: `tournament = "${tid}"` }),
 			serverClock.refresh(),
 			pb
 				.send('/api/tips/scores', { method: 'GET' })

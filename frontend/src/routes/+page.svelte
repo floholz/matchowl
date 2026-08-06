@@ -5,6 +5,7 @@
 	import { api, type LeagueSummary, type LeaderboardRow } from '$lib/api';
 	import { appConfig } from '$lib/appconfig.svelte';
 	import { tipsStore, isLocked, teamsResolved, type Match } from '$lib/tips.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import { countdown } from '$lib/countdown.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { pb } from '$lib/pb';
@@ -106,20 +107,12 @@
 		new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
 
 	function stageLabel(stage: string): string {
-		return (
-			{
-				group: 'Group stage',
-				R32: 'Round of 32',
-				R16: 'Round of 16',
-				QF: 'Quarter-finals',
-				SF: 'Semi-finals',
-				'3RD': 'Third-place play-off',
-				FINAL: 'Final'
-			}[stage] ?? ''
-		);
+		return stage ? tournamentStore.stageName(stage) : '';
 	}
 	function roundOf(m: Match): string {
-		return m.stage === 'group' ? `Group ${m.groupLetter} · ${m.roundLabel}` : m.roundLabel;
+		return tournamentStore.isGroup(m.stage)
+			? `Group ${m.groupLetter} · ${m.roundLabel}`
+			: m.roundLabel;
 	}
 	function fmtKick(iso: string): string {
 		return new Date(iso).toLocaleString(undefined, {
@@ -197,9 +190,11 @@
 	let ready = $derived(forecastChecked && tipsStore.loaded && leaguesLoaded);
 	let allCaught = $derived(ready && moves.length === 0);
 
-	// The world champion = the final's advancer, once played.
+	// The world champion = the champion stage's advancer, once played.
 	let champion = $derived.by(() => {
-		const final = tipsStore.matches.find((m) => m.stage === 'FINAL');
+		const final = tipsStore.matches.find(
+			(m) => m.stage === tournamentStore.championStageCode
+		);
 		return final?.advancer ? tipsStore.team(final.advancer) : undefined;
 	});
 
@@ -214,6 +209,15 @@
 	});
 	const medals = ['🥇', '🥈', '🥉'];
 	const achTitle = ['You are the champion!', 'Silver — second overall!', 'Bronze — third overall!'];
+
+	// Header subline: "{name} · {d MMM} – {d MMM}" from the current tournament
+	// (loaded via tipsStore). en-GB guarantees the day-first "11 Jun" order.
+	const fmtDay = (iso: string) =>
+		new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+	let tournamentLine = $derived.by(() => {
+		const t = tournamentStore.current;
+		return t ? `${t.name} · ${fmtDay(t.startsAt)} – ${fmtDay(t.endsAt)}` : '';
+	});
 </script>
 
 {#if !auth.isAuthed}
@@ -222,7 +226,7 @@
 	<header>
 		<p class="kicker">Matchday HQ</p>
 		<h1>Hi,&nbsp;{auth.user?.name}</h1>
-		<p class="muted sd">World Cup 2026 · 11 Jun – 19 Jul · 48 nations</p>
+		{#if tournamentLine}<p class="muted sd">{tournamentLine}</p>{/if}
 	</header>
 
 	<div class="stagger">
@@ -251,8 +255,8 @@
 						</p>
 					{/if}
 					<p class="muted wt">
-						All {total} matches played. Thank you for spending this World Cup on
-						WM Tips — it was a blast running it for you.
+						All {total} matches played. Thank you for playing this tournament on
+						Matchowl — it was a blast running it for you.
 					</p>
 				</div>
 			{:else}
@@ -266,7 +270,7 @@
 		</section>
 
 		<!-- ===== Feedback survey (until submitted) — deliberately slot 2, both
-		     during the tournament and after: the answers steer whether WM Tips
+		     during the tournament and after: the answers steer whether Matchowl
 		     continues, so it may be a bit pushy. -->
 		{#if surveyChecked && !surveySubmitted}
 			<section class="card svy">
@@ -318,7 +322,7 @@
 							fallDistance="60px"
 							amount={70}
 							duration={2600}
-							colorArray={['var(--accent)', 'var(--accent-2)', '#ffcf3a', '#ffffff']}
+							colorArray={['#ff7700', '#ffd7b4', '#ffc633', '#ffffff']}
 							destroyOnComplete
 						/>
 					</div>
@@ -327,7 +331,7 @@
 					<p class="muted">
 						You finished <b class="rk">#{myGlobal.rank}</b> of {myGlobal.total} players across the
 						whole tournament. {myGlobal.rank === 1
-							? 'Nobody read this World Cup better than you. Take a bow!'
+							? 'Nobody read this tournament better than you. Take a bow!'
 							: 'An amazing run — wear it with pride.'}
 					</p>
 				</section>
@@ -484,7 +488,7 @@
 		</section>
 
 		<p class="foot muted">
-			WM Tips · made by
+			Matchowl · made by
 			<a href="https://floholz.com" target="_blank" rel="noopener">floholz</a>
 			· <a href="mailto:{appConfig.contactEmail}">contact</a>
 		</p>
@@ -650,21 +654,29 @@
 		font-size: 1.35rem;
 		line-height: 1;
 	}
-	/* Podium blocks: metal-tinted at the usual whisper level, height = rank. */
+	/* Podium blocks: metal-tinted at the usual whisper level, height = rank.
+	   Gold comes from the theme token (adapts per theme); silver and bronze are
+	   intentional literal podium metals — mixed at 12–40% into theme surfaces/
+	   borders they read correctly on dark, light and amoled alike. */
+	.podium {
+		--metal-gold: var(--gold);
+		--metal-silver: #b9c2cc;
+		--metal-bronze: #c98a5e;
+	}
 	.p1 .pblock {
 		height: 74px;
-		background: color-mix(in srgb, #e7b73c 14%, var(--surface-2));
-		border-color: color-mix(in srgb, #e7b73c 40%, var(--border));
+		background: color-mix(in srgb, var(--metal-gold) 14%, var(--surface-2));
+		border-color: color-mix(in srgb, var(--metal-gold) 40%, var(--border));
 	}
 	.p2 .pblock {
 		height: 52px;
-		background: color-mix(in srgb, #b9c2cc 12%, var(--surface-2));
-		border-color: color-mix(in srgb, #b9c2cc 40%, var(--border));
+		background: color-mix(in srgb, var(--metal-silver) 12%, var(--surface-2));
+		border-color: color-mix(in srgb, var(--metal-silver) 40%, var(--border));
 	}
 	.p3 .pblock {
 		height: 40px;
-		background: color-mix(in srgb, #c98a5e 12%, var(--surface-2));
-		border-color: color-mix(in srgb, #c98a5e 40%, var(--border));
+		background: color-mix(in srgb, var(--metal-bronze) 12%, var(--surface-2));
+		border-color: color-mix(in srgb, var(--metal-bronze) 40%, var(--border));
 	}
 	.mine {
 		margin: 0.9rem 0 0;

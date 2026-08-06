@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import { groupTable, type StandRow } from '$lib/standings';
 	import Flag from './Flag.svelte';
 	import { ChevronDown } from '@lucide/svelte';
@@ -17,8 +18,15 @@
 	let rows = $derived(groupTable(matches, tipsStore.tips));
 	let counted = $derived(rows.reduce((n, r) => n + r.pld, 0));
 	const gd = (r: StandRow) => `${r.gf - r.ga >= 0 ? '+' : ''}${r.gf - r.ga}`;
-	// 1st/2nd advance directly; a 3rd-placed team advances if it's a best third.
-	const advances = (r: StandRow, i: number) => i < 2 || (i === 2 && bestThirds.has(r.id));
+	const ord = (n: number) =>
+		n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+	// Qualifier rules from the tournament structure: the top teams advance
+	// directly; the extra-qualifier-position team advances if it's a best one.
+	let eq = $derived(tournamentStore.extraQualifiers);
+	const isThird = (r: StandRow, i: number) =>
+		!!eq && i === eq.fromPosition - 1 && bestThirds.has(r.id);
+	const advances = (r: StandRow, i: number) =>
+		i < tournamentStore.directQualifiers || isThird(r, i);
 </script>
 
 <div class="gs">
@@ -45,7 +53,7 @@
 				</thead>
 				<tbody>
 					{#each rows as r, i (r.id)}
-						<tr class:adv={advances(r, i)} class:third={i === 2 && bestThirds.has(r.id)}>
+						<tr class:adv={advances(r, i)} class:third={isThird(r, i)}>
 							<td class="rk">{i + 1}</td>
 							<td class="tl">
 								<span class="tm">
@@ -64,10 +72,11 @@
 				</tbody>
 			</table>
 			<p class="muted small note">
-				Your picks, with played results counted. Top 2 advance directly; the 8
-				best 3rd-placed teams also advance{bestThirds.size
-					? ''
-					: ' (fill every group to project these)'}.
+				Your picks, with played results counted. Top {tournamentStore.directQualifiers}
+				advance directly{#if eq}; the {eq.count} best {ord(eq.fromPosition)}-placed
+					teams also advance{bestThirds.size
+						? ''
+						: ' (fill every group to project these)'}{/if}.
 			</p>
 		{/if}
 	{/if}

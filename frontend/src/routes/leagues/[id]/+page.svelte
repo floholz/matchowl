@@ -3,6 +3,7 @@
 	import { api, type LeaderboardRow, type BotSummary } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import {
@@ -50,14 +51,18 @@
 		fewestTips: 'Fewest tips submitted',
 		earliestEdit: 'Earliest last edit (submitted first)'
 	};
-	const roundLabel: Record<string, string> = {
-		R32: 'Round of 32',
-		R16: 'Round of 16',
-		QF: 'Quarter-final',
-		SF: 'Semi-final',
-		FINAL: 'Final',
-		CHAMPION: 'Champion'
-	};
+	// The forecast-scored knockout rounds, from the tournament structure
+	// (consolation stages like the third-place play-off are not scored per
+	// round), plus the synthetic CHAMPION entry.
+	let fcRounds = $derived(
+		tournamentStore.knockoutStages.filter((s) => !s.consolation)
+	);
+	let roundLabel = $derived.by(() => {
+		const out: Record<string, string> = {};
+		for (const s of fcRounds) out[s.code] = s.name;
+		out.CHAMPION = 'Champion';
+		return out;
+	});
 
 	let revealed = $state(false);
 	let openRow = $state<string | null>(null);
@@ -96,6 +101,8 @@
 		showShare = false;
 		mgmtError = '';
 		availableBots = [];
+		// The leaderboard's forecast columns come from the tournament structure.
+		tournamentStore.ready().catch(() => {});
 		Promise.all([api.leaderboard(lid), api.myLeagues()])
 			.then(([lb, mine]) => {
 				league = lb.league;
@@ -440,11 +447,11 @@
 					{#if fcView}
 						<th class="num ext" title="Correct group positions">Grp</th>
 						<th class="num ext" title="Correct advancers (group stage)">Adv</th>
-						<th class="num ext" title="Predicted teams that reached the Round of 32">R32</th>
-						<th class="num ext" title="…Round of 16">R16</th>
-						<th class="num ext" title="…Quarter-finals">QF</th>
-						<th class="num ext" title="…Semi-finals">SF</th>
-						<th class="num ext" title="…the Final">F</th>
+						{#each fcRounds as s (s.code)}
+							<th class="num ext" title="Predicted teams that reached the {s.name}"
+								>{s.code === 'FINAL' ? 'F' : s.code}</th
+							>
+						{/each}
 						<th class="num ext" title="Champion predicted correctly">Win</th>
 					{:else}
 						<th class="num ext" title="Matches predicted">Pred</th>
@@ -506,11 +513,9 @@
 						{#if fcView}
 							<td class="num ext digits">{f.groups ?? 0}</td>
 							<td class="num ext digits">{f.advance ?? 0}</td>
-							<td class="num ext digits">{f.R32 ?? 0}</td>
-							<td class="num ext digits">{f.R16 ?? 0}</td>
-							<td class="num ext digits">{f.QF ?? 0}</td>
-							<td class="num ext digits">{f.SF ?? 0}</td>
-							<td class="num ext digits">{f.FINAL ?? 0}</td>
+							{#each fcRounds as s (s.code)}
+								<td class="num ext digits">{f[s.code] ?? 0}</td>
+							{/each}
 							<td class="num ext digits">{f.champion ? '✓' : '–'}</td>
 						{:else}
 							<td class="num ext digits">{r.predicted}</td>
@@ -528,11 +533,9 @@
 									<div class="stats">
 										<span><i>Correct group positions</i><b>{f.groups ?? 0}</b></span>
 										<span><i>Correct advancers</i><b>{f.advance ?? 0}</b></span>
-										<span><i>Reached Round of 32</i><b>{f.R32 ?? 0}</b></span>
-										<span><i>Reached Round of 16</i><b>{f.R16 ?? 0}</b></span>
-										<span><i>Reached Quarter-finals</i><b>{f.QF ?? 0}</b></span>
-										<span><i>Reached Semi-finals</i><b>{f.SF ?? 0}</b></span>
-										<span><i>Reached the Final</i><b>{f.FINAL ?? 0}</b></span>
+										{#each fcRounds as s (s.code)}
+											<span><i>Reached {s.name}</i><b>{f[s.code] ?? 0}</b></span>
+										{/each}
 										<span><i>Champion correct</i><b>{f.champion ? 'Yes' : 'No'}</b></span>
 									</div>
 								{:else}
@@ -731,6 +734,8 @@
 		place-items: center;
 		border-radius: var(--radius-pill);
 		background: var(--danger);
+		/* Intentional literal: white on the danger red clears contrast on all
+		   three themes (--accent-fg is dark ink tuned for orange fills). */
 		color: #fff;
 		font-size: 0.7rem;
 		font-weight: 800;
@@ -778,6 +783,7 @@
 	.btn.danger {
 		width: auto;
 		background: var(--danger);
+		/* Intentional literal: white on danger red works on all themes. */
 		color: #fff;
 		border-color: transparent;
 	}

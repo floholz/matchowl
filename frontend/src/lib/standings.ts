@@ -1,4 +1,5 @@
 import type { Match, Tip } from './tips.svelte';
+import { tournamentStore } from './tournament.svelte';
 
 export type StandRow = { id: string; pts: number; gf: number; ga: number; pld: number };
 
@@ -44,11 +45,11 @@ export function groupTable(matches: Match[], tips: Record<string, Tip>): StandRo
 		H.ga += a;
 		A.gf += a;
 		A.ga += h;
-		if (h > a) H.pts += 3;
-		else if (a > h) A.pts += 3;
+		if (h > a) H.pts += tournamentStore.pointsWin;
+		else if (a > h) A.pts += tournamentStore.pointsWin;
 		else {
-			H.pts++;
-			A.pts++;
+			H.pts += tournamentStore.pointsDraw;
+			A.pts += tournamentStore.pointsDraw;
 		}
 	}
 	return Object.values(tbl).sort(cmp);
@@ -66,21 +67,23 @@ export function groupComplete(matches: Match[], tips: Record<string, Tip>): bool
 	);
 }
 
-// bestThirds returns the ids of the projected best `n` third-placed teams across
-// all groups — but only once EVERY group is complete, since the comparison is
+// bestThirds returns the ids of the projected best extra-qualifier teams
+// (per the tournament structure, e.g. WC2026's 8 best thirds) across all
+// groups — but only once EVERY group is complete, since the comparison is
 // top-n-of-all and is meaningless while some groups are unsettled. Returns an
-// empty set until then.
+// empty set until then, and always for tournaments without extra qualifiers.
 export function bestThirds(
 	groups: Match[][],
-	tips: Record<string, Tip>,
-	n = 8
+	tips: Record<string, Tip>
 ): Set<string> {
+	const eq = tournamentStore.extraQualifiers;
+	if (!eq) return new Set();
 	const thirds: StandRow[] = [];
 	for (const g of groups) {
 		if (!groupComplete(g, tips)) return new Set();
 		const t = groupTable(g, tips);
-		if (t.length >= 3) thirds.push(t[2]);
+		if (t.length >= eq.fromPosition) thirds.push(t[eq.fromPosition - 1]);
 	}
 	thirds.sort(cmp);
-	return new Set(thirds.slice(0, n).map((r) => r.id));
+	return new Set(thirds.slice(0, eq.count).map((r) => r.id));
 }

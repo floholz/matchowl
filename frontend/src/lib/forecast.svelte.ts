@@ -1,6 +1,7 @@
 import { pb } from './pb';
 import { auth } from './auth.svelte';
 import type { Team } from './tips.svelte';
+import { tournamentStore, type Structure } from './tournament.svelte';
 
 export interface KOMatch {
 	num: number;
@@ -29,6 +30,7 @@ export class ForecastStore {
 	loaded = $state(false);
 	locked = $state(false);
 	tournamentStart = $state<string>('');
+	structure = $state<Structure>({ stages: [] });
 	teams = $state<Record<string, Team>>({});
 	groups = $state<GroupDef[]>([]);
 	knockout = $state<KOMatch[]>([]);
@@ -61,11 +63,14 @@ export class ForecastStore {
 	// Loads structure/teams/results (shared by the editor and the read-only
 	// friend viewer).
 	private async loadBase() {
+		await tournamentStore.ready();
+		const tid = tournamentStore.current?.id ?? '';
 		const [structure, teams, matches] = await Promise.all([
 			pb.send('/api/forecast/structure', { method: 'GET' }),
-			pb.collection('teams').getFullList({ sort: 'name' }),
-			pb.collection('matches').getFullList({ sort: 'kickoff' })
+			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"` }),
+			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` })
 		]);
+		this.structure = structure.structure ?? tournamentStore.structure;
 		this.results = (matches as unknown[]).map((m) => {
 			const r = m as Record<string, unknown>;
 			return {
@@ -117,9 +122,10 @@ export class ForecastStore {
 
 	async load() {
 		await this.loadBase();
+		const tid = tournamentStore.current?.id ?? '';
 		const mine = await pb
 			.collection('forecasts')
-			.getFullList({ filter: `user = "${auth.user?.id}"` });
+			.getFullList({ filter: `user = "${auth.user?.id}" && tournament = "${tid}"` });
 		this.recId = mine[0]?.id;
 		this.readOnly = false;
 		this.applyForecast(mine[0] as never);
@@ -143,9 +149,26 @@ export class ForecastStore {
 		return this.teams[id];
 	}
 
+	/** The group stage's code per the structure ('group' for WC2026). */
+	get groupStageCode(): string {
+		return this.structure.stages.find((s) => s.kind === 'group')?.code ?? 'group';
+	}
+
+	get extraQualifiers() {
+		return this.structure.extraQualifiers ?? null;
+	}
+
+	get groupSize(): number {
+		return this.structure.groupSize ?? 4;
+	}
+
+	get gamesPerTeam(): number {
+		return this.structure.gamesPerTeam ?? Math.max(1, this.groupSize - 1);
+	}
+
 	/** True once every group match is finished. */
 	get groupStageDone(): boolean {
-		const g = this.results.filter((r) => r.stage === 'group');
+		const g = this.results.filter((r) => r.stage === this.groupStageCode);
 		return g.length > 0 && g.every((r) => r.finished);
 	}
 
@@ -159,7 +182,7 @@ export class ForecastStore {
 			[])
 			t[id] = { id, pts: 0, gd: 0, gf: 0, p: 0 };
 		for (const m of this.results) {
-			if (m.stage !== 'group' || m.groupLetter !== letter || !m.finished)
+			if (m.stage !== this.groupStageCode || m.groupLetter !== letter || !m.finished)
 				continue;
 			const H = t[m.homeTeam],
 				A = t[m.awayTeam];
@@ -170,38 +193,43 @@ export class ForecastStore {
 			A.gf += m.ftAway;
 			H.gd += m.ftHome - m.ftAway;
 			A.gd += m.ftAway - m.ftHome;
-			if (m.ftHome > m.ftAway) H.pts += 3;
-			else if (m.ftHome < m.ftAway) A.pts += 3;
+			const w = this.structure.pointsWin ?? 3;
+			const d = this.structure.pointsDraw ?? 1;
+			if (m.ftHome > m.ftAway) H.pts += w;
+			else if (m.ftHome < m.ftAway) A.pts += w;
 			else {
-				H.pts++;
-				A.pts++;
+				H.pts += d;
+				A.pts += d;
 			}
 		}
 		return Object.values(t);
 	}
 
-	/** Actual final 1st→4th of a group, or null until it's complete. */
+	/** Actual final ordering of a group, or null until it's complete. */
 	actualOrder(letter: string): string[] | null {
 		const rows = this.standing(letter);
-		if (rows.length < 4 || rows.some((r) => r.p < 3)) return null;
+		if (rows.length < this.groupSize || rows.some((r) => r.p < this.gamesPerTeam))
+			return null;
 		rows.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
 		return rows.map((r) => r.id);
 	}
 
-	/** The 8 teams that actually qualify as best thirds, or null until the
-	 *  whole group stage is done. */
+	/** The teams that actually qualify as extra qualifiers (WC2026: the 8 best
+	 *  thirds), or null until the whole group stage is done / for tournaments
+	 *  without extra qualifiers. */
 	actualBestThirds(): Set<string> | null {
-		if (!this.groupStageDone) return null;
+		const eq = this.extraQualifiers;
+		if (!eq || !this.groupStageDone) return null;
 		const thirds: { id: string; pts: number; gd: number; gf: number }[] =
 			[];
 		for (const g of this.groups) {
 			const rows = this.standing(g.letter).sort(
 				(a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf
 			);
-			if (rows[2]) thirds.push(rows[2]);
+			if (rows[eq.fromPosition - 1]) thirds.push(rows[eq.fromPosition - 1]);
 		}
 		thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
-		return new Set(thirds.slice(0, 8).map((t) => t.id));
+		return new Set(thirds.slice(0, eq.count).map((t) => t.id));
 	}
 
 	/** Actual advancer of a knockout match number, '' if not finished. */
@@ -218,16 +246,28 @@ export class ForecastStore {
 		this.groupOrder[letter] = arr;
 	}
 
+	/** True when a label is an extra-qualifier slot ("3A/B/C/D/F"). */
+	private isSlotLabel(label: string): boolean {
+		const eq = this.extraQualifiers;
+		return (
+			!!eq &&
+			label.startsWith(String(eq.fromPosition)) &&
+			label.includes('/')
+		);
+	}
+
 	/** Resolve a placeholder label ("1A","2B","3A/B/..","W74","L101") to a
-	 *  team id given the current predictions, or '' if undecidable. */
+	 *  team id given the current predictions, or '' if undecidable. The digit
+	 *  is a group position per the tournament structure. */
 	resolve(label: string, forMatchNum: number, seen = new Set<number>()): string {
 		if (!label) return '';
 		const c = label[0];
-		if (c === '1' || c === '2') {
+		if (c >= '1' && c <= '9') {
+			if (this.isSlotLabel(label))
+				return this.thirdAssignment()[forMatchNum] ?? '';
 			const letter = label.slice(1);
-			return this.groupOrder[letter]?.[c === '1' ? 0 : 1] ?? '';
+			return this.groupOrder[letter]?.[Number(c) - 1] ?? '';
 		}
-		if (c === '3') return this.thirdAssignment()[forMatchNum] ?? '';
 		if (c === 'W' || c === 'L') {
 			const n = parseInt(label.slice(1), 10);
 			if (seen.has(n)) return '';
@@ -255,11 +295,16 @@ export class ForecastStore {
 		this.bracket[koKey(m)] = teamId;
 	}
 
-	readonly maxThirds = 8;
+	/** How many extra qualifiers the user must tick (0 = feature disabled). */
+	get maxThirds(): number {
+		return this.extraQualifiers?.count ?? 0;
+	}
 
-	/** The predicted 3rd-placed team of a group (from the current order). */
+	/** The predicted extra-qualifier-position team of a group (from the
+	 *  current order). */
 	groupThird(letter: string): string {
-		return this.groupOrder[letter]?.[2] ?? '';
+		const pos = this.extraQualifiers?.fromPosition ?? 3;
+		return this.groupOrder[letter]?.[pos - 1] ?? '';
 	}
 
 	/** Letters the user ticked to advance as a best third. */
@@ -286,8 +331,8 @@ export class ForecastStore {
 		);
 		const chosen = this.chosenThirdLetters.sort();
 
-		// Official table for this exact set of 8 qualifying groups.
-		if (chosen.length === 8) {
+		// Official table for this exact set of qualifying groups.
+		if (chosen.length === this.maxThirds && this.maxThirds > 0) {
 			const key = [...chosen].sort().join('');
 			const map = this.thirdTable[key];
 			if (map) {
@@ -331,6 +376,7 @@ export class ForecastStore {
 			thirdQualifiers[letter] = this.groupThird(letter);
 		const data = {
 			user: auth.user?.id,
+			tournament: tournamentStore.current?.id,
 			groupOrder: this.groupOrder,
 			thirdQualifiers,
 			bracket: this.bracket

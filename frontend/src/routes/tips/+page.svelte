@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import TipCard from '$lib/components/TipCard.svelte';
 	import GroupStandings from '$lib/components/GroupStandings.svelte';
 	import { bestThirds } from '$lib/standings';
@@ -13,12 +14,13 @@
 	// Accordion: only one match's tip inputs are open at a time.
 	let openId = $state('');
 
-	// Projected best-8 third-placed teams across all groups (empty until every
-	// group is filled) — shared by every group's standings table.
+	// Projected best extra-qualifier teams (per the tournament structure, e.g.
+	// WC2026's 8 best thirds) across all groups (empty until every group is
+	// filled) — shared by every group's standings table.
 	let thirdsAdv = $derived.by(() => {
 		const by: Record<string, Match[]> = {};
 		for (const m of tipsStore.matches)
-			if (m.stage === 'group') (by[m.groupLetter] ||= []).push(m);
+			if (tournamentStore.isGroup(m.stage)) (by[m.groupLetter] ||= []).push(m);
 		return bestThirds(Object.values(by), tipsStore.tips);
 	});
 
@@ -28,8 +30,8 @@
 
 	let filtered = $derived(
 		tipsStore.matches.filter((m) => {
-			if (tab === 'group') return m.stage === 'group';
-			if (tab === 'ko') return m.stage !== 'group';
+			if (tab === 'group') return tournamentStore.isGroup(m.stage);
+			if (tab === 'ko') return tournamentStore.isKnockout(m.stage);
 			return true;
 		})
 	);
@@ -52,17 +54,8 @@
 			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
-	// Groups tab: by group letter (A..L). Knockout tab: by stage (R32→FINAL).
-	// All tab: by calendar day.
-	const stageOrder = ['R32', 'R16', 'QF', 'SF', '3RD', 'FINAL'];
-	const stageLabel: Record<string, string> = {
-		R32: 'Round of 32',
-		R16: 'Round of 16',
-		QF: 'Quarter-finals',
-		SF: 'Semi-finals',
-		'3RD': 'Third place',
-		FINAL: 'Final'
-	};
+	// Groups tab: by group letter (A..L). Knockout tab: by stage, in the
+	// tournament structure's play order. All tab: by calendar day.
 	let days = $derived.by(() => {
 		const byKickoff = (a: Match, b: Match) =>
 			new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
@@ -79,11 +72,11 @@
 		if (tab === 'ko') {
 			const byStage: Record<string, Match[]> = {};
 			for (const m of filtered) (byStage[m.stage] ||= []).push(m);
-			return stageOrder
-				.filter((s) => byStage[s])
+			return tournamentStore.knockoutStages
+				.filter((s) => byStage[s.code])
 				.map(
 					(s) =>
-						[stageLabel[s] ?? s, byStage[s].sort(byKickoff)] as [
+						[s.name, byStage[s.code].sort(byKickoff)] as [
 							string,
 							Match[]
 						]

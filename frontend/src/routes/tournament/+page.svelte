@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { collapseOnScroll } from '$lib/actions';
 	import { serverClock } from '$lib/serverclock.svelte';
@@ -17,7 +18,7 @@
 	$effect(() => {
 		if (viewInit || !tipsStore.loaded) return;
 		viewInit = true;
-		const g = tipsStore.matches.filter((m) => m.stage === 'group');
+		const g = tipsStore.matches.filter((m) => tournamentStore.isGroup(m.stage));
 		if (g.length > 0 && g.every(played)) view = 'bracket';
 	});
 
@@ -57,7 +58,7 @@
 			for (const id of ids) byG[letter][id] = blank(id);
 		}
 		for (const m of tipsStore.matches) {
-			if (m.stage !== 'group' || !played(m)) continue;
+			if (!tournamentStore.isGroup(m.stage) || !played(m)) continue;
 			const g = m.groupLetter;
 			(byG[g] ||= {});
 			for (const id of [m.homeTeam, m.awayTeam])
@@ -73,16 +74,16 @@
 			if (m.ftHome > m.ftAway) {
 				H.w++;
 				A.l++;
-				H.pts += 3;
+				H.pts += tournamentStore.pointsWin;
 			} else if (m.ftHome < m.ftAway) {
 				A.w++;
 				H.l++;
-				A.pts += 3;
+				A.pts += tournamentStore.pointsWin;
 			} else {
 				H.d++;
 				A.d++;
-				H.pts++;
-				A.pts++;
+				H.pts += tournamentStore.pointsDraw;
+				A.pts += tournamentStore.pointsDraw;
 			}
 		}
 		return Object.entries(byG)
@@ -98,30 +99,25 @@
 			.sort((a, b) => a.letter.localeCompare(b.letter));
 	});
 
-	const stages = ['R32', 'R16', 'QF', 'SF', '3RD', 'FINAL'];
-	const stageName: Record<string, string> = {
-		R32: 'Round of 32',
-		R16: 'Round of 16',
-		QF: 'Quarter-finals',
-		SF: 'Semi-finals',
-		'3RD': 'Third place',
-		FINAL: 'Final'
-	};
 	let bracket = $derived(
-		stages.map((s) => ({
-			stage: s,
+		tournamentStore.knockoutStages.map((s) => ({
+			stage: s.code,
+			name: s.name,
 			matches: tipsStore.matches
-				.filter((m) => m.stage === s)
+				.filter((m) => m.stage === s.code)
 				.sort((a, b) => a.num - b.num)
 		}))
 	);
+
+	// Qualifier rules from the tournament structure.
+	let eq = $derived(tournamentStore.extraQualifiers);
 
 	// Current knockout stage = stage of the next KO match not yet started
 	// (or the last stage once it's all done).
 	let currentStage = $derived.by(() => {
 		const now = serverClock.now();
 		const ko = tipsStore.matches
-			.filter((m) => m.stage !== 'group')
+			.filter((m) => tournamentStore.isKnockout(m.stage))
 			.sort(
 				(a, b) =>
 					new Date(a.kickoff).getTime() -
@@ -150,7 +146,7 @@
 </script>
 
 <div class="stickyhead" use:collapseOnScroll>
-	<p class="kicker">World Cup 2026</p>
+	<p class="kicker">{tournamentStore.current?.name ?? 'Tournament'}</p>
 	<div class="sh-expand"><div class="sh-inner"><h1>The Tournament</h1></div></div>
 	<div class="seg">
 		<button class:on={view === 'groups'} onclick={() => (view = 'groups')}>Group tables</button>
@@ -176,7 +172,10 @@
 						</thead>
 						<tbody>
 							{#each g.rows as r, i (r.id)}
-								<tr class:adv={i < 2} class:third={i === 2}>
+								<tr
+									class:adv={i < tournamentStore.directQualifiers}
+									class:third={!!eq && i === eq.fromPosition - 1}
+								>
 									<td class="rk">{i + 1}</td>
 									<td class="tm">
 										<Flag iso2={tn(r.id)?.iso2 ?? ''} code={tn(r.id)?.fifaCode ?? ''} />
@@ -196,7 +195,7 @@
 {:else}
 	<div class="stagger">
 		{#each bracket as col (col.stage)}
-			<h3 class="rname" id={`st-${col.stage}`}>{stageName[col.stage]}</h3>
+			<h3 class="rname" id={`st-${col.stage}`}>{col.name}</h3>
 			{#each col.matches as m (m.id)}
 				{@const H = tn(m.homeTeam)}
 				{@const A = tn(m.awayTeam)}

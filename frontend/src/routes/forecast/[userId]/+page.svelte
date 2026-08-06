@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { ForecastStore, koKey, type KOMatch } from '$lib/forecast.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { collapseOnScroll } from '$lib/actions';
 	import { Check, CircleCheck, X, Trophy, ArrowLeft } from '@lucide/svelte';
@@ -18,22 +19,21 @@
 		n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 	const tname = (id: string) => fs.team(id)?.name ?? '';
 
-	const stages = ['R32', 'R16', 'QF', 'SF', '3RD', 'FINAL'];
-	const stageName: Record<string, string> = {
-		R32: 'Round of 32',
-		R16: 'Round of 16',
-		QF: 'Quarter-finals',
-		SF: 'Semi-finals',
-		'3RD': 'Third place',
-		FINAL: 'Final'
-	};
 	let byStage = $derived(
-		stages.map((s) => ({
-			stage: s,
-			matches: fs.knockout.filter((m) => m.stage === s)
+		tournamentStore.knockoutStages.map((s) => ({
+			stage: s.code,
+			name: s.name,
+			matches: fs.knockout.filter((m) => m.stage === s.code)
 		}))
 	);
-	let finalMatch = $derived(fs.knockout.find((m) => m.stage === 'FINAL'));
+
+	// Qualifier rules from the tournament structure.
+	let dq = $derived(tournamentStore.directQualifiers);
+	let eq = $derived(fs.extraQualifiers);
+
+	let finalMatch = $derived(
+		fs.knockout.find((m) => m.stage === tournamentStore.championStageCode)
+	);
 	let champion = $derived(finalMatch ? fs.bracket[koKey(finalMatch)] : '');
 	let actualThirds = $derived(fs.actualBestThirds());
 
@@ -64,7 +64,9 @@
 	{#if fs.loaded}
 		<div class="seg">
 			<button class:on={section === 'groups'} onclick={() => (section = 'groups')}>Groups</button>
-			<button class:on={section === 'thirds'} onclick={() => (section = 'thirds')}>Best thirds</button>
+			{#if fs.maxThirds > 0}
+				<button class:on={section === 'thirds'} onclick={() => (section = 'thirds')}>Best thirds</button>
+			{/if}
 			<button class:on={section === 'bracket'} onclick={() => (section = 'bracket')}>Bracket</button>
 		</div>
 	{/if}
@@ -84,10 +86,16 @@
 				{@const exact = ao ? ao[i] === id : null}
 				{@const advanced =
 					ao &&
-					(apos <= 2 ||
-						(apos === 3 && (actualThirds?.has(id) ?? false)))}
+					(apos <= dq ||
+						(!!eq &&
+							apos === eq.fromPosition &&
+							(actualThirds?.has(id) ?? false)))}
 				{@const scoredAdv =
-					advanced && (i < 2 || (i === 2 && !!fs.thirds[g.letter]))}
+					advanced &&
+					(i < dq ||
+						(!!eq &&
+							i === eq.fromPosition - 1 &&
+							!!fs.thirds[g.letter]))}
 				{@const state =
 					exact === null
 						? 'pending'
@@ -104,14 +112,14 @@
 						{#if state === 'ok'}<span class="ind ok"><Check size={15} /></span>
 						{:else if state === 'half'}<span class="apos half">finished {ord(apos)}</span><span class="ind half"><CircleCheck size={15} /></span>
 						{:else if state === 'miss'}<span class="apos">finished {ord(apos)}</span><span class="ind no"><X size={15} /></span>
-						{:else if i < 2}<span class="pill ok">advances</span>
-						{:else if i === 2}<span class="pill">3rd</span>{/if}
+						{:else if i < dq}<span class="pill ok">advances</span>
+						{:else if eq && i === eq.fromPosition - 1}<span class="pill">{ord(eq.fromPosition)}</span>{/if}
 					</span>
 				</div>
 			{/each}
 		</section>
 	{/each}
-{:else if section === 'thirds'}
+{:else if section === 'thirds' && fs.maxThirds > 0}
 	<section class="card tlist">
 		{#each fs.groups as g (g.letter)}
 			{@const tid = fs.groupThird(g.letter)}
@@ -142,7 +150,7 @@
 		</div>
 	{/if}
 	{#each byStage as col (col.stage)}
-		<h3 class="rname">{stageName[col.stage]}</h3>
+		<h3 class="rname">{col.name}</h3>
 		{#each col.matches as m (koKey(m))}
 			{@const H = side(m, 'home')}
 			{@const A = side(m, 'away')}

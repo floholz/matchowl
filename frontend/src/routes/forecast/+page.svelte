@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { forecastStore as fs, koKey, type KOMatch } from '$lib/forecast.svelte';
+	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import {
 		ChevronUp,
@@ -63,23 +64,21 @@
 		return () => clearTimeout(timer);
 	});
 
-	const stages = ['R32', 'R16', 'QF', 'SF', '3RD', 'FINAL'];
-	const stageName: Record<string, string> = {
-		R32: 'Round of 32',
-		R16: 'Round of 16',
-		QF: 'Quarter-finals',
-		SF: 'Semi-finals',
-		'3RD': 'Third place',
-		FINAL: 'Final'
-	};
 	let byStage = $derived(
-		stages.map((s) => ({
-			stage: s,
-			matches: fs.knockout.filter((m) => m.stage === s)
+		tournamentStore.knockoutStages.map((s) => ({
+			stage: s.code,
+			name: s.name,
+			matches: fs.knockout.filter((m) => m.stage === s.code)
 		}))
 	);
 
-	let finalMatch = $derived(fs.knockout.find((m) => m.stage === 'FINAL'));
+	// Qualifier rules from the tournament structure.
+	let dq = $derived(tournamentStore.directQualifiers);
+	let eq = $derived(fs.extraQualifiers);
+
+	let finalMatch = $derived(
+		fs.knockout.find((m) => m.stage === tournamentStore.championStageCode)
+	);
 	let champion = $derived(
 		finalMatch ? fs.bracket[koKey(finalMatch)] : ''
 	);
@@ -130,7 +129,9 @@
 	{#if fs.loaded}
 		<div class="seg">
 			<button class:on={section === 'groups'} onclick={() => (section = 'groups')}>Groups</button>
-			<button class:on={section === 'thirds'} onclick={() => (section = 'thirds')}>Best thirds</button>
+			{#if fs.maxThirds > 0}
+				<button class:on={section === 'thirds'} onclick={() => (section = 'thirds')}>Best thirds</button>
+			{/if}
 			<button class:on={section === 'bracket'} onclick={() => (section = 'bracket')}>Bracket</button>
 		</div>
 	{/if}
@@ -146,7 +147,11 @@
 	{/if}
 
 	{#if section === 'groups'}
-		<p class="muted small">Order each group 1st → 4th. Top 2 advance; 3rd may qualify as a best third.</p>
+		<p class="muted small">
+			Order each group 1st → {ord(fs.groupSize)}. Top {dq} advance{#if eq}; {ord(
+					eq.fromPosition
+				)} may qualify as a best third{/if}.
+		</p>
 		{#each fs.groups as g (g.letter)}
 			<section class="card grp">
 				<h3>Group {g.letter}</h3>
@@ -156,10 +161,16 @@
 					{@const exact = ao ? ao[i] === id : null}
 					{@const advanced =
 						ao &&
-						(apos <= 2 ||
-							(apos === 3 && (actualThirds?.has(id) ?? false)))}
+						(apos <= dq ||
+							(!!eq &&
+								apos === eq.fromPosition &&
+								(actualThirds?.has(id) ?? false)))}
 					{@const scoredAdv =
-						advanced && (i < 2 || (i === 2 && !!fs.thirds[g.letter]))}
+						advanced &&
+						(i < dq ||
+							(!!eq &&
+								i === eq.fromPosition - 1 &&
+								!!fs.thirds[g.letter]))}
 					{@const state =
 						exact === null
 							? 'pending'
@@ -185,27 +196,29 @@
 							{:else if state === 'miss'}
 								<span class="apos">finished {ord(apos)}</span>
 								<span class="ind no"><X size={15} /></span>
-							{:else if i < 2}<span class="pill ok">advances</span>
-							{:else if i === 2}<span class="pill">3rd</span>{/if}
+							{:else if i < dq}<span class="pill ok">advances</span>
+							{:else if eq && i === eq.fromPosition - 1}<span class="pill">{ord(eq.fromPosition)}</span>{/if}
 						</span>
 						{#if !fs.locked}
 							<span class="ord">
 								<button aria-label="up" disabled={i === 0} onclick={() => fs.move(g.letter, i, -1)}><ChevronUp size={16} /></button>
-								<button aria-label="down" disabled={i === 3} onclick={() => fs.move(g.letter, i, 1)}><ChevronDown size={16} /></button>
+								<button aria-label="down" disabled={i === fs.groupSize - 1} onclick={() => fs.move(g.letter, i, 1)}><ChevronDown size={16} /></button>
 							</span>
 						{/if}
 					</div>
 				{/each}
 			</section>
 		{/each}
-	{:else if section === 'thirds'}
+	{:else if section === 'thirds' && fs.maxThirds > 0}
 		<div class="thead">
 			<p class="muted small">
-				8 of the 12 third-placed teams advance. Tick the eight you think
-				make it. (The 3rd of each group comes from your Groups order.)
+				{fs.maxThirds} of the {fs.groups.length} third-placed teams advance.
+				Tick the {fs.maxThirds} you think make it. (The {ord(
+					eq?.fromPosition ?? 3
+				)} of each group comes from your Groups order.)
 			</p>
-			<span class="cnt" class:full={fs.chosenThirdLetters.length === 8}>
-				{fs.chosenThirdLetters.length} / 8
+			<span class="cnt" class:full={fs.chosenThirdLetters.length === fs.maxThirds}>
+				{fs.chosenThirdLetters.length} / {fs.maxThirds}
 			</span>
 		</div>
 		<section class="card tlist">
@@ -218,7 +231,7 @@
 						type="checkbox"
 						checked={on}
 						disabled={fs.locked ||
-							(!on && fs.chosenThirdLetters.length >= 8)}
+							(!on && fs.chosenThirdLetters.length >= fs.maxThirds)}
 						onchange={() => fs.toggleThird(g.letter)}
 					/>
 					<span class="gl">{g.letter}</span>
@@ -245,7 +258,7 @@
 			</div>
 		{/if}
 		{#each byStage as col (col.stage)}
-			<h3 class="rname">{stageName[col.stage]}</h3>
+			<h3 class="rname">{col.name}</h3>
 			{#each col.matches as m (koKey(m))}
 				{@const H = sideLabel(m, 'home')}
 				{@const A = sideLabel(m, 'away')}
