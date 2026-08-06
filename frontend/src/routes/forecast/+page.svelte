@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { forecastStore as fs, koKey, type KOMatch } from '$lib/forecast.svelte';
-	import { tournamentStore } from '$lib/tournament.svelte';
+	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import {
 		ChevronUp,
@@ -18,7 +18,9 @@
 	let err = $state('');
 
 	$effect(() => {
-		if (!fs.loaded) fs.load().catch((e) => (err = e?.message ?? 'load failed'));
+		selectFromUrl().then(() =>
+			fs.load().catch((e) => (err = e?.message ?? 'load failed'))
+		);
 	});
 
 	// Once the group stage is complete the bracket is where the action is —

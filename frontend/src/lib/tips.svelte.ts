@@ -80,10 +80,13 @@ class TipsStore {
 	tournamentGroups = $state<Record<string, string[]>>({}); // letter -> teamIds
 	loaded = $state(false);
 	private subscribed = false;
+	private loadedFor = '';
 
 	async load() {
 		await tournamentStore.ready();
 		const tid = tournamentStore.current?.id ?? '';
+		if (this.loaded && this.loadedFor === tid) return;
+		this.loaded = false;
 		const [teams, matches, mine, tgroups] = await Promise.all([
 			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"` }),
 			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` }),
@@ -124,6 +127,7 @@ class TipsStore {
 			};
 		this.tips = tip;
 		this.loaded = true;
+		this.loadedFor = tid;
 		this.subscribeLive();
 	}
 

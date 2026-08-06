@@ -1,4 +1,4 @@
-import { House, Volleyball, Telescope, Network, Trophy } from '@lucide/svelte';
+import { Newspaper, Volleyball, Trophy } from '@lucide/svelte';
 import type { Component } from 'svelte';
 
 export interface NavItem {
@@ -8,13 +8,21 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-	{ href: '/', label: 'Home', icon: House },
-	{ href: '/tips', label: 'Tips', icon: Volleyball },
-	{ href: '/forecast', label: 'Forecast', icon: Telescope },
-	{ href: '/tournament', label: 'Bracket', icon: Network },
+	{ href: '/', label: 'Feed', icon: Newspaper },
+	{ href: '/tournaments', label: 'Tournaments', icon: Volleyball },
 	{ href: '/leagues', label: 'Leagues', icon: Trophy }
 ];
 
 export function isActive(href: string, path: string): boolean {
-	return href === '/' ? path === '/' : path.startsWith(href);
+	if (href === '/') return path === '/';
+	// The per-tournament detail pages (/tips, /forecast, /tournament) belong
+	// to the Tournaments destination.
+	if (href === '/tournaments')
+		return (
+			path.startsWith('/tournaments') ||
+			path.startsWith('/tips') ||
+			path.startsWith('/forecast') ||
+			path.startsWith('/tournament')
+		);
+	return path.startsWith(href);
 }

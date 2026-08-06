@@ -120,9 +120,16 @@ export class ForecastStore {
 		this.bracket = f?.bracket ?? {};
 	}
 
+	private loadedFor = '';
+
 	async load() {
+		await tournamentStore.ready();
+		const wantTid = tournamentStore.current?.id ?? '';
+		if (this.loaded && !this.readOnly && this.loadedFor === wantTid) return;
+		this.loaded = false;
 		await this.loadBase();
 		const tid = tournamentStore.current?.id ?? '';
+		this.loadedFor = tid;
 		const mine = await pb
 			.collection('forecasts')
 			.getFullList({ filter: `user = "${auth.user?.id}" && tournament = "${tid}"` });

@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import { pb } from './pb';
 
 /** One phase of a tournament, in play order (mirrors the Go structure). */
@@ -61,6 +62,16 @@ class TournamentStore {
 				.finally(() => (this.inflight = null));
 		}
 		return this.inflight;
+	}
+
+	/** Point the app at a specific tournament (by slug) — used by the
+	 *  ?t= param on the per-tournament detail pages. No-op for unknown
+	 *  slugs. Returns whether the selection changed. */
+	select(slug: string): boolean {
+		const t = this.list.find((x) => x.slug === slug);
+		if (!t || this.current?.id === t.id) return false;
+		this.current = t;
+		return true;
 	}
 
 	get structure(): Structure {
@@ -129,3 +140,12 @@ class TournamentStore {
 }
 
 export const tournamentStore = new TournamentStore();
+
+/** Honor a ?t=<slug> query param (the per-tournament detail pages are
+ *  reached from the Tournaments catalog with it). */
+export async function selectFromUrl(): Promise<void> {
+	await tournamentStore.ready();
+	if (!browser) return;
+	const t = new URLSearchParams(location.search).get('t');
+	if (t) tournamentStore.select(t);
+}

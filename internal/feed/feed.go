@@ -155,26 +155,31 @@ func Register(app core.App, se *core.ServeEvent) {
 		for _, fm := range window {
 			m, info := fm.m, infos[fm.tid]
 			stage := m.GetString("stage")
+			// Rows carry the same field names as the matches collection so
+			// the client can feed them straight into the shared match card.
 			row := map[string]any{
-				"id":         m.Id,
-				"tournament": info.view,
-				"stage":      stage,
-				"stageName":  stageNameOf(info.structure, stage),
-				"knockout":   info.structure.IsKnockout(stage),
-				"group":      m.GetString("groupLetter"),
-				"kickoff":    m.GetString("kickoff"),
-				"status":     m.GetString("status"),
-				"homeTeam":   m.GetString("homeTeam"),
-				"awayTeam":   m.GetString("awayTeam"),
-				"homeLabel":  m.GetString("homeLabel"),
-				"awayLabel":  m.GetString("awayLabel"),
-				"finished":   m.GetString("finalizedAt") != "" || m.GetString("status") == "finished",
-			}
-			if row["finished"] == true || m.GetString("status") == "live" {
-				row["ftHome"], row["ftAway"] = m.GetInt("ftHome"), m.GetInt("ftAway")
-				row["etHome"], row["etAway"] = m.GetInt("etHome"), m.GetInt("etAway")
-				row["penHome"], row["penAway"] = m.GetInt("penHome"), m.GetInt("penAway")
-				row["advancer"] = m.GetString("advancer")
+				"id":          m.Id,
+				"tournament":  info.view,
+				"stage":       stage,
+				"stageName":   stageNameOf(info.structure, stage),
+				"knockout":    info.structure.IsKnockout(stage),
+				"groupLetter": m.GetString("groupLetter"),
+				"roundLabel":  m.GetString("roundLabel"),
+				"num":         m.GetInt("num"),
+				"kickoff":     m.GetString("kickoff"),
+				"status":      m.GetString("status"),
+				"finalizedAt": m.GetString("finalizedAt"),
+				"homeTeam":    m.GetString("homeTeam"),
+				"awayTeam":    m.GetString("awayTeam"),
+				"homeLabel":   m.GetString("homeLabel"),
+				"awayLabel":   m.GetString("awayLabel"),
+				"ftHome":      m.GetInt("ftHome"),
+				"ftAway":      m.GetInt("ftAway"),
+				"etHome":      m.GetInt("etHome"),
+				"etAway":      m.GetInt("etAway"),
+				"penHome":     m.GetInt("penHome"),
+				"penAway":     m.GetInt("penAway"),
+				"advancer":    m.GetString("advancer"),
 			}
 			if tip := tipByMatch[m.Id]; tip != nil {
 				myTip := map[string]any{

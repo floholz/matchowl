@@ -69,9 +69,10 @@
 </script>
 
 {#if chrome}
-	<!-- Mobile: top header (logo / help / install / user menu) -->
+	<!-- Top header: logo everywhere; nav links inline on desktop. -->
 	<header class="topbar">
 		<Logo />
+		<nav class="topbar-links"><NavLinks variant="top" /></nav>
 		<div class="spacer"></div>
 		<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">
 			<CircleHelp size={20} />
@@ -79,18 +80,6 @@
 		<PwaInstallButton />
 		<UserMenu align="right" />
 	</header>
-
-	<!-- Desktop: left rail (logo top, links, help + user menu bottom) -->
-	<aside class="siderail">
-		<div class="rail-logo"><Logo /></div>
-		<NavLinks variant="rail" />
-		<div class="spacer"></div>
-		<a class="rail-help" href="/welcome">
-			<CircleHelp size={20} />
-			<span>How does it work?</span>
-		</a>
-		<div class="rail-user"><UserMenu align="left" up showName /></div>
-	</aside>
 
 	<!-- Mobile: bottom tab bar -->
 	<nav class="tabbar"><NavLinks variant="tab" /></nav>

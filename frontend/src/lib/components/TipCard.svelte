@@ -4,6 +4,8 @@
 		isLocked,
 		teamsResolved,
 		type Match,
+		type Team,
+		type Tip,
 		type FriendTip,
 		type PerfectScorers
 	} from '$lib/tips.svelte';
@@ -13,22 +15,41 @@
 	import Stepper from './Stepper.svelte';
 	import { Lock, ChevronDown, Check, Users, Target, Bot } from '@lucide/svelte';
 
-	// Controlled by the parent so only one card is open at a time (accordion).
+	// Controlled by the parent so only one card is open at a time
+	// (accordion). By default the card reads/writes through tipsStore (the
+	// per-tournament pages); the feed passes explicit data + onSave instead,
+	// since its matches span tournaments.
 	let {
 		match,
 		open = false,
-		onToggle
-	}: { match: Match; open?: boolean; onToggle?: () => void } = $props();
+		onToggle,
+		team = undefined,
+		tip = undefined,
+		knockout = undefined,
+		points = undefined,
+		onSave = undefined
+	}: {
+		match: Match;
+		open?: boolean;
+		onToggle?: () => void;
+		team?: (id: string) => Team | undefined;
+		tip?: Tip | null;
+		knockout?: boolean;
+		points?: number;
+		onSave?: (t: Omit<Tip, 'id' | 'match'>) => Promise<void>;
+	} = $props();
+
+	const teamOf = (id: string) => (team ? team(id) : tipsStore.team(id));
 
 	let locked = $derived(isLocked(match));
 	let resolved = $derived(teamsResolved(match));
-	let home = $derived(tipsStore.team(match.homeTeam));
-	let away = $derived(tipsStore.team(match.awayTeam));
-	let existing = $derived(tipsStore.tips[match.id]);
-	let isKO = $derived(tournamentStore.isKnockout(match.stage));
+	let home = $derived(teamOf(match.homeTeam));
+	let away = $derived(teamOf(match.awayTeam));
+	let existing = $derived(tip !== undefined ? tip : tipsStore.tips[match.id]);
+	let isKO = $derived(knockout ?? tournamentStore.isKnockout(match.stage));
 	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
 	let live = $derived(match.status === 'live');
-	let pts = $derived(tipsStore.scores[match.id]);
+	let pts = $derived(points ?? tipsStore.scores[match.id]);
 
 	// Editable working copy.
 	let ftH = $state(0);
@@ -42,7 +63,7 @@
 
 	// Seed the editor from the saved tip whenever it changes.
 	$effect(() => {
-		const t = tipsStore.tips[match.id];
+		const t = existing;
 		ftH = t?.ftHome ?? 0;
 		ftA = t?.ftAway ?? 0;
 		etH = t?.etHome ?? 0;
@@ -73,7 +94,7 @@
 					: pen
 	);
 	let advancerName = $derived(
-		advancerId ? (tipsStore.team(advancerId)?.name ?? '—') : ''
+		advancerId ? (teamOf(advancerId)?.name ?? '—') : ''
 	);
 
 	const kickoff = $derived(
@@ -91,16 +112,27 @@
 		savedOk = false;
 		busy = true;
 		try {
-			await tipsStore.save({
-				id: existing?.id,
-				match: match.id,
-				ftHome: ftH,
-				ftAway: ftA,
-				etHome: etH,
-				etAway: etA,
-				penWinner: pen,
-				advancer: ''
-			});
+			if (onSave) {
+				await onSave({
+					ftHome: ftH,
+					ftAway: ftA,
+					etHome: etH,
+					etAway: etA,
+					penWinner: pen,
+					advancer: ''
+				});
+			} else {
+				await tipsStore.save({
+					id: existing?.id,
+					match: match.id,
+					ftHome: ftH,
+					ftAway: ftA,
+					etHome: etH,
+					etAway: etA,
+					penWinner: pen,
+					advancer: ''
+				});
+			}
 			savedOk = true;
 		} catch (e: unknown) {
 			msg =
@@ -217,7 +249,7 @@
 		</div>
 		<div class="meta">
 			<span class="muted"
-				>{tournamentStore.isGroup(match.stage)
+				>{!isKO && match.groupLetter
 					? `Group ${match.groupLetter} · ${match.roundLabel}`
 					: match.roundLabel} · {kickoff}</span
 			>

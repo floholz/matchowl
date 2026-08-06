@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { navItems, isActive } from '$lib/nav';
 
-	let { variant = 'tab' as 'tab' | 'rail' } = $props();
+	let { variant = 'tab' as 'tab' | 'top' } = $props();
 	let path = $derived($page.url.pathname);
 </script>
 
@@ -10,7 +10,7 @@
 	{#each navItems as it (it.href)}
 		{@const Icon = it.icon}
 		<a href={it.href} class:active={isActive(it.href, path)}>
-			<Icon size={variant === 'rail' ? 20 : 22} />
+			<Icon size={variant === 'top' ? 18 : 22} />
 			<span>{it.label}</span>
 		</a>
 	{/each}
@@ -61,33 +61,24 @@
 		box-shadow: 0 0 12px 1px var(--accent);
 	}
 
-	/* Desktop side rail */
-	.rail {
-		flex-direction: column;
-		gap: 0.15rem;
-		width: 100%;
+	/* Desktop top navbar */
+	.top {
+		gap: 0.4rem;
 	}
-	.rail a {
-		gap: 0.85rem;
-		padding: 0.7rem 1.5rem;
+	.top a {
+		gap: 0.5rem;
+		padding: 0.45rem 0.9rem;
 		font-size: 0.9rem;
+		border-radius: var(--radius-pill);
 	}
-	.rail a span {
-		font-size: 0.82rem;
+	.top a span {
+		font-size: 0.8rem;
 	}
-	.rail a.active {
+	.top a:hover {
+		color: var(--text);
+	}
+	.top a.active {
 		color: var(--accent);
-	}
-	.rail a.active::before {
-		content: '';
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		width: 3px;
-		height: 60%;
-		border-radius: 0 3px 3px 0;
-		background: var(--accent);
-		box-shadow: 0 0 12px 1px var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
 	}
 </style>

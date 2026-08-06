@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
-	import { tournamentStore } from '$lib/tournament.svelte';
+	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { collapseOnScroll } from '$lib/actions';
 	import { serverClock } from '$lib/serverclock.svelte';
@@ -9,7 +9,7 @@
 	let view = $state<'groups' | 'bracket'>('groups');
 
 	$effect(() => {
-		if (!tipsStore.loaded) tipsStore.load().catch(() => {});
+		selectFromUrl().then(() => tipsStore.load().catch(() => {}));
 	});
 
 	// Once the group stage is complete the bracket is the page's main

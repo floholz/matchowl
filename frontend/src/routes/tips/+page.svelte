@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
-	import { tournamentStore } from '$lib/tournament.svelte';
+	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
 	import TipCard from '$lib/components/TipCard.svelte';
 	import GroupStandings from '$lib/components/GroupStandings.svelte';
 	import { bestThirds } from '$lib/standings';
@@ -25,7 +25,7 @@
 	});
 
 	$effect(() => {
-		if (!tipsStore.loaded) tipsStore.load().catch(() => {});
+		selectFromUrl().then(() => tipsStore.load().catch(() => {}));
 	});
 
 	let filtered = $derived(

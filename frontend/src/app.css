@@ -115,7 +115,7 @@ h3 {
 @media (min-width: 900px) {
 	.app-shell.with-chrome {
 		padding: 2rem;
-		padding-left: calc(var(--rail-w) + 2.5rem);
+		padding-top: calc(var(--topbar-h) + 2rem);
 	}
 }
 
@@ -359,7 +359,7 @@ h3 {
 	}
 }
 
-/* ---- Mobile top header ---- */
+/* ---- Top header (all sizes; grows nav links on desktop) ---- */
 .topbar {
 	position: fixed;
 	inset: 0 0 auto 0;
@@ -409,50 +409,21 @@ body.kb-open .tabbar {
 	display: none;
 }
 
-.siderail {
+/* Nav links inside the topbar — desktop only; mobile keeps the tab bar. */
+.topbar-links {
 	display: none;
 }
 
 @media (min-width: 900px) {
-	.topbar,
 	.tabbar {
 		display: none;
 	}
-	.siderail {
-		position: fixed;
-		inset: 0 auto 0 0;
-		width: var(--rail-w);
+	.topbar {
+		padding: 0 clamp(1rem, 4vw, 2.5rem);
+		gap: 1rem;
+	}
+	.topbar-links {
 		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
-		padding: 1.6rem 0;
-		background: var(--surface);
-		border-right: 1px solid var(--border);
-		z-index: 50;
-	}
-	.rail-logo {
-		padding: 0 1.5rem 0.8rem;
-	}
-	/* Help (?) link — sits just above the user area (above its divider line). */
-	.rail-help {
-		display: flex;
-		align-items: center;
-		gap: 0.85rem;
-		padding: 0.7rem 1.5rem;
-		color: var(--muted);
-		transition: color 0.15s ease;
-	}
-	.rail-help span {
-		font-size: 0.82rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-	}
-	.rail-help:hover {
-		color: var(--accent);
-	}
-	.rail-user {
-		padding: 0.9rem 1.5rem 0;
-		border-top: 1px solid var(--border);
+		margin-left: 1.2rem;
 	}
 }
