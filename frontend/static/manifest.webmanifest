@@ -10,8 +10,8 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#161310",
-  "theme_color": "#161310",
+  "background_color": "#040404",
+  "theme_color": "#040404",
   "categories": ["sports", "games"],
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },

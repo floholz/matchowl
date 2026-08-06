@@ -22,12 +22,13 @@
 	--accent-ink: #1c0e00; /* ink on a bright accent gradient */
 	--peach: #ffd7b4; /* the mark's plumage — tints, chips, empty states */
 
-	/* ---- Surfaces & text: warm night (dark default) ----
-	   Values align with the matchowl.app reference page. */
-	--bg: #161310; /* midnight, warmed toward the owl */
-	--surface: #201a14; /* cards, bars */
-	--surface-2: #2b231a; /* insets, chips, hover */
-	--border: #3f362a; /* hairlines */
+	/* ---- Surfaces & text: night (dark default) ----
+	   Matches the matchowl.app reference page's dark appearance
+	   (its prefers-color-scheme block): near-black, warm cream text. */
+	--bg: #040404; /* the owl's night */
+	--surface: #121009; /* cards, bars — subtle warm lift off the black */
+	--surface-2: #1d1913; /* insets, chips, hover */
+	--border: #322b22; /* hairlines */
 	--text: #f2e5d5; /* primary text */
 	--muted: #a8917a; /* secondary text */
 
@@ -75,7 +76,7 @@
 
 	/* The PWA theme-color per theme (read by theme.svelte.ts into the
 	   <meta name="theme-color">). */
-	--theme-color: #161310;
+	--theme-color: #040404;
 
 	color-scheme: dark;
 }
