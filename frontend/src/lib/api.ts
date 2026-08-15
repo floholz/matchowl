@@ -124,10 +124,16 @@ export interface SyncLastRun {
 }
 
 export interface SyncStatus {
-	source: string; // 'api-football' | 'openfootball' | 'none'
+	/** Active tournaments with a resolved results source. */
+	sources: { tournament: string; source: string }[]; // source: 'api-football' | 'openfootball'
+	/** Active tournaments with no usable source, and why. */
+	skipped: { tournament: string; reason: string }[];
+	/** Set when `sources` is empty: why nothing syncs. */
+	reason?: string;
 	autoSync: boolean;
 	cron: string;
-	lastRun: SyncLastRun | null;
+	/** Keyed by tournament slug. */
+	lastRun: Record<string, SyncLastRun> | null;
 	account?: {
 		subscription?: { plan?: string; active?: boolean; end?: string };
 		requests?: { current?: number; limit_day?: number };

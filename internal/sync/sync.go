@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/pocketbase/pocketbase/apis"
@@ -110,12 +111,13 @@ type runner struct {
 
 // pickProvider resolves a tournament's live-results source from its sync
 // config. RESULTS_SOURCE=apifootball|openfootball still forces the choice
-// globally. Returns a label and a sync function (nil = manual-only).
-func pickProvider(app core.App, t *core.Record) (string, func(context.Context) (int, error)) {
+// globally. Returns a label and a sync function; when no source resolves the
+// function is nil and reason explains why (surfaced on the admin sync card).
+func pickProvider(app core.App, t *core.Record) (source string, run func(context.Context) (int, error), reason string) {
 	cfg, err := tournaments.SyncOf(t)
 	if err != nil {
 		log.Printf("[sync] %s: bad sync config: %v", t.GetString("slug"), err)
-		return "", nil
+		return "", nil, "invalid sync config: " + err.Error()
 	}
 	key := os.Getenv("API_FOOTBALL_KEY")
 	mode := os.Getenv("RESULTS_SOURCE")
@@ -134,52 +136,96 @@ func pickProvider(app core.App, t *core.Record) (string, func(context.Context) (
 		provider = tournaments.ProviderAPIFootball
 	}
 
+	forced := ""
+	if mode != "" {
+		forced = " (forced by RESULTS_SOURCE=" + mode + ")"
+	}
+
 	switch provider {
 	case tournaments.ProviderManual:
-		return "", nil
+		return "", nil, "sync provider is “manual” — results are entered by hand"
 	case tournaments.ProviderOpenfootball:
 		if cfg.OpenfootballURL == "" {
-			return "", nil
+			return "", nil, "provider is openfootball" + forced + " but the tournament has no openfootballURL"
 		}
-		return "openfootball", ofFn
+		return "openfootball", ofFn, ""
 	case tournaments.ProviderAPIFootball:
 		if key == "" {
-			return "", nil
+			return "", nil, "provider is api-football" + forced + " but API_FOOTBALL_KEY is not set"
 		}
-		return "api-football", apiFn
+		return "api-football", apiFn, ""
 	default: // auto: prefer API-Football only if the key can actually fetch the season.
+		var apiNote string
 		if key != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			if fx, err := football.New(key, cfg.APIFootballLeague, cfg.Season).Fixtures(ctx); err == nil && len(fx) > 0 {
-				return "api-football", apiFn
+			fx, err := football.New(key, cfg.APIFootballLeague, cfg.Season).Fixtures(ctx)
+			if err == nil && len(fx) > 0 {
+				return "api-football", apiFn, ""
 			}
 			log.Printf("[sync] %s: API-Football key can't reach season %d (free plan?) — using openfootball",
 				t.GetString("slug"), cfg.Season)
+			apiNote = fmt.Sprintf("API-Football key can't reach league %d season %d (paid plan needed?)",
+				cfg.APIFootballLeague, cfg.Season)
+		} else {
+			apiNote = "API_FOOTBALL_KEY is not set"
 		}
 		if cfg.OpenfootballURL == "" {
-			return "", nil
+			return "", nil, "provider is auto: " + apiNote + ", and the tournament has no openfootballURL fallback"
 		}
-		return "openfootball", ofFn
+		return "openfootball", ofFn, ""
 	}
+}
+
+// skipped is an active tournament that has no usable results source.
+type skipped struct {
+	slug   string
+	reason string
+}
+
+// resolveRunners splits the active tournaments into runners (source resolved)
+// and skipped ones (with the reason no source resolved).
+func resolveRunners(app core.App) ([]runner, []skipped) {
+	recs, err := tournaments.Active(app)
+	if err != nil {
+		log.Printf("[sync] list active tournaments: %v", err)
+		return nil, nil
+	}
+	var rs []runner
+	var sk []skipped
+	for _, t := range recs {
+		source, run, reason := pickProvider(app, t)
+		if run == nil {
+			sk = append(sk, skipped{slug: t.GetString("slug"), reason: reason})
+			continue
+		}
+		rs = append(rs, runner{slug: t.GetString("slug"), source: source, run: run})
+	}
+	return rs, sk
+}
+
+// noSourceReason explains an empty runner list for the admin card: either
+// nothing is active (list what exists and its status), or every active
+// tournament was skipped (their reasons are listed separately).
+func noSourceReason(app core.App, sk []skipped) string {
+	if len(sk) > 0 {
+		return "no active tournament has a usable results source"
+	}
+	all, err := tournaments.All(app)
+	if err != nil || len(all) == 0 {
+		return "no tournaments exist yet — create one via the admin API"
+	}
+	parts := make([]string, 0, len(all))
+	for _, t := range all {
+		parts = append(parts, t.GetString("slug")+" ("+t.GetString("status")+")")
+	}
+	return "no tournament is “active” — sync only runs for active tournaments; found: " + strings.Join(parts, ", ")
 }
 
 // activeRunners resolves the sync source for every active tournament.
 func activeRunners(app core.App) []runner {
-	recs, err := tournaments.Active(app)
-	if err != nil {
-		log.Printf("[sync] list active tournaments: %v", err)
-		return nil
-	}
-	out := make([]runner, 0, len(recs))
-	for _, t := range recs {
-		source, run := pickProvider(app, t)
-		if run == nil {
-			continue
-		}
-		out = append(out, runner{slug: t.GetString("slug"), source: source, run: run})
-	}
-	return out
+	rs, _ := resolveRunners(app)
+	return rs
 }
 
 // runAll executes every active tournament's sync and records each outcome.
@@ -251,7 +297,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// GET /api/admin/sync/status — per-tournament source, cadence, last runs,
 	// and (when any source is API-Football) the plan + request quota.
 	sg.GET("/status", func(e *core.RequestEvent) error {
-		rs := activeRunners(app)
+		rs, sk := resolveRunners(app)
 		sources := make([]map[string]any, 0, len(rs))
 		hasAPI := false
 		for _, r := range rs {
@@ -260,11 +306,19 @@ func Register(app core.App, se *core.ServeEvent) {
 				hasAPI = true
 			}
 		}
+		skippedOut := make([]map[string]any, 0, len(sk))
+		for _, s := range sk {
+			skippedOut = append(skippedOut, map[string]any{"tournament": s.slug, "reason": s.reason})
+		}
 		out := map[string]any{
 			"sources":  sources,
+			"skipped":  skippedOut,
 			"autoSync": len(rs) > 0,
 			"cron":     expr,
 			"lastRun":  readSyncStatus(app),
+		}
+		if len(rs) == 0 {
+			out["reason"] = noSourceReason(app, sk)
 		}
 		if hasAPI {
 			if key := os.Getenv("API_FOOTBALL_KEY"); key != "" {

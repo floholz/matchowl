@@ -1,5 +1,10 @@
 .PHONY: help install dev-frontend dev-backend build-frontend build run docker clean test tailscale tailscale-off
 
+# Load .env (if present) and export its variables to every recipe, so
+# `make run` / `make dev-backend` see the same config as docker-compose.
+-include .env
+export
+
 # Port the local app listens on (matches `make run` / `make dev-backend`).
 TS_PORT ?= 8090
 

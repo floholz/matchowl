@@ -42,6 +42,11 @@
 		}
 	}
 
+	// Per-tournament last-run entries, sorted by slug for a stable order.
+	const lastRuns = $derived(
+		Object.entries(sync?.lastRun ?? {}).sort(([a], [b]) => a.localeCompare(b))
+	);
+
 	// Coarse "x ago" for the last-sync timestamp.
 	function ago(iso: string): string {
 		const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -104,37 +109,55 @@
 			<p class="muted">Status unavailable.</p>
 		{:else}
 			<div class="srows">
-				<div class="srow">
-					<span class="k">Source</span>
-					<span class="v"
-						><span class="srcpill" class:af={sync.source === 'api-football'}
-							>{sourceLabel[sync.source] ?? sync.source}</span
-						></span
-					>
-				</div>
+				{#if sync.sources.length === 0}
+					<div class="srow">
+						<span class="k">Source</span>
+						<span class="v"><span class="srcpill">None</span></span>
+					</div>
+				{:else}
+					{#each sync.sources as s (s.tournament)}
+						<div class="srow">
+							<span class="k">Source · {s.tournament}</span>
+							<span class="v"
+								><span class="srcpill" class:af={s.source === 'api-football'}
+									>{sourceLabel[s.source] ?? s.source}</span
+								></span
+							>
+						</div>
+					{/each}
+				{/if}
+				{#each sync.skipped as s (s.tournament)}
+					<div class="srow">
+						<span class="k">Skipped · {s.tournament}</span>
+						<span class="v muted">{s.reason}</span>
+					</div>
+				{/each}
 				<div class="srow">
 					<span class="k">Auto-sync</span>
 					<span class="v"
 						>{sync.autoSync ? `every ${cronHuman(sync.cron)}` : 'off'}</span
 					>
 				</div>
-				<div class="srow">
-					<span class="k">Last sync</span>
-					<span class="v">
-						{#if sync.lastRun}
-							{#if sync.lastRun.ok}<Check size={14} class="okico" />{:else}<X
-									size={14}
-									class="errico"
-								/>{/if}
-							<span title={new Date(sync.lastRun.at).toLocaleString()}
-								>{ago(sync.lastRun.at)}</span
-							>
-							· {sync.lastRun.updated} updated
-						{:else}
-							never
-						{/if}
-					</span>
-				</div>
+				{#if lastRuns.length === 0}
+					<div class="srow">
+						<span class="k">Last sync</span>
+						<span class="v">never</span>
+					</div>
+				{:else}
+					{#each lastRuns as [slug, run] (slug)}
+						<div class="srow">
+							<span class="k">Last sync · {slug}</span>
+							<span class="v">
+								{#if run.ok}<Check size={14} class="okico" />{:else}<X
+										size={14}
+										class="errico"
+									/>{/if}
+								<span title={new Date(run.at).toLocaleString()}>{ago(run.at)}</span>
+								· {run.updated} updated
+							</span>
+						</div>
+					{/each}
+				{/if}
 				{#if sync.account?.subscription}
 					<div class="srow">
 						<span class="k">Plan</span>
@@ -153,14 +176,17 @@
 				{/if}
 			</div>
 
-			{#if sync.lastRun && !sync.lastRun.ok && sync.lastRun.error}
-				<p class="err">{sync.lastRun.error}</p>
+			{#if sync.reason}
+				<p class="hint">{sync.reason}</p>
 			{/if}
+			{#each lastRuns.filter(([, r]) => !r.ok && r.error) as [slug, run] (slug)}
+				<p class="err">{slug}: {run.error}</p>
+			{/each}
 
 			<div class="syncactions">
 				<button
 					class="btn"
-					disabled={syncBusy || sync.source === 'none'}
+					disabled={syncBusy || sync.sources.length === 0}
 					onclick={runSync}
 				>
 					<RefreshCw size={16} class={syncBusy ? 'spin' : ''} />
@@ -293,6 +319,11 @@
 		}
 	}
 	.syncmsg {
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
+	.hint {
+		margin: 0.8rem 0 0;
 		font-size: 0.85rem;
 		color: var(--muted);
 	}
