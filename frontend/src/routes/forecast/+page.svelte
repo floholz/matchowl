@@ -2,6 +2,7 @@
 	import { forecastStore as fs, koKey, type KOMatch } from '$lib/forecast.svelte';
 	import CallsForecast from '$lib/components/CallsForecast.svelte';
 	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
+	import TournamentMissing from '$lib/components/TournamentMissing.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import {
 		ChevronUp,
@@ -118,7 +119,7 @@
 </script>
 
 <div class="stickyhead" use:collapseOnScroll>
-	<p class="kicker">The big call</p>
+	<p class="kicker">{tournamentStore.current?.name ?? 'The big call'}</p>
 	<div class="sh-expand">
 		<div class="sh-inner">
 			<h1>Forecast</h1>
@@ -140,6 +141,8 @@
 		</div>
 	{/if}
 </div>
+
+<TournamentMissing />
 
 {#if err}<p class="error">{err}</p>{/if}
 

@@ -64,6 +64,9 @@ class FeedStore {
 	playing = $state<FeedMatch['tournament'][]>([]);
 	loaded = $state(false);
 	loading = $state(false);
+	/** Last load error; the page stops auto-retrying while set (a failing
+	 *  request would otherwise loop and trip the API rate limit). */
+	error = $state('');
 
 	past = $state(2);
 	ahead = $state(7);
@@ -71,6 +74,7 @@ class FeedStore {
 	async load() {
 		if (this.loading) return;
 		this.loading = true;
+		this.error = '';
 		try {
 			await serverClock.refresh();
 			const [r, s] = await Promise.all([
@@ -93,6 +97,9 @@ class FeedStore {
 			this.teams = tmap;
 			this.suggestions = s.suggestions ?? [];
 			this.loaded = true;
+		} catch (e) {
+			this.error = e instanceof Error ? e.message : 'Could not load the feed.';
+			throw e;
 		} finally {
 			this.loading = false;
 		}

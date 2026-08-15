@@ -288,8 +288,13 @@ func Register(app core.App, se *core.ServeEvent) {
 		comps := map[string]map[string]any{}
 		out := make([]map[string]any, 0, len(recs))
 		var current *core.Record
+		// Drafts are hidden from players; admins see them (with a draft
+		// pill) so they can preview a tournament before publishing it. A
+		// draft never becomes "current".
+		isAdmin := e.Auth != nil && users.IsAdmin(e.Auth)
 		for _, r := range recs {
-			if r.GetString("status") == StatusDraft {
+			draft := r.GetString("status") == StatusDraft
+			if draft && !isAdmin {
 				continue
 			}
 			v := view(r)
@@ -300,7 +305,7 @@ func Register(app core.App, se *core.ServeEvent) {
 				v["competition"] = comps[cid]
 			}
 			out = append(out, v)
-			if current == nil || rankLess(r, current) {
+			if !draft && (current == nil || rankLess(r, current)) {
 				current = r
 			}
 		}

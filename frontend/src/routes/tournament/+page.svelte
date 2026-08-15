@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
 	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
+	import TournamentMissing from '$lib/components/TournamentMissing.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { collapseOnScroll } from '$lib/actions';
 	import { serverClock } from '$lib/serverclock.svelte';
@@ -154,6 +155,8 @@
 	</div>
 </div>
 
+<TournamentMissing />
+
 {#if !tipsStore.loaded}
 	<p class="muted">Loading…</p>
 {:else if view === 'groups'}
@@ -165,7 +168,10 @@
 		<div class="gwrap stagger">
 			{#each groups as g (g.letter)}
 				<section class="card grp">
-					<div class="ghead"><span class="gl">{g.letter}</span> Group {g.letter}</div>
+					<div class="ghead">
+						{#if !tournamentStore.singleTable}<span class="gl">{g.letter}</span>{/if}
+						{tournamentStore.groupLabel(g.letter)}
+					</div>
 					<table>
 						<thead>
 							<tr><th></th><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>

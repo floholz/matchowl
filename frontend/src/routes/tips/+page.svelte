@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
 	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
+	import TournamentMissing from '$lib/components/TournamentMissing.svelte';
 	import TipCard from '$lib/components/TipCard.svelte';
 	import GroupStandings from '$lib/components/GroupStandings.svelte';
 	import { bestThirds } from '$lib/standings';
@@ -66,7 +67,7 @@
 				.sort()
 				.map(
 					(l) =>
-						[`Group ${l}`, byGroup[l].sort(byKickoff)] as [string, Match[]]
+						[tournamentStore.groupLabel(l), byGroup[l].sort(byKickoff)] as [string, Match[]]
 				);
 		}
 		if (tab === 'ko') {
@@ -118,7 +119,7 @@
 </script>
 
 <div class="stickyhead" use:collapseOnScroll>
-	<p class="kicker">Match predictions</p>
+	<p class="kicker">{tournamentStore.current?.name ?? 'Match predictions'}</p>
 	<div class="sh-expand">
 		<div class="sh-inner">
 			<h1>Tips</h1>
@@ -135,6 +136,8 @@
 		>
 	</div>
 </div>
+
+<TournamentMissing />
 
 {#if !tipsStore.loaded}
 	<p class="muted">Loading fixtures…</p>

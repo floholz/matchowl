@@ -47,16 +47,27 @@ class TournamentStore {
 	loaded = $state(false);
 	private inflight: Promise<void> | null = null;
 
+	/** Slug from ?t= that isn't in the list (draft for non-admins, deleted,
+	 *  or a typo). Pages show a notice instead of silently falling back. */
+	missing = $state('');
+
 	/** Idempotent: concurrent callers share one fetch. */
 	ready(): Promise<void> {
 		if (this.loaded) return Promise.resolve();
+		return this.reload();
+	}
+
+	/** Refetch the list (e.g. a tournament was created after the SPA
+	 *  loaded). Keeps the current selection when it still exists. */
+	reload(): Promise<void> {
 		if (!this.inflight) {
 			this.inflight = pb
 				.send('/api/tournaments', { method: 'GET' })
 				.then((r) => {
 					this.list = r.tournaments ?? [];
+					const keep = this.current && this.list.find((t) => t.id === this.current?.id);
 					this.current =
-						this.list.find((t) => t.id === r.current) ?? this.list[0] ?? null;
+						keep ?? this.list.find((t) => t.id === r.current) ?? this.list[0] ?? null;
 					this.loaded = true;
 				})
 				.finally(() => (this.inflight = null));
@@ -85,6 +96,19 @@ class TournamentStore {
 
 	get knockoutStages(): Stage[] {
 		return this.stages.filter((s) => s.kind === 'knockout');
+	}
+
+	/** A league season is modelled as one big group ("A"). Hide the
+	 *  "Group A" prefix for those and use the stage name ("League")
+	 *  instead. Heuristic: WC/Euro-style groups are ≤ 8 teams. */
+	get singleTable(): boolean {
+		return this.groupStageCode !== '' && (this.structure.groupSize ?? 4) > 8;
+	}
+
+	/** Label for a group letter: "Group B", or the stage name for a
+	 *  single-table season. */
+	groupLabel(letter: string): string {
+		return this.singleTable ? this.stageName(this.groupStageCode) : `Group ${letter}`;
 	}
 
 	/** The group stage's code ('' for group-less formats). */
@@ -147,5 +171,16 @@ export async function selectFromUrl(): Promise<void> {
 	await tournamentStore.ready();
 	if (!browser) return;
 	const t = new URLSearchParams(location.search).get('t');
-	if (t) tournamentStore.select(t);
+	tournamentStore.missing = '';
+	if (!t) return;
+	if (tournamentStore.list.some((x) => x.slug === t)) {
+		tournamentStore.select(t);
+		return;
+	}
+	// Not in the cached list — it may have been created/published since
+	// the SPA loaded. Refetch once before giving up.
+	await tournamentStore.reload();
+	if (!tournamentStore.select(t) && !tournamentStore.list.some((x) => x.slug === t)) {
+		tournamentStore.missing = t;
+	}
 }

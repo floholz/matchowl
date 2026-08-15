@@ -249,7 +249,7 @@
 		</div>
 		<div class="meta">
 			<span class="muted"
-				>{!isKO && match.groupLetter
+				>{!isKO && match.groupLetter && !tournamentStore.singleTable
 					? `Group ${match.groupLetter} · ${match.roundLabel}`
 					: match.roundLabel} · {kickoff}</span
 			>

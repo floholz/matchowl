@@ -12,7 +12,7 @@
 	let scrolled = $state(false);
 
 	$effect(() => {
-		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading) {
+		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error) {
 			feedStore.load().then(scrollToToday).catch(() => {});
 		}
 	});
@@ -85,7 +85,13 @@
 			</div>
 		{/each}
 
-		{#if feedStore.loaded && feedStore.days.length === 0}
+		{#if feedStore.error && !feedStore.loaded}
+			<div class="card empty">
+				<p><b>Couldn't load your feed.</b></p>
+				<p class="muted">{feedStore.error}</p>
+				<button class="btn" onclick={() => feedStore.load().catch(() => {})}>Retry</button>
+			</div>
+		{:else if feedStore.loaded && feedStore.days.length === 0}
 			<div class="card empty">
 				<p><b>Nothing in your feed yet.</b></p>
 				<p class="muted">
