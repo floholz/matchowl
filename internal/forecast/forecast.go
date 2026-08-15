@@ -6,6 +6,7 @@
 package forecast
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -133,12 +134,15 @@ func validateCalls(app core.App, t *core.Record, rec *core.Record) error {
 		byKey[spec.Calls[i].Key] = &spec.Calls[i]
 	}
 	valid := map[string]bool{}
+	teamName := map[string]string{}
 	if ts, err := app.FindRecordsByFilter("teams",
 		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id}); err == nil {
 		for _, tm := range ts {
 			valid[tm.Id] = true
+			teamName[tm.Id] = tm.GetString("name")
 		}
 	}
+	idsOf := map[string][]string{}
 	for key, v := range picks {
 		c := byKey[key]
 		if c == nil {
@@ -175,6 +179,43 @@ func validateCalls(app core.App, t *core.Record, rec *core.Record) error {
 				return apis.NewBadRequestError("duplicate team in "+key, nil)
 			}
 			seen[id] = true
+		}
+		idsOf[key] = ids
+	}
+	// Linked calls: the champion must be inside a zone covering position 1
+	// (or every reached-stage set), nested zones contain each other, and
+	// disjoint zones can't share a team. Mirrors the frontend's auto-fill.
+	st, err := tournaments.StructureOf(t)
+	if err != nil {
+		return nil
+	}
+	implies, exclusive := spec.Relations(st)
+	has := func(key, id string) bool {
+		for _, x := range idsOf[key] {
+			if x == id {
+				return true
+			}
+		}
+		return false
+	}
+	for a, bs := range implies {
+		for _, b := range bs {
+			for _, id := range idsOf[a] {
+				if id != "" && !has(b, id) {
+					return apis.NewBadRequestError(
+						fmt.Sprintf("%s is picked in %q, so it must also be in %q", teamName[id], byKey[a].Name, byKey[b].Name), nil)
+				}
+			}
+		}
+	}
+	for a, bs := range exclusive {
+		for _, b := range bs {
+			for _, id := range idsOf[a] {
+				if id != "" && has(b, id) {
+					return apis.NewBadRequestError(
+						fmt.Sprintf("%s can't be in both %q and %q", teamName[id], byKey[a].Name, byKey[b].Name), nil)
+				}
+			}
 		}
 	}
 	return nil

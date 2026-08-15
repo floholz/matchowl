@@ -17,12 +17,21 @@ export interface ExtraQualifiers {
 
 /** The tournament's competition shape — stages, group size, qualifier rules.
  *  Everything the UI used to hardcode for WC2026 comes from here. */
+/** Named position range of the final table (league shapes). */
+export interface Zone {
+	key: string;
+	name: string;
+	from: number;
+	to: number;
+}
+
 export interface Structure {
 	stages: Stage[];
 	groupSize?: number;
 	gamesPerTeam?: number;
 	directQualifiers?: number;
 	extraQualifiers?: ExtraQualifiers | null;
+	zones?: Zone[];
 	pointsWin?: number;
 	pointsDraw?: number;
 }

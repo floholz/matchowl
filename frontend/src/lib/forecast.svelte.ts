@@ -349,23 +349,141 @@ export class ForecastStore {
 		}
 	}
 
-	/** Toggle a team inside a call's pick (single for team calls, capped
-	 *  multi for teamsets). */
-	toggleCall(call: ForecastCall, teamId: string) {
-		if (call.type === 'team') {
-			this.calls = {
-				...this.calls,
-				[call.key]: this.calls[call.key] === teamId ? '' : teamId
-			};
-			return;
+	/** Logical links between calls, derived from the structure (mirrors
+	 *  Go ForecastSpec.Relations): `implies[a]` = calls that necessarily
+	 *  contain every member of a (winner ⊂ UCL zone, nested zones, later
+	 *  knockout stage ⊂ earlier one, champion ⊂ every stage);
+	 *  `exclusive[a]` = calls whose zone can't share a team with a. */
+	relations = $derived.by(() => {
+		const implies: Record<string, string[]> = {};
+		const exclusive: Record<string, string[]> = {};
+		const calls = this.spec.mode === 'calls' ? (this.spec.calls ?? []) : [];
+		const st = this.structure;
+		const ko = (st.stages ?? []).filter((s) => s.kind === 'knockout');
+		const hasGroups = (st.stages ?? []).some((s) => s.kind === 'group');
+		const pos: Record<string, [number, number]> = {};
+		const depth: Record<string, number> = {};
+		for (const c of calls) {
+			if (c.type === 'team') {
+				if (ko.length) depth[c.key] = ko.length;
+				else if (hasGroups) pos[c.key] = [1, 1];
+			} else if (c.zone) {
+				const z = (st.zones ?? []).find((z) => z.key === c.zone);
+				if (z) pos[c.key] = [z.from, z.to];
+			} else if (c.stage) {
+				const i = ko.findIndex((s) => s.code === c.stage);
+				if (i >= 0) depth[c.key] = i;
+			}
 		}
-		const cur = Array.isArray(this.calls[call.key])
-			? [...(this.calls[call.key] as string[])]
-			: [];
-		const i = cur.indexOf(teamId);
-		if (i >= 0) cur.splice(i, 1);
-		else if (cur.length < (call.count ?? 99)) cur.push(teamId);
-		this.calls = { ...this.calls, [call.key]: cur };
+		const consolation = (code?: string) => !!ko.find((s) => s.code === code)?.consolation;
+		for (const a of calls) {
+			for (const b of calls) {
+				if (a.key === b.key) continue;
+				const ra = pos[a.key], rb = pos[b.key];
+				if (ra && rb) {
+					const nested = ra[0] >= rb[0] && ra[1] <= rb[1];
+					const same = ra[0] === rb[0] && ra[1] === rb[1];
+					if (nested && (!same || a.type === 'team')) (implies[a.key] ||= []).push(b.key);
+					else if (ra[1] < rb[0] || rb[1] < ra[0]) (exclusive[a.key] ||= []).push(b.key);
+				}
+				const da = depth[a.key], db = depth[b.key];
+				if (da != null && db != null && da > db && !consolation(b.stage)) {
+					(implies[a.key] ||= []).push(b.key);
+				}
+			}
+		}
+		return { implies, exclusive };
+	});
+
+	private callByKey(key: string): ForecastCall | undefined {
+		return (this.spec.calls ?? []).find((c) => c.key === key);
+	}
+	private idsOf(key: string): string[] {
+		const v = this.calls[key];
+		return Array.isArray(v) ? v : v ? [v] : [];
+	}
+
+	/** The call (if any) whose pick forces `teamId` into `call` — the team is
+	 *  then locked there until it leaves the implying call. */
+	lockedBy(call: ForecastCall, teamId: string): ForecastCall | null {
+		for (const [a, bs] of Object.entries(this.relations.implies)) {
+			if (bs.includes(call.key) && this.idsOf(a).includes(teamId)) {
+				return this.callByKey(a) ?? null;
+			}
+		}
+		return null;
+	}
+
+	/** Why `teamId` can't be added to `call` right now ('' = it can): it's
+	 *  picked in an exclusive call, or an implied call is full and can't
+	 *  take it. */
+	blockedReason(call: ForecastCall, teamId: string): string {
+		if (this.inCall(call, teamId)) return '';
+		for (const b of this.relations.exclusive[call.key] ?? []) {
+			if (this.idsOf(b).includes(teamId)) {
+				return `Already picked in ${this.callByKey(b)?.name ?? b}`;
+			}
+		}
+		for (const b of this.relations.implies[call.key] ?? []) {
+			const bc = this.callByKey(b);
+			if (!bc || bc.type !== 'teamset') continue;
+			const ids = this.idsOf(b);
+			if (ids.includes(teamId)) continue;
+			// Room, or we can swap out the previous pick of a single-team call.
+			const prev = call.type === 'team' ? (this.calls[call.key] as string) : '';
+			if (ids.length < (bc.count ?? 99)) continue;
+			if (prev && ids.includes(prev) && !this.lockedByOther(bc, prev, call)) continue;
+			return `${bc.name} is full — free a spot there first`;
+		}
+		return '';
+	}
+
+	/** Like lockedBy, but ignoring `except` as the implying call. */
+	private lockedByOther(call: ForecastCall, teamId: string, except: ForecastCall): boolean {
+		for (const [a, bs] of Object.entries(this.relations.implies)) {
+			if (a !== except.key && bs.includes(call.key) && this.idsOf(a).includes(teamId)) return true;
+		}
+		return false;
+	}
+
+	/** Toggle a team inside a call's pick (single for team calls, capped
+	 *  multi for teamsets). Picking also adds the team to every implied
+	 *  call (swapping out the previous single pick when that call is full);
+	 *  removing a locked (implied) team is a no-op. */
+	toggleCall(call: ForecastCall, teamId: string) {
+		const on = this.inCall(call, teamId);
+		if (on && this.lockedBy(call, teamId)) return;
+		if (!on && this.blockedReason(call, teamId)) return;
+		const next = { ...this.calls };
+		const prev = call.type === 'team' ? ((next[call.key] as string) || '') : '';
+		if (call.type === 'team') {
+			next[call.key] = on ? '' : teamId;
+		} else {
+			const cur = [...this.idsOf(call.key)];
+			const i = cur.indexOf(teamId);
+			if (i >= 0) cur.splice(i, 1);
+			else if (cur.length < (call.count ?? 99)) cur.push(teamId);
+			next[call.key] = cur;
+		}
+		if (!on) {
+			for (const b of this.relations.implies[call.key] ?? []) {
+				const bc = this.callByKey(b);
+				if (!bc) continue;
+				if (bc.type === 'team') {
+					next[b] = teamId;
+					continue;
+				}
+				const ids = Array.isArray(next[b]) ? [...(next[b] as string[])] : [];
+				if (ids.includes(teamId)) continue;
+				if (ids.length >= (bc.count ?? 99) && prev) {
+					const j = ids.indexOf(prev);
+					if (j >= 0) ids.splice(j, 1);
+				}
+				if (ids.length < (bc.count ?? 99)) ids.push(teamId);
+				next[b] = ids;
+			}
+		}
+		this.calls = next;
 	}
 
 	/** Whether a team is part of a call's current pick. */

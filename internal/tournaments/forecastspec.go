@@ -116,3 +116,86 @@ func (f *ForecastSpec) Validate(st *Structure) error {
 	}
 	return nil
 }
+
+// Relations derives the logical links between calls from the structure, so
+// the UI can auto-fill / lock implied picks and reject impossible ones, and
+// the backend can validate the same way:
+//
+//   - implies[a] lists calls b such that every member of a is necessarily a
+//     member of b: the champion (position 1) is inside any zone that covers
+//     position 1; a zone nested in a wider zone; a later knockout stage inside
+//     an earlier one ("reached the SF" ⇒ "reached the QF"); the champion
+//     reaches every stage.
+//   - exclusive[a] lists calls b whose zone ranges don't overlap with a's, so
+//     a team can't be picked in both.
+//
+// Only positional (zone) and stage-based calls relate; a team call in a
+// group-less knockout cup relates to stage teamsets, in a league shape to
+// zones. Maps are symmetric for exclusive, directed for implies.
+func (f *ForecastSpec) Relations(st *Structure) (implies map[string][]string, exclusive map[string][]string) {
+	implies = map[string][]string{}
+	exclusive = map[string][]string{}
+	if f.Mode != ForecastCalls {
+		return
+	}
+	// Position range per call ([1,1] for the champion of a table shape;
+	// zone range for zone teamsets). Stage depth per call (index in play
+	// order; champion = beyond the last stage).
+	type rng struct{ from, to int }
+	pos := map[string]rng{}
+	depth := map[string]int{}
+	ko := st.KnockoutStages()
+	stageIdx := map[string]int{}
+	for i, s := range ko {
+		stageIdx[s.Code] = i
+	}
+	for _, c := range f.Calls {
+		switch {
+		case c.Type == CallTeam:
+			if len(ko) > 0 {
+				depth[c.Key] = len(ko) // champion: reached every stage
+			} else if st.HasGroups() {
+				pos[c.Key] = rng{1, 1}
+			}
+		case c.Zone != "":
+			if z := st.Zone(c.Zone); z != nil {
+				pos[c.Key] = rng{z.From, z.To}
+			}
+		case c.Stage != "":
+			if i, ok := stageIdx[c.Stage]; ok {
+				depth[c.Key] = i
+			}
+		}
+	}
+	for _, a := range f.Calls {
+		for _, b := range f.Calls {
+			if a.Key == b.Key {
+				continue
+			}
+			if ra, ok := pos[a.Key]; ok {
+				if rb, ok := pos[b.Key]; ok {
+					switch {
+					case ra.from >= rb.from && ra.to <= rb.to && (ra != rb || a.Type == CallTeam):
+						implies[a.Key] = append(implies[a.Key], b.Key)
+					case ra.to < rb.from || rb.to < ra.from:
+						exclusive[a.Key] = append(exclusive[a.Key], b.Key)
+					}
+				}
+			}
+			if da, ok := depth[a.Key]; ok {
+				if db, ok := depth[b.Key]; ok && da > db {
+					// a is deeper (later stage / champion) → a ⊂ b. Consolation
+					// stages don't lie on the path to the title, so the
+					// champion doesn't imply "reached the 3rd-place match".
+					if b.Stage != "" {
+						if s := st.Stage(b.Stage); s != nil && s.Consolation {
+							continue
+						}
+					}
+					implies[a.Key] = append(implies[a.Key], b.Key)
+				}
+			}
+		}
+	}
+	return
+}
