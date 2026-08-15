@@ -406,22 +406,55 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 	}
 
 	byPair := map[string]*core.Record{}
+	byExt := map[string]*core.Record{} // imported tournaments: "<prefix>-AF-<fixtureId>"
 	for _, mrec := range matches {
 		h := teamName[mrec.GetString("homeTeam")]
 		a := teamName[mrec.GetString("awayTeam")]
 		if h != "" && a != "" {
 			byPair[h+"|"+a] = mrec
 		}
+		if ext := mrec.GetString("extId"); strings.Contains(ext, "-AF-") {
+			byExt[ext] = mrec
+		}
 	}
+	teamByName := map[string]string{} // normalized name -> teamId
+	for id, n := range teamName {
+		teamByName[n] = id
+	}
+	prefix := t.GetString("extIdPrefix")
 
 	updated := 0
 	for _, f := range fixtures {
 		key := canonName(f.HomeName) + "|" + canonName(f.AwayName)
 		rec, ok := byPair[key]
 		if !ok {
-			// KO matches resolve via ResolveBracket; unmatched group names
-			// usually mean an alias is missing — logged, not fatal.
-			continue
+			// Imported (API-Football-seeded) knockout rows are keyed by the
+			// provider fixture id; once the provider knows both teams, fill
+			// them in so the tip opens and the result below applies.
+			rec, ok = byExt[fmt.Sprintf("%s-AF-%d", prefix, f.ID)]
+			if !ok {
+				// Otherwise KO matches resolve via ResolveBracket; unmatched
+				// group names usually mean an alias is missing — not fatal.
+				continue
+			}
+			hID, aID := teamByName[canonName(f.HomeName)], teamByName[canonName(f.AwayName)]
+			changed := false
+			if rec.GetString("homeTeam") == "" && hID != "" {
+				rec.Set("homeTeam", hID)
+				rec.Set("homeLabel", "")
+				changed = true
+			}
+			if rec.GetString("awayTeam") == "" && aID != "" {
+				rec.Set("awayTeam", aID)
+				rec.Set("awayLabel", "")
+				changed = true
+			}
+			if rec.GetString("homeTeam") == "" || rec.GetString("awayTeam") == "" {
+				if changed && app.Save(rec) == nil {
+					updated++
+				}
+				continue
+			}
 		}
 		status := "scheduled"
 		switch {

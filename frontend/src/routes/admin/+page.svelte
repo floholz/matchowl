@@ -3,7 +3,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import { api, type SyncStatus, type GifStatus } from '$lib/api';
 	import NotifyPolicyCard from '$lib/components/NotifyPolicyCard.svelte';
-	import { Activity, RefreshCw, Check, X, ImagePlay } from '@lucide/svelte';
+	import { Activity, RefreshCw, Check, X, ImagePlay, Trophy } from '@lucide/svelte';
 
 	// Gate: admin (owner inherits admin) — matches the sync endpoints.
 	$effect(() => {
@@ -94,6 +94,11 @@
 		<p class="kicker">Admin</p>
 		<h1>Admin area</h1>
 	</div>
+	{#if auth.isAdmin}
+		<a class="btn secondary headlink" href="/admin/tournaments">
+			<Trophy size={16} /> Tournaments
+		</a>
+	{/if}
 </div>
 
 {#if !auth.isAdmin}
@@ -236,7 +241,15 @@
 
 <style>
 	.head {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
 		margin-bottom: 1.1rem;
+	}
+	.headlink {
+		width: auto;
 	}
 	.sec {
 		display: flex;

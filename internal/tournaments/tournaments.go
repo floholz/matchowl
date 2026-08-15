@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
@@ -112,7 +113,9 @@ func view(r *core.Record) map[string]any {
 
 var slugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,31}$`)
 
-type payload struct {
+// Payload is the admin create/update body. Nil pointers / empty raw JSON
+// mean "leave unchanged" so the same payload serves create and update.
+type Payload struct {
 	Slug          *string         `json:"slug"`
 	Name          *string         `json:"name"`
 	ShortName     *string         `json:"shortName"`
@@ -124,12 +127,11 @@ type payload struct {
 	ForecastSpec  json.RawMessage `json:"forecastSpec"`
 	ExtIDPrefix   *string         `json:"extIdPrefix"`
 	ScoringConfig *string         `json:"scoringConfig"`
+	Competition   *string         `json:"competition"` // competitions record id ("" clears)
 }
 
 // applyTo validates the provided fields and writes them onto the record.
-// Nil pointers / empty raw JSON mean "leave unchanged" so the same payload
-// serves create and update.
-func (p *payload) applyTo(app core.App, rec *core.Record) error {
+func (p *Payload) applyTo(app core.App, rec *core.Record) error {
 	if p.Slug != nil {
 		s := strings.TrimSpace(*p.Slug)
 		if !slugRe.MatchString(s) {
@@ -212,7 +214,45 @@ func (p *payload) applyTo(app core.App, rec *core.Record) error {
 		}
 		rec.Set("scoringConfig", *p.ScoringConfig)
 	}
+	if p.Competition != nil {
+		if *p.Competition != "" {
+			if _, err := app.FindRecordById("competitions", *p.Competition); err != nil {
+				return apis.NewBadRequestError("unknown competition", nil)
+			}
+		}
+		rec.Set("competition", *p.Competition)
+	}
 	return nil
+}
+
+// Create validates the payload and inserts a new tournament. It lands as
+// draft unless the payload names a status, and falls back to the default
+// scoring config when none is given (a tournament without one can't score).
+func Create(app core.App, body *Payload) (*core.Record, error) {
+	if body.Slug == nil || body.Name == nil || len(body.Structure) == 0 || body.ExtIDPrefix == nil {
+		return nil, apis.NewBadRequestError("slug, name, structure and extIdPrefix are required", nil)
+	}
+	col, err := app.FindCollectionByNameOrId(collection)
+	if err != nil {
+		return nil, err
+	}
+	rec := core.NewRecord(col)
+	rec.Set("status", StatusDraft)
+	if err := body.applyTo(app, rec); err != nil {
+		return nil, err
+	}
+	if rec.GetString("scoringConfig") == "" {
+		if def, err := app.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {
+			rec.Set("scoringConfig", def.Id)
+		}
+	}
+	if err := validateSpec(rec); err != nil {
+		return nil, err
+	}
+	if err := app.Save(rec); err != nil {
+		return nil, err
+	}
+	return rec, nil
 }
 
 // validateSpec checks the record's forecastSpec against its structure and
@@ -311,6 +351,13 @@ func Register(app core.App, se *core.ServeEvent) {
 			v := view(r)
 			v["sync"] = r.Get("sync")
 			v["scoringConfig"] = r.GetString("scoringConfig")
+			v["competition"] = r.GetString("competition")
+			nTeams, _ := app.CountRecords("teams", dbx.HashExp{"tournament": r.Id})
+			nMatches, _ := app.CountRecords("matches", dbx.HashExp{"tournament": r.Id})
+			nPlayers, _ := app.CountRecords("tournament_players", dbx.HashExp{"tournament": r.Id})
+			v["teams"] = nTeams
+			v["matches"] = nMatches
+			v["players"] = nPlayers
 			out = append(out, v)
 		}
 		return e.JSON(http.StatusOK, map[string]any{"tournaments": out})
@@ -318,26 +365,12 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/admin/tournaments — create (as draft unless status given).
 	g.POST("", func(e *core.RequestEvent) error {
-		var body payload
+		var body Payload
 		if err := e.BindBody(&body); err != nil {
 			return apis.NewBadRequestError(err.Error(), nil)
 		}
-		if body.Slug == nil || body.Name == nil || len(body.Structure) == 0 || body.ExtIDPrefix == nil {
-			return apis.NewBadRequestError("slug, name, structure and extIdPrefix are required", nil)
-		}
-		col, err := app.FindCollectionByNameOrId(collection)
+		rec, err := Create(app, &body)
 		if err != nil {
-			return err
-		}
-		rec := core.NewRecord(col)
-		rec.Set("status", StatusDraft)
-		if err := body.applyTo(app, rec); err != nil {
-			return err
-		}
-		if err := validateSpec(rec); err != nil {
-			return err
-		}
-		if err := app.Save(rec); err != nil {
 			return err
 		}
 		return e.JSON(http.StatusOK, view(rec))
@@ -349,7 +382,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return apis.NewNotFoundError("no such tournament", nil)
 		}
-		var body payload
+		var body Payload
 		if err := e.BindBody(&body); err != nil {
 			return apis.NewBadRequestError(err.Error(), nil)
 		}

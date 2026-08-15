@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -39,8 +41,12 @@ type Fixture struct {
 	Date      time.Time // kickoff (UTC)
 	Round     string    // e.g. "Group A - 1", "Round of 32"
 	Status    string    // NS, 1H, HT, 2H, ET, BT, P, FT, AET, PEN, PST, CANC, ...
+	HomeID    int       // provider team ids (0 when the slot is still TBD)
+	AwayID    int
 	HomeName  string
 	AwayName  string
+	HomeLogo  string
+	AwayLogo  string
 	HomeGoals *int // full 90' (nil if not played)
 	AwayGoals *int
 	FTHome    *int // regulation
@@ -84,12 +90,8 @@ type apiResponse struct {
 			Round string `json:"round"`
 		} `json:"league"`
 		Teams struct {
-			Home struct {
-				Name string `json:"name"`
-			} `json:"home"`
-			Away struct {
-				Name string `json:"name"`
-			} `json:"away"`
+			Home fixtureTeam `json:"home"`
+			Away fixtureTeam `json:"away"`
 		} `json:"teams"`
 		Goals struct {
 			Home *int `json:"home"`
@@ -108,37 +110,53 @@ type scorePair struct {
 	Away *int `json:"away"`
 }
 
+type fixtureTeam struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Logo string `json:"logo"`
+}
+
 // Fixtures returns every fixture of the configured league+season in a single
 // request.
 func (c *Client) Fixtures(ctx context.Context) ([]Fixture, error) {
 	return c.FixturesForSeason(ctx, c.season)
 }
 
-// FixturesForSeason fetches the configured league's fixtures for any season
-// (used by the dev API diagnostic to replay a finished tournament, e.g. 2022).
-func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, error) {
-	url := fmt.Sprintf("%s/fixtures?league=%d&season=%d", baseURL, c.league, yr)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// get performs an authenticated GET against the API and decodes the envelope
+// into out (which must be an *apiEnvelope-compatible struct with Errors and
+// Response fields). API-level errors (bad key, plan limits) arrive as HTTP 200
+// with a non-empty `errors` object, so they are surfaced here.
+func (c *Client) get(ctx context.Context, path string, out interface{ errors() json.RawMessage }) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Set("x-apisports-key", c.key)
-
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("api-football: status %d", resp.StatusCode)
+		return fmt.Errorf("api-football: status %d", resp.StatusCode)
 	}
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return err
+	}
+	if s := strings.TrimSpace(string(out.errors())); s != "" && s != "[]" && s != "{}" {
+		return fmt.Errorf("api-football errors: %s", s)
+	}
+	return nil
+}
 
+func (a *apiResponse) errors() json.RawMessage { return a.Errors }
+
+// FixturesForSeason fetches the configured league's fixtures for any season
+// (used by the dev API diagnostic to replay a finished tournament, e.g. 2022).
+func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, error) {
 	var ar apiResponse
-	if err := json.NewDecoder(resp.Body).Decode(&ar); err != nil {
+	if err := c.get(ctx, fmt.Sprintf("/fixtures?league=%d&season=%d", c.league, yr), &ar); err != nil {
 		return nil, err
-	}
-	if s := strings.TrimSpace(string(ar.Errors)); s != "" && s != "[]" && s != "{}" {
-		return nil, fmt.Errorf("api-football errors: %s", s)
 	}
 
 	out := make([]Fixture, 0, len(ar.Response))
@@ -148,8 +166,12 @@ func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, erro
 			Date:      r.Fixture.Date.UTC(),
 			Round:     r.League.Round,
 			Status:    r.Fixture.Status.Short,
+			HomeID:    r.Teams.Home.ID,
+			AwayID:    r.Teams.Away.ID,
 			HomeName:  r.Teams.Home.Name,
 			AwayName:  r.Teams.Away.Name,
+			HomeLogo:  r.Teams.Home.Logo,
+			AwayLogo:  r.Teams.Away.Logo,
 			HomeGoals: r.Goals.Home,
 			AwayGoals: r.Goals.Away,
 			FTHome:    r.Score.Fulltime.Home,
@@ -198,4 +220,150 @@ func NormalizeName(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// League is one entry of the API-Football league catalog.
+type League struct {
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Type    string   `json:"type"` // "League" | "Cup"
+	Logo    string   `json:"logo"`
+	Country string   `json:"country"`
+	Flag    string   `json:"flag"`
+	Seasons []Season `json:"seasons"`
+}
+
+// Season is one playable season of a League.
+type Season struct {
+	Year    int    `json:"year"`
+	Start   string `json:"start"` // YYYY-MM-DD
+	End     string `json:"end"`
+	Current bool   `json:"current"`
+}
+
+type leaguesResponse struct {
+	Errors   json.RawMessage `json:"errors"`
+	Response []struct {
+		League struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+			Type string `json:"type"`
+			Logo string `json:"logo"`
+		} `json:"league"`
+		Country struct {
+			Name string `json:"name"`
+			Flag string `json:"flag"`
+		} `json:"country"`
+		Seasons []struct {
+			Year    int    `json:"year"`
+			Start   string `json:"start"`
+			End     string `json:"end"`
+			Current bool   `json:"current"`
+		} `json:"seasons"`
+	} `json:"response"`
+}
+
+func (l *leaguesResponse) errors() json.RawMessage { return l.Errors }
+
+// Leagues searches the league catalog (/leagues?search=) — the provider
+// needs at least 3 characters. Pass id > 0 to fetch a single league instead.
+func (c *Client) Leagues(ctx context.Context, search string, id int) ([]League, error) {
+	q := "/leagues?search=" + url.QueryEscape(search)
+	if id > 0 {
+		q = fmt.Sprintf("/leagues?id=%d", id)
+	}
+	var lr leaguesResponse
+	if err := c.get(ctx, q, &lr); err != nil {
+		return nil, err
+	}
+	out := make([]League, 0, len(lr.Response))
+	for _, r := range lr.Response {
+		l := League{ID: r.League.ID, Name: r.League.Name, Type: r.League.Type, Logo: r.League.Logo,
+			Country: r.Country.Name, Flag: r.Country.Flag}
+		for _, s := range r.Seasons {
+			l.Seasons = append(l.Seasons, Season{Year: s.Year, Start: s.Start, End: s.End, Current: s.Current})
+		}
+		// Newest season first — that's what an admin adding a tournament wants.
+		sort.Slice(l.Seasons, func(i, j int) bool { return l.Seasons[i].Year > l.Seasons[j].Year })
+		out = append(out, l)
+	}
+	return out, nil
+}
+
+// Team is one entry of /teams for a league+season.
+type Team struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Code     string `json:"code"` // 3-letter, may be empty
+	Country  string `json:"country"`
+	National bool   `json:"national"`
+	Logo     string `json:"logo"`
+}
+
+type teamsResponse struct {
+	Errors   json.RawMessage `json:"errors"`
+	Response []struct {
+		Team Team `json:"team"`
+	} `json:"response"`
+}
+
+func (t *teamsResponse) errors() json.RawMessage { return t.Errors }
+
+// Teams lists the teams of the configured league for a season.
+func (c *Client) Teams(ctx context.Context, yr int) ([]Team, error) {
+	var tr teamsResponse
+	if err := c.get(ctx, fmt.Sprintf("/teams?league=%d&season=%d", c.league, yr), &tr); err != nil {
+		return nil, err
+	}
+	out := make([]Team, 0, len(tr.Response))
+	for _, r := range tr.Response {
+		out = append(out, r.Team)
+	}
+	return out, nil
+}
+
+// StandingGroup is one table of /standings: a league season has one, a
+// group-stage cup has one per group ("Group A", ...).
+type StandingGroup struct {
+	Name    string `json:"name"`
+	TeamIDs []int  `json:"teamIds"`
+}
+
+type standingsResponse struct {
+	Errors   json.RawMessage `json:"errors"`
+	Response []struct {
+		League struct {
+			Standings [][]struct {
+				Group string `json:"group"`
+				Team  struct {
+					ID int `json:"id"`
+				} `json:"team"`
+			} `json:"standings"`
+		} `json:"league"`
+	} `json:"response"`
+}
+
+func (s *standingsResponse) errors() json.RawMessage { return s.Errors }
+
+// Standings returns the season's tables — the authoritative group membership
+// for cups whose round labels don't carry the group letter ("Group Stage - 1").
+func (c *Client) Standings(ctx context.Context, yr int) ([]StandingGroup, error) {
+	var sr standingsResponse
+	if err := c.get(ctx, fmt.Sprintf("/standings?league=%d&season=%d", c.league, yr), &sr); err != nil {
+		return nil, err
+	}
+	var out []StandingGroup
+	for _, r := range sr.Response {
+		for _, tbl := range r.League.Standings {
+			if len(tbl) == 0 {
+				continue
+			}
+			g := StandingGroup{Name: tbl[0].Group}
+			for _, row := range tbl {
+				g.TeamIDs = append(g.TeamIDs, row.Team.ID)
+			}
+			out = append(out, g)
+		}
+	}
+	return out, nil
 }

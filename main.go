@@ -21,6 +21,7 @@ import (
 	"github.com/floholz/matchowl/internal/dev"
 	"github.com/floholz/matchowl/internal/feed"
 	"github.com/floholz/matchowl/internal/forecast"
+	"github.com/floholz/matchowl/internal/importer"
 	"github.com/floholz/matchowl/internal/leagues"
 	"github.com/floholz/matchowl/internal/notify"
 	"github.com/floholz/matchowl/internal/oauth"
@@ -64,6 +65,7 @@ func main() {
 		players.Register(e.App, e)
 		feed.Register(e.App, e)
 		seed.Register(e.App, e)
+		importer.Register(e.App, e)
 		wmsync.Register(e.App, e)
 		leagues.Register(e.App, e)
 		tips.Register(e.App, e)

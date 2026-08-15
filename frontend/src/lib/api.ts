@@ -184,6 +184,102 @@ export interface SurveyAnswers {
 	comments?: string;
 }
 
+// ---- Admin: tournaments, catalog import ----
+
+export type TournamentStatus = 'draft' | 'upcoming' | 'active' | 'finished' | 'archived';
+
+/** Admin view of a tournament (drafts included, plus seed counts). */
+export interface AdminTournament {
+	id: string;
+	slug: string;
+	name: string;
+	shortName: string;
+	status: TournamentStatus;
+	startsAt: string;
+	endsAt: string;
+	structure: Record<string, unknown>;
+	forecastSpec: Record<string, unknown>;
+	sync: Record<string, unknown> | null;
+	extIdPrefix: string;
+	scoringConfig: string;
+	competition: string; // competition id or ''
+	teams: number;
+	matches: number;
+	players: number;
+}
+
+/** Create/update body — every field optional; omitted = unchanged. */
+export interface AdminTournamentPayload {
+	slug?: string;
+	name?: string;
+	shortName?: string;
+	status?: TournamentStatus;
+	startsAt?: string;
+	endsAt?: string;
+	structure?: unknown;
+	sync?: unknown;
+	forecastSpec?: unknown;
+	extIdPrefix?: string;
+	scoringConfig?: string;
+	competition?: string;
+}
+
+export interface AdminCompetition {
+	id: string;
+	key: string;
+	name: string;
+	shortName: string;
+	country: string;
+	teamKind: 'national' | 'club';
+	logo: string;
+	apiFootballLeague: number;
+}
+
+/** API-Football catalog entry. */
+export interface FootballLeague {
+	id: number;
+	name: string;
+	type: 'League' | 'Cup' | string;
+	logo: string;
+	country: string;
+	flag: string;
+	seasons: { year: number; start: string; end: string; current: boolean }[];
+}
+
+/** Import proposal derived from a league season (editable before import). */
+export interface ImportProposal {
+	leagueId: number;
+	leagueName: string;
+	leagueType: string;
+	leagueLogo: string;
+	country: string;
+	season: number;
+	slug: string;
+	name: string;
+	shortName: string;
+	extIdPrefix: string;
+	startsAt: string;
+	endsAt: string;
+	structure: Record<string, unknown>;
+	sync: Record<string, unknown>;
+	forecastSpec: Record<string, unknown>;
+	shape: string;
+	teams: {
+		id: number;
+		name: string;
+		code: string;
+		country: string;
+		national: boolean;
+		logo: string;
+		group?: string;
+		iso2?: string;
+	}[];
+	groups: { letter: string; teams: string[] }[];
+	rounds: { label: string; stage: string; matches: number; first: string }[];
+	fixtures: number;
+	warnings: string[] | null;
+}
+
 export const api = {
 	createLeague: (name: string) =>
 		post<{ id: string; name: string; inviteCode: string }>(
@@ -254,6 +350,35 @@ export const api = {
 
 	// Owner-only app stats dashboard.
 	ownerStats: () => get<OwnerStats>('/api/stats/owner'),
+
+
+	// Admin: tournament management + API-Football catalog import.
+	adminTournaments: () => get<{ tournaments: AdminTournament[] }>('/api/admin/tournaments'),
+	adminTournamentCreate: (body: AdminTournamentPayload) =>
+		post<AdminTournament>('/api/admin/tournaments', body),
+	adminTournamentUpdate: (id: string, body: AdminTournamentPayload) =>
+		post<AdminTournament>(`/api/admin/tournaments/${id}`, body),
+	adminTournamentDelete: (id: string) => del<{ ok: boolean }>(`/api/admin/tournaments/${id}`),
+	adminTournamentSeed: (id: string, teams: unknown, fixtures: unknown) =>
+		post<{ status: string; teams: number; matches: number }>(
+			`/api/admin/tournaments/${id}/seed`,
+			{ teams, fixtures }
+		),
+	adminCompetitions: () => get<{ competitions: AdminCompetition[] }>('/api/admin/competitions'),
+	footballLeagues: (search: string) =>
+		get<{ leagues: FootballLeague[] }>(
+			`/api/admin/football/leagues?search=${encodeURIComponent(search)}`
+		),
+	footballPreview: (league: number, season: number) =>
+		get<ImportProposal>(`/api/admin/football/preview?league=${league}&season=${season}`),
+	tournamentImport: (
+		proposal: ImportProposal,
+		extra: { competition?: string; status?: TournamentStatus } = {}
+	) =>
+		post<{ id: string; slug: string; teams: number; matches: number }>(
+			'/api/admin/tournaments/import',
+			{ ...proposal, ...extra }
+		),
 
 	// Owner-only results-sync dashboard: status + manual trigger.
 	syncStatus: () => get<SyncStatus>('/api/admin/sync/status'),
