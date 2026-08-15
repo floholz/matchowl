@@ -126,15 +126,17 @@
 			<p class="muted desc">Predict every match. Editable until kickoff.</p>
 		</div>
 	</div>
-	<div class="tabs">
-		<button class:active={tab === 'all'} onclick={() => (tab = 'all')}>All</button>
-		<button class:active={tab === 'group'} onclick={() => (tab = 'group')}
-			>Groups</button
-		>
-		<button class:active={tab === 'ko'} onclick={() => (tab = 'ko')}
-			>Knockout</button
-		>
-	</div>
+	{#if tournamentStore.knockoutStages.length > 0 && tournamentStore.groupStageCode}
+		<div class="tabs">
+			<button class:active={tab === 'all'} onclick={() => (tab = 'all')}>All</button>
+			<button class:active={tab === 'group'} onclick={() => (tab = 'group')}
+				>{tournamentStore.singleTable ? 'Table' : 'Groups'}</button
+			>
+			<button class:active={tab === 'ko'} onclick={() => (tab = 'ko')}
+				>Knockout</button
+			>
+		</div>
+	{/if}
 </div>
 
 <TournamentMissing />

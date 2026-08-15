@@ -202,7 +202,7 @@
 						class:rmiss={state === 'miss'}
 					>
 						<span class="pos">{i + 1}</span>
-						<Flag iso2={fs.team(id)?.iso2 ?? ''} code={fs.team(id)?.fifaCode ?? ''} />
+						<Flag iso2={fs.team(id)?.iso2 ?? ''} code={fs.team(id)?.fifaCode ?? ''} logo={fs.team(id)?.logo ?? ''} />
 						<span class="nm">{tname(id)}</span>
 						<span class="tag">
 							{#if state === 'ok'}<span class="ind ok"><Check size={15} /></span>
@@ -251,7 +251,7 @@
 						onchange={() => fs.toggleThird(g.letter)}
 					/>
 					<span class="gl">{g.letter}</span>
-					<Flag iso2={fs.team(tid)?.iso2 ?? ''} code={fs.team(tid)?.fifaCode ?? ''} />
+					<Flag iso2={fs.team(tid)?.iso2 ?? ''} code={fs.team(tid)?.fifaCode ?? ''} logo={fs.team(tid)?.logo ?? ''} />
 					<span class="nm">{tname(tid) || '—'}</span>
 					<span class="spacer"></span>
 					{#if on && adv === true}<span class="ind ok"><Check size={15} /></span>
@@ -268,6 +268,7 @@
 				<Flag
 					iso2={fs.team(champion)?.iso2 ?? ''}
 					code={fs.team(champion)?.fifaCode ?? ''}
+					logo={fs.team(champion)?.logo ?? ''}
 					size={26}
 				/>
 				<b>{tname(champion)}</b>
@@ -293,7 +294,7 @@
 						disabled={fs.locked || !H.id}
 						onclick={() => fs.pick(m, H.id)}
 					>
-						{#if H.team}<Flag iso2={H.team.iso2} code={H.team.fifaCode} />{/if}
+						{#if H.team}<Flag iso2={H.team.iso2} code={H.team.fifaCode} logo={H.team.logo} />{/if}
 						<span class="bn" class:ph={!H.id}>{H.name}</span>
 					</button>
 					<span class="vs">vs</span>
@@ -303,7 +304,7 @@
 						disabled={fs.locked || !A.id}
 						onclick={() => fs.pick(m, A.id)}
 					>
-						{#if A.team}<Flag iso2={A.team.iso2} code={A.team.fifaCode} />{/if}
+						{#if A.team}<Flag iso2={A.team.iso2} code={A.team.fifaCode} logo={A.team.logo} />{/if}
 						<span class="bn" class:ph={!A.id}>{A.name}</span>
 					</button>
 					{#if bok === true}<span class="ind ok"><Check size={15} /></span>

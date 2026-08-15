@@ -1,6 +1,6 @@
 import { pb } from './pb';
 import { auth } from './auth.svelte';
-import type { Team } from './tips.svelte';
+import { teamLogoUrl, type Team } from './tips.svelte';
 import { tournamentStore, type Structure } from './tournament.svelte';
 
 /** One headline pick of a calls-mode forecast (mirrors the Go spec). */
@@ -111,7 +111,8 @@ export class ForecastStore {
 				id: t.id,
 				name: t.name,
 				iso2: t.iso2,
-				fifaCode: t.fifaCode
+				fifaCode: t.fifaCode,
+				logo: teamLogoUrl(t.id, t.logo)
 			};
 		this.teams = tmap;
 		this.groups = structure.groups;

@@ -149,10 +149,14 @@
 <div class="stickyhead" use:collapseOnScroll>
 	<p class="kicker">{tournamentStore.current?.name ?? 'Tournament'}</p>
 	<div class="sh-expand"><div class="sh-inner"><h1>The Tournament</h1></div></div>
-	<div class="seg">
-		<button class:on={view === 'groups'} onclick={() => (view = 'groups')}>Group tables</button>
-		<button class:on={view === 'bracket'} onclick={() => (view = 'bracket')}>Bracket</button>
-	</div>
+	{#if tournamentStore.knockoutStages.length > 0}
+		<div class="seg">
+			<button class:on={view === 'groups'} onclick={() => (view = 'groups')}
+				>{tournamentStore.singleTable ? 'Table' : 'Group tables'}</button
+			>
+			<button class:on={view === 'bracket'} onclick={() => (view = 'bracket')}>Bracket</button>
+		</div>
+	{/if}
 </div>
 
 <TournamentMissing />
@@ -165,7 +169,7 @@
 			<p class="muted">No group matches played yet. Tables light up as results come in.</p>
 		</div>
 	{:else}
-		<div class="gwrap stagger">
+		<div class="gwrap stagger" class:single={tournamentStore.singleTable}>
 			{#each groups as g (g.letter)}
 				<section class="card grp">
 					<div class="ghead">
@@ -178,13 +182,17 @@
 						</thead>
 						<tbody>
 							{#each g.rows as r, i (r.id)}
+								{@const zone = tournamentStore.zoneAt(i + 1)}
 								<tr
 									class:adv={i < tournamentStore.directQualifiers}
 									class:third={!!eq && i === eq.fromPosition - 1}
+									class:zoned={!!zone}
+									style={zone ? `--zone: var(--zone-${tournamentStore.zoneIndex(zone.key) % 5})` : ''}
+									title={zone?.name}
 								>
 									<td class="rk">{i + 1}</td>
 									<td class="tm">
-										<Flag iso2={tn(r.id)?.iso2 ?? ''} code={tn(r.id)?.fifaCode ?? ''} />
+										<Flag iso2={tn(r.id)?.iso2 ?? ''} code={tn(r.id)?.fifaCode ?? ''} logo={tn(r.id)?.logo ?? ''} />
 										<span>{tn(r.id)?.name ?? '?'}</span>
 									</td>
 									<td class="digits">{r.p}</td>
@@ -194,6 +202,16 @@
 							{/each}
 						</tbody>
 					</table>
+					{#if tournamentStore.zones.length}
+						<ul class="zlegend">
+							{#each tournamentStore.zones as z, zi (z.key)}
+								<li style={`--zone: var(--zone-${zi % 5})`}>
+									<span class="zdot"></span>{z.name}
+									<span class="muted">{z.from === z.to ? z.from : `${z.from}–${z.to}`}</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 				</section>
 			{/each}
 		</div>
@@ -208,7 +226,7 @@
 				{@const done = played(m)}
 				<div class="bm card">
 					<div class="side" class:won={done && m.advancer === m.homeTeam}>
-						{#if H}<Flag iso2={H.iso2} code={H.fifaCode} />{/if}
+						{#if H}<Flag iso2={H.iso2} code={H.fifaCode} logo={H.logo} />{/if}
 						<span class="nm" class:ph={!H}>{H?.name ?? m.homeLabel}</span>
 					</div>
 					<div class="mid digits">
@@ -216,7 +234,7 @@
 					</div>
 					<div class="side right" class:won={done && m.advancer === m.awayTeam}>
 						<span class="nm" class:ph={!A}>{A?.name ?? m.awayLabel}</span>
-						{#if A}<Flag iso2={A.iso2} code={A.fifaCode} />{/if}
+						{#if A}<Flag iso2={A.iso2} code={A.fifaCode} logo={A.logo} />{/if}
 					</div>
 				</div>
 			{/each}
@@ -260,7 +278,7 @@
 		gap: 0.85rem;
 	}
 	@media (min-width: 760px) {
-		.gwrap {
+		.gwrap:not(.single) {
 			grid-template-columns: 1fr 1fr;
 		}
 	}
@@ -330,6 +348,45 @@
 	}
 	tr.third .rk {
 		color: var(--warning);
+	}
+	/* Zones (league shapes): a coloured rank + a subtle band per zone. The
+	   palette cycles through five hues that read on every theme. */
+	.grp {
+		--zone-0: var(--accent);
+		--zone-1: #4f9cf5;
+		--zone-2: #3fbf7f;
+		--zone-3: #b48cf2;
+		--zone-4: var(--danger);
+	}
+	tr.zoned .rk {
+		color: var(--zone);
+		font-weight: 800;
+	}
+	tr.zoned td {
+		background: color-mix(in srgb, var(--zone) 8%, transparent);
+	}
+	tr.zoned td:first-child {
+		box-shadow: inset 3px 0 0 var(--zone);
+	}
+	.zlegend {
+		list-style: none;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 1rem;
+		margin: 0.7rem 0 0;
+		padding: 0;
+		font-size: 0.78rem;
+	}
+	.zlegend li {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+	.zdot {
+		width: 0.6rem;
+		height: 0.6rem;
+		border-radius: 50%;
+		background: var(--zone);
 	}
 	.rname {
 		font-family: var(--font-display);

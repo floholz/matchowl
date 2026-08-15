@@ -364,6 +364,8 @@ export const api = {
 			`/api/admin/tournaments/${id}/seed`,
 			{ teams, fixtures }
 		),
+	adminTournamentLogos: (id: string) =>
+		post<{ status: string; logos: number }>(`/api/admin/tournaments/${id}/logos`, {}),
 	adminCompetitions: () => get<{ competitions: AdminCompetition[] }>('/api/admin/competitions'),
 	footballLeagues: (search: string) =>
 		get<{ leagues: FootballLeague[] }>(

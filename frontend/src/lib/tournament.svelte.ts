@@ -159,8 +159,25 @@ class TournamentStore {
 		return this.structure.gamesPerTeam ?? Math.max(1, this.groupSize - 1);
 	}
 
+	/** Teams per group that advance directly (0 for league seasons, where
+	 *  zones describe the table instead). */
 	get directQualifiers(): number {
-		return this.structure.directQualifiers ?? 2;
+		return this.structure.directQualifiers ?? 0;
+	}
+
+	get zones(): Zone[] {
+		return this.structure.zones ?? [];
+	}
+
+	/** The zone covering a 1-based table position, or null. */
+	zoneAt(position: number): Zone | null {
+		return this.zones.find((z) => position >= z.from && position <= z.to) ?? null;
+	}
+
+	/** Stable colour index (0..n) for a zone key — used to tint table rows
+	 *  and the legend consistently. */
+	zoneIndex(key: string): number {
+		return this.zones.findIndex((z) => z.key === key);
 	}
 
 	get pointsWin(): number {

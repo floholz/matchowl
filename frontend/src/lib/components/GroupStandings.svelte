@@ -60,6 +60,7 @@
 									<Flag
 										iso2={tipsStore.team(r.id)?.iso2 ?? ''}
 										code={tipsStore.team(r.id)?.fifaCode ?? ''}
+										logo={tipsStore.team(r.id)?.logo ?? ''}
 									/>
 									<span class="nm">{tipsStore.team(r.id)?.name ?? r.id}</span>
 								</span>
@@ -72,8 +73,9 @@
 				</tbody>
 			</table>
 			<p class="muted small note">
-				Your picks, with played results counted. Top {tournamentStore.directQualifiers}
-				advance directly{#if eq}; the {eq.count} best {ord(eq.fromPosition)}-placed
+				Your picks, with played results counted.{#if tournamentStore.directQualifiers > 0}
+					Top {tournamentStore.directQualifiers}
+					advance directly{/if}{#if eq}; the {eq.count} best {ord(eq.fromPosition)}-placed
 					teams also advance{bestThirds.size
 						? ''
 						: ' (fill every group to project these)'}{/if}.

@@ -6,8 +6,10 @@
 > with floholz: v1 = **manage tournaments in-app + import from
 > API-Football**, on a dedicated `/admin/tournaments` route.
 > Follow-ups: scoring-config picker (needs a list endpoint), team-level
-> edits (codes/flags), more bundled flags, single-table heading ("Group A"
-> for league seasons).
+> edits (codes/flags), more bundled flags. Done since: crests
+> (`teams.logo`, downloaded at import / "Fetch logos"), league-shape UI
+> (zones on the table, no default qualifiers, no bracket/knockout tabs
+> without knockout stages), `?t=` slug handling.
 
 ## Why
 

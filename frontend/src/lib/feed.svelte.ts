@@ -1,7 +1,7 @@
 import { pb } from './pb';
 import { auth } from './auth.svelte';
 import { serverClock } from './serverclock.svelte';
-import type { Match, Team, Tip } from './tips.svelte';
+import { teamLogoUrl, type Match, type Team, type Tip } from './tips.svelte';
 
 /** One row of the feed: a match (same field names as the matches
  *  collection, so the shared TipCard renders it directly) denormalized
@@ -92,7 +92,13 @@ class FeedStore {
 			const tmap: Record<string, Team> = {};
 			for (const [id, t] of Object.entries(r.teams ?? {})) {
 				const tt = t as Record<string, string>;
-				tmap[id] = { id, name: tt.name, iso2: tt.iso2, fifaCode: tt.fifaCode };
+				tmap[id] = {
+					id,
+					name: tt.name,
+					iso2: tt.iso2,
+					fifaCode: tt.fifaCode,
+					logo: teamLogoUrl(id, tt.logo)
+				};
 			}
 			this.teams = tmap;
 			this.suggestions = s.suggestions ?? [];

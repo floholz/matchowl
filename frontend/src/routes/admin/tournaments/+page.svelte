@@ -19,7 +19,8 @@
 		Users,
 		CalendarDays,
 		Database,
-		ChevronLeft
+		ChevronLeft,
+		ImageDown
 	} from '@lucide/svelte';
 
 	$effect(() => {
@@ -156,6 +157,22 @@
 		}
 	}
 
+	// Crests for an already-imported tournament (matched by team name).
+	let logosBusy = $state('');
+	async function fetchLogos(t: AdminTournament) {
+		logosBusy = t.id;
+		try {
+			const r = await api.adminTournamentLogos(t.id);
+			flash = `${t.name}: ${r.logos} crest${r.logos === 1 ? '' : 's'} fetched.`;
+		} catch (e) {
+			flash = msg(e);
+		} finally {
+			logosBusy = '';
+		}
+	}
+	const hasApiLeague = (t: AdminTournament) =>
+		!!(t.sync as { apiFootballLeague?: number } | null)?.apiFootballLeague;
+
 	function fmtDate(v: string): string {
 		if (!v) return '—';
 		const d = new Date(v.replace(' ', 'T'));
@@ -288,6 +305,16 @@
 						{#if t.teams === 0}
 							<button class="btn secondary sm" onclick={() => { seedError = ''; panel = { kind: 'seed', t }; }}>
 								<Database size={14} /> Seed JSON
+							</button>
+						{/if}
+						{#if t.teams > 0 && hasApiLeague(t)}
+							<button
+								class="btn secondary sm"
+								disabled={logosBusy === t.id}
+								onclick={() => fetchLogos(t)}
+								title="Download team crests from API-Football (teams matched by name)"
+							>
+								<ImageDown size={14} /> {logosBusy === t.id ? 'Fetching…' : 'Fetch logos'}
 							</button>
 						{/if}
 						<button class="btn secondary sm" onclick={() => openEdit(t)}><Pencil size={14} /> Edit</button>

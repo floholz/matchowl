@@ -147,6 +147,7 @@ func Register(app core.App, se *core.ServeEvent) {
 					"fifaCode": t.GetString("fifaCode"),
 					"iso2":     t.GetString("iso2"),
 					"clubKey":  t.GetString("clubKey"),
+					"logo":     t.GetString("logo"),
 				}
 			}
 		}

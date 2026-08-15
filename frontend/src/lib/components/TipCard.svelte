@@ -185,9 +185,9 @@
 
 	function label(side: 'home' | 'away') {
 		const t = side === 'home' ? home : away;
-		if (t) return { name: t.name, iso2: t.iso2, code: t.fifaCode };
+		if (t) return { name: t.name, iso2: t.iso2, code: t.fifaCode, logo: t.logo };
 		const raw = side === 'home' ? match.homeLabel : match.awayLabel;
-		return { name: raw, iso2: '', code: raw };
+		return { name: raw, iso2: '', code: raw, logo: '' };
 	}
 	let H = $derived(label('home'));
 	let A = $derived(label('away'));
@@ -214,7 +214,7 @@
 	>
 		<div class="teams">
 			<span class="t">
-				<Flag iso2={H.iso2} code={H.code} /> <span class="tn">{H.name}</span>
+				<Flag iso2={H.iso2} code={H.code} logo={H.logo} /> <span class="tn">{H.name}</span>
 			</span>
 			<span class="score digits">
 				{#if played || live}
@@ -244,7 +244,7 @@
 				{/if}
 			</span>
 			<span class="t right">
-				<span class="tn">{A.name}</span> <Flag iso2={A.iso2} code={A.code} />
+				<span class="tn">{A.name}</span> <Flag iso2={A.iso2} code={A.code} logo={A.logo} />
 			</span>
 		</div>
 		<div class="meta">

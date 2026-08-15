@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -15,6 +16,7 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"github.com/floholz/matchowl/internal/football"
 	"github.com/floholz/matchowl/internal/tournaments"
@@ -226,12 +228,89 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return err
 		}
+		// Crests: downloaded after the seed transaction so network time
+		// never holds the DB lock; failures just leave the code chip.
+		nLogos := attachLogos(ctx, app, rec.Id, logoURLs(derived))
 		nTeams, _ := app.CountRecords("teams", dbx.HashExp{"tournament": rec.Id})
 		nMatches, _ := app.CountRecords("matches", dbx.HashExp{"tournament": rec.Id})
 		return e.JSON(http.StatusOK, map[string]any{
-			"id": rec.Id, "slug": rec.GetString("slug"), "teams": nTeams, "matches": nMatches,
+			"id": rec.Id, "slug": rec.GetString("slug"), "teams": nTeams, "matches": nMatches, "logos": nLogos,
 		})
 	}).Bind(apis.RequireAuth()).BindFunc(adminOnly)
+
+	// POST /api/admin/tournaments/{id}/logos — (re)fetch crests for an
+	// already-seeded tournament whose sync config names an API-Football
+	// league; teams are matched by name.
+	se.Router.POST("/api/admin/tournaments/{id}/logos", func(e *core.RequestEvent) error {
+		key, err := needKey(e)
+		if err != nil {
+			return err
+		}
+		t, err := app.FindRecordById("tournaments", e.Request.PathValue("id"))
+		if err != nil {
+			return apis.NewNotFoundError("no such tournament", nil)
+		}
+		cfg, err := tournaments.SyncOf(t)
+		if err != nil || cfg.APIFootballLeague == 0 || cfg.Season == 0 {
+			return apis.NewBadRequestError("tournament sync config has no apiFootballLeague/season", nil)
+		}
+		ctx, cancel := context.WithTimeout(e.Request.Context(), 90*time.Second)
+		defer cancel()
+		d, err := fetchSeason(ctx, key, cfg.APIFootballLeague, cfg.Season)
+		if err != nil {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
+		}
+		n := attachLogos(ctx, app, t.Id, logoURLs(Derive(d.league, d.season, d.fixtures, d.teams, d.standings)))
+		return e.JSON(http.StatusOK, map[string]any{"status": "ok", "logos": n})
+	}).Bind(apis.RequireAuth()).BindFunc(adminOnly)
+}
+
+// logoURLs maps normalized team name → provider logo URL.
+func logoURLs(p *Proposal) map[string]string {
+	out := map[string]string{}
+	for _, t := range p.Teams {
+		if t.Logo != "" {
+			out[football.NormalizeName(t.Name)] = t.Logo
+		}
+	}
+	return out
+}
+
+// attachLogos downloads crests for the tournament's teams that don't have
+// one yet and stores them in the teams.logo file field. Best-effort: each
+// failure is logged and skipped. Returns how many were attached.
+func attachLogos(ctx context.Context, app core.App, tournamentID string, urls map[string]string) int {
+	if len(urls) == 0 {
+		return 0
+	}
+	teams, err := app.FindRecordsByFilter("teams", "tournament = {:t}", "", 0, 0, map[string]any{"t": tournamentID})
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, tm := range teams {
+		if tm.GetString("logo") != "" {
+			continue
+		}
+		u := urls[football.NormalizeName(tm.GetString("name"))]
+		if u == "" {
+			continue
+		}
+		fctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		f, err := filesystem.NewFileFromURL(fctx, u)
+		cancel()
+		if err != nil {
+			log.Printf("[importer] logo %s: %v", tm.GetString("name"), err)
+			continue
+		}
+		tm.Set("logo", f)
+		if err := app.Save(tm); err != nil {
+			log.Printf("[importer] save logo %s: %v", tm.GetString("name"), err)
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 // codeFor picks a 3-char team code: the provider's, else the first letters

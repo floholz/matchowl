@@ -59,7 +59,7 @@
 					title={lockedBy ? `Locked in by your ${lockedBy.name} pick` : blocked}
 					onclick={() => store.toggleCall(call, t.id)}
 				>
-					<Flag iso2={t.iso2} code={t.fifaCode} />
+					<Flag iso2={t.iso2} code={t.fifaCode} logo={t.logo} />
 					<span class="pn">{t.name}</span>
 					{#if lockedBy}<Lock size={13} />{:else if on}<Check size={14} />{/if}
 				</button>

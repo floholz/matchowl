@@ -106,7 +106,7 @@
 								: 'miss'}
 				<div class="trow" class:rwin={state === 'ok'} class:rhalf={state === 'half'} class:rmiss={state === 'miss'}>
 					<span class="pos">{i + 1}</span>
-					<Flag iso2={fs.team(id)?.iso2 ?? ''} code={fs.team(id)?.fifaCode ?? ''} />
+					<Flag iso2={fs.team(id)?.iso2 ?? ''} code={fs.team(id)?.fifaCode ?? ''} logo={fs.team(id)?.logo ?? ''} />
 					<span class="nm">{tname(id)}</span>
 					<span class="tag">
 						{#if state === 'ok'}<span class="ind ok"><Check size={15} /></span>
@@ -128,7 +128,7 @@
 			{#if on}
 				<div class="trow">
 					<span class="gl">{g.letter}</span>
-					<Flag iso2={fs.team(tid)?.iso2 ?? ''} code={fs.team(tid)?.fifaCode ?? ''} />
+					<Flag iso2={fs.team(tid)?.iso2 ?? ''} code={fs.team(tid)?.fifaCode ?? ''} logo={fs.team(tid)?.logo ?? ''} />
 					<span class="nm">{tname(tid) || '—'}</span>
 					<span class="spacer"></span>
 					{#if adv === true}<span class="ind ok"><Check size={15} /></span>
@@ -145,7 +145,7 @@
 		<div class="card champ">
 			<Trophy size={20} />
 			<span class="lbl">Predicted champion</span>
-			<Flag iso2={fs.team(champion)?.iso2 ?? ''} code={fs.team(champion)?.fifaCode ?? ''} size={26} />
+			<Flag iso2={fs.team(champion)?.iso2 ?? ''} code={fs.team(champion)?.fifaCode ?? ''} logo={fs.team(champion)?.logo ?? ''} size={26} />
 			<b>{tname(champion)}</b>
 		</div>
 	{/if}
@@ -163,13 +163,13 @@
 			{@const bok = actAdv ? w === actAdv : null}
 			<div class="bm card" class:rwin={bok === true} class:rmiss={bok === false}>
 				<div class="bteam" class:win={w && w === H.id}>
-					{#if H.team}<Flag iso2={H.team.iso2} code={H.team.fifaCode} />{/if}
+					{#if H.team}<Flag iso2={H.team.iso2} code={H.team.fifaCode} logo={H.team.logo} />{/if}
 					<span class="bn" class:ph={!H.id}>{H.name}</span>
 				</div>
 				<span class="vs">vs</span>
 				<div class="bteam right" class:win={w && w === A.id}>
 					<span class="bn" class:ph={!A.id}>{A.name}</span>
-					{#if A.team}<Flag iso2={A.team.iso2} code={A.team.fifaCode} />{/if}
+					{#if A.team}<Flag iso2={A.team.iso2} code={A.team.fifaCode} logo={A.team.logo} />{/if}
 				</div>
 				{#if bok === true}<span class="ind ok"><Check size={15} /></span>
 				{:else if bok === false}<span class="ind no"><X size={15} /></span>{/if}

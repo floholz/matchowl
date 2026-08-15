@@ -8,6 +8,14 @@ export interface Team {
 	name: string;
 	iso2: string;
 	fifaCode: string;
+	/** Crest URL (served from our /api/files) — clubs, or nations without a
+	 *  bundled flag. Empty when none. */
+	logo: string;
+}
+
+/** URL of a team's crest file (PocketBase file field), or ''. */
+export function teamLogoUrl(id: string, file: string | undefined): string {
+	return file ? `/api/files/teams/${id}/${file}` : '';
 }
 
 export interface Match {
@@ -109,7 +117,8 @@ class TipsStore {
 				id: t.id,
 				name: t.name,
 				iso2: t.iso2,
-				fifaCode: t.fifaCode
+				fifaCode: t.fifaCode,
+				logo: teamLogoUrl(t.id, t.logo)
 			};
 		this.teams = tmap;
 		this.matches = matches as unknown as Match[];
