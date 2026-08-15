@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { ForecastStore, koKey, type KOMatch } from '$lib/forecast.svelte';
-	import { tournamentStore } from '$lib/tournament.svelte';
+	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { collapseOnScroll } from '$lib/actions';
 	import { Check, CircleCheck, X, Trophy, ArrowLeft } from '@lucide/svelte';
@@ -12,7 +12,10 @@
 
 	$effect(() => {
 		const uid = $page.params.userId;
-		if (uid) fs.loadView(uid).catch((e) => (err = e?.message ?? 'Not allowed'));
+		if (uid)
+			selectFromUrl()
+				.then(() => fs.loadView(uid))
+				.catch((e) => (err = e?.message ?? 'Not allowed'));
 	});
 
 	const ord = (n: number) =>

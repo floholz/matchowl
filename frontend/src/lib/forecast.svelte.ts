@@ -83,8 +83,14 @@ export class ForecastStore {
 	private async loadBase() {
 		await tournamentStore.ready();
 		const tid = tournamentStore.current?.id ?? '';
+		const slug = tournamentStore.current?.slug ?? '';
 		const [structure, teams, matches] = await Promise.all([
-			pb.send('/api/forecast/structure', { method: 'GET' }),
+			// Slug-scoped: /api/forecast/structure is the server's *current*
+			// tournament, which is not necessarily the one selected via ?t=.
+			pb.send(
+				slug ? `/api/tournaments/${slug}/structure` : '/api/forecast/structure',
+				{ method: 'GET' }
+			),
 			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"` }),
 			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` })
 		]);
@@ -164,9 +170,11 @@ export class ForecastStore {
 	// Read-only: load a friend's forecast (shared-league gated server-side).
 	async loadView(userId: string) {
 		await this.loadBase();
-		const r = await pb.send(`/api/forecast/of/${userId}`, {
-			method: 'GET'
-		});
+		const slug = tournamentStore.current?.slug ?? '';
+		const r = await pb.send(
+			`/api/forecast/of/${userId}${slug ? `?tournament=${encodeURIComponent(slug)}` : ''}`,
+			{ method: 'GET' }
+		);
 		this.readOnly = true;
 		this.viewName = r.name ?? '';
 		this.recId = undefined;
