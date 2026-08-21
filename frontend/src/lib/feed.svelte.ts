@@ -37,12 +37,20 @@ export interface FeedSuggestion {
 	leagueMates: number;
 }
 
+/** A day's matches from one tournament, in kickoff order. */
+export interface FeedGroup {
+	tournament: FeedMatch['tournament'];
+	matches: FeedMatch[];
+}
+
 export interface FeedDay {
 	/** Local date key, e.g. "2026-06-25". */
 	key: string;
 	label: string;
 	isToday: boolean;
 	matches: FeedMatch[];
+	/** Matches grouped by tournament, ordered by each group's first kickoff. */
+	groups: FeedGroup[];
 }
 
 /** Deadline cards only surface this close to their lock. */
@@ -51,6 +59,16 @@ const DEADLINE_LEAD_DAYS = 14;
 function localDayKey(iso: string): string {
 	const d = new Date(iso);
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function groupByTournament(matches: FeedMatch[]): FeedGroup[] {
+	const byT = new Map<string, FeedGroup>();
+	for (const m of matches) {
+		let g = byT.get(m.tournament.id);
+		if (!g) byT.set(m.tournament.id, (g = { tournament: m.tournament, matches: [] }));
+		g.matches.push(m);
+	}
+	return [...byT.values()];
 }
 
 /** The feed store: a today-centered window of matches across every
@@ -132,7 +150,8 @@ class FeedStore {
 		return m.status === 'finished' || !!m.finalizedAt;
 	}
 
-	/** Matches grouped by the user's LOCAL day, oldest first. */
+	/** Matches grouped by the user's LOCAL day, oldest first; within a day
+	 *  by tournament so each competition header shows once per day. */
 	get days(): FeedDay[] {
 		const todayKey = localDayKey(new Date(serverClock.now()).toISOString());
 		const byDay = new Map<string, FeedMatch[]>();
@@ -152,7 +171,8 @@ class FeedStore {
 					day: 'numeric',
 					month: 'short'
 				}),
-				matches
+				matches,
+				groups: groupByTournament(matches)
 			});
 		}
 		out.sort((a, b) => (a.key < b.key ? -1 : 1));

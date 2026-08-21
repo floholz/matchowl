@@ -14,6 +14,8 @@
 	import Scoreline from './Scoreline.svelte';
 	import Stepper from './Stepper.svelte';
 	import { Lock, ChevronDown, Check, Users, Target, Bot } from '@lucide/svelte';
+	import { untrack } from 'svelte';
+	import { serverClock } from '$lib/serverclock.svelte';
 
 	// Controlled by the parent so only one card is open at a time
 	// (accordion). By default the card reads/writes through tipsStore (the
@@ -41,7 +43,15 @@
 
 	const teamOf = (id: string) => (team ? team(id) : tipsStore.team(id));
 
-	let locked = $derived(isLocked(match));
+	// Card-local clock. It only ticks while the match is upcoming and inside
+	// the countdown window (one second), otherwise a single timeout wakes
+	// it at the window's edge — so a long feed doesn't run a timer per card.
+	const COUNTDOWN_MS = 3 * 3600_000;
+	let now = $state(serverClock.now());
+	let kickoffMs = $derived(new Date(match.kickoff).getTime());
+	let locked = $derived(isLocked(match) || now >= kickoffMs);
+	let untilKickoff = $derived(kickoffMs - now);
+	let countdown = $derived(!locked && untilKickoff <= COUNTDOWN_MS);
 	let resolved = $derived(teamsResolved(match));
 	let home = $derived(teamOf(match.homeTeam));
 	let away = $derived(teamOf(match.awayTeam));
@@ -50,6 +60,17 @@
 	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
 	let live = $derived(match.status === 'live');
 	let pts = $derived(points ?? tipsStore.scores[match.id]);
+
+	$effect(() => {
+		if (locked || live || played) return;
+		const ms = kickoffMs - untrack(() => now);
+		if (ms > COUNTDOWN_MS) {
+			const t = setTimeout(() => (now = serverClock.now()), ms - COUNTDOWN_MS + 50);
+			return () => clearTimeout(t);
+		}
+		const id = setInterval(() => (now = serverClock.now()), 1000);
+		return () => clearInterval(id);
+	});
 
 	// Editable working copy.
 	let ftH = $state(0);
@@ -106,6 +127,27 @@
 			minute: '2-digit'
 		})
 	);
+	const kickoffTime = $derived(
+		new Date(match.kickoff).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+	);
+	// "Today" / "Tomorrow" / "Sat 21 Jun", relative to the (server) clock.
+	const kickoffDay = $derived.by(() => {
+		const d = new Date(match.kickoff);
+		const t = new Date(now);
+		const dayOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+		const diff = Math.round((dayOf(d) - dayOf(t)) / 86400_000);
+		if (diff === 0) return 'Today';
+		if (diff === 1) return 'Tomorrow';
+		return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+	});
+	// Countdown inside the window: "1h 23m" above an hour, "23:45" below.
+	const countdownText = $derived.by(() => {
+		const s = Math.max(0, Math.floor(untilKickoff / 1000));
+		const h = Math.floor(s / 3600);
+		const m = Math.floor((s % 3600) / 60);
+		if (h >= 1) return `${h}h ${String(m).padStart(2, '0')}m`;
+		return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+	});
 
 	async function save() {
 		msg = '';
@@ -228,8 +270,29 @@
 							winner={winnerSide(match.advancer)}
 						/></b
 					>
-				{:else if existing}
-					<span class="pred"
+				{:else if countdown}
+					<span class="when soon" title={kickoff}
+						><b>{countdownText}</b><small>kick-off in</small></span
+					>
+				{:else}
+					<span class="when"><b>{kickoffTime}</b><small>{kickoffDay}</small></span>
+				{/if}
+			</span>
+			<span class="t right">
+				<span class="tn">{A.name}</span> <Flag iso2={A.iso2} code={A.code} logo={A.logo} />
+			</span>
+		</div>
+		<div class="meta">
+			<span class="muted round"
+				>{!isKO && match.groupLetter && !tournamentStore.singleTable
+					? `Group ${match.groupLetter} · ${match.roundLabel}`
+					: match.roundLabel}{#if played || live}
+					· {kickoff}{/if}</span
+			>
+			<span class="spacer"></span>
+			{#if existing}
+				<span class="pill tipv"
+					><span class="digits"
 						><Scoreline
 							home={existing.ftHome}
 							away={existing.ftAway}
@@ -238,22 +301,9 @@
 							et={isKO && existing.ftHome === existing.ftAway}
 							winner={winnerSide(existing.advancer)}
 						/></span
-					>
-				{:else}
-					<span class="muted">–:–</span>
-				{/if}
-			</span>
-			<span class="t right">
-				<span class="tn">{A.name}</span> <Flag iso2={A.iso2} code={A.code} logo={A.logo} />
-			</span>
-		</div>
-		<div class="meta">
-			<span class="muted"
-				>{!isKO && match.groupLetter && !tournamentStore.singleTable
-					? `Group ${match.groupLetter} · ${match.roundLabel}`
-					: match.roundLabel} · {kickoff}</span
-			>
-			<span class="spacer"></span>
+					> tip</span
+				>
+			{/if}
 			{#if played}
 				<span class="pill done">
 					FT
@@ -267,8 +317,6 @@
 				<span class="pill livep"><span class="dot"></span> Live</span>
 			{:else if locked}
 				<span class="pill"><Lock size={12} /> locked</span>
-			{:else if existing}
-				<span class="pill ok"><Check size={12} /> tipped</span>
 			{/if}
 			<ChevronDown size={16} class="cv {open ? 'up' : ''}" />
 		</div>
@@ -503,10 +551,6 @@
 	:global(.tc .cv.up) {
 		transform: rotate(180deg);
 	}
-	.pill.ok {
-		color: var(--success);
-		border-color: var(--success);
-	}
 	.body {
 		padding: 0.25rem 1rem 1rem;
 		border-top: 1px solid var(--border);
@@ -580,9 +624,43 @@
 			opacity: 0.25;
 		}
 	}
-	.score .pred {
+	/* Upcoming: kickoff time (or countdown) sits where the score will be. */
+	.when {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		line-height: 1.1;
 		color: var(--muted);
-		font-size: 0.95rem;
+	}
+	.when b {
+		font-size: 1rem;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+	.when small {
+		font-size: 0.62rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+	.when.soon b {
+		color: var(--accent);
+	}
+	.meta .round {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	/* Your saved tip, compact, next to the state pill. */
+	.pill.tipv {
+		color: var(--success);
+		border-color: var(--success);
+		gap: 0.35rem;
+	}
+	.pill.tipv .digits {
+		font-size: 0.8rem;
+		letter-spacing: 0;
 	}
 	.yourtip {
 		display: flex;

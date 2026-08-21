@@ -6,7 +6,7 @@
 	import TipCard from '$lib/components/TipCard.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { tick } from 'svelte';
-	import { Telescope, Plus, ChevronUp, ChevronDown } from '@lucide/svelte';
+	import { Telescope, Plus, ChevronUp, ChevronDown, ChevronRight } from '@lucide/svelte';
 
 	let openId = $state('');
 	let scrolled = $state(false);
@@ -109,21 +109,26 @@
 					<h2 class="day-h" class:today={day.isToday}>
 						{day.isToday ? 'Today' : day.label}
 					</h2>
-					{#each day.matches as m (m.id)}
-						<div class="fm">
-							<span class="src kicker"
-								>{m.tournament.shortName || m.tournament.name}</span
-							>
-							<TipCard
-								match={m}
-								team={(id) => feedStore.team(id)}
-								tip={tipFor(m)}
-								knockout={m.knockout}
-								points={m.myTip?.points}
-								onSave={(t) => feedStore.saveTip(m, t)}
-								open={openId === m.id}
-								onToggle={() => (openId = openId === m.id ? '' : m.id)}
-							/>
+					{#each day.groups as g (g.tournament.id)}
+						<div class="comp">
+							<a class="comp-h" href={`/tournaments/${g.tournament.slug}`}>
+								<span>{g.tournament.shortName || g.tournament.name}</span>
+								<ChevronRight size={16} />
+							</a>
+							{#each g.matches as m (m.id)}
+								<div class="fm">
+									<TipCard
+										match={m}
+										team={(id) => feedStore.team(id)}
+										tip={tipFor(m)}
+										knockout={m.knockout}
+										points={m.myTip?.points}
+										onSave={(t) => feedStore.saveTip(m, t)}
+										open={openId === m.id}
+										onToggle={() => (openId = openId === m.id ? '' : m.id)}
+									/>
+								</div>
+							{/each}
 						</div>
 					{/each}
 				</section>
@@ -200,14 +205,41 @@
 	.day-h.today {
 		color: var(--accent);
 	}
-	.fm {
-		margin-bottom: 0.85rem;
+	.comp + .comp {
+		margin-top: 1.1rem;
 	}
-	.fm .src {
-		display: block;
-		font-size: 0.62rem;
-		margin: 0 0 0.25rem 0.25rem;
+	.comp-h {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+		margin: 0 0 0.45rem 0.25rem;
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
 		color: var(--muted);
+		text-decoration: none;
+	}
+	.comp-h:hover,
+	.comp-h:focus-visible {
+		color: var(--text);
+	}
+	/* Cards in a day/competition group touch and read as one bubble: only
+	   the group's top and bottom corners are rounded, and adjacent borders
+	   overlap by 1px so there's a single hairline between matches. */
+	.fm :global(.card) {
+		border-radius: 0;
+	}
+	.fm:first-of-type :global(.card) {
+		border-top-left-radius: var(--radius);
+		border-top-right-radius: var(--radius);
+	}
+	.fm:last-of-type :global(.card) {
+		border-bottom-left-radius: var(--radius);
+		border-bottom-right-radius: var(--radius);
+	}
+	.fm + .fm {
+		margin-top: -1px;
 	}
 	.btn.ghost.more {
 		display: flex;
