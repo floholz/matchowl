@@ -7,7 +7,15 @@ import { teamLogoUrl, type Match, type Team, type Tip } from './tips.svelte';
  *  collection, so the shared TipCard renders it directly) denormalized
  *  with its tournament and the caller's tip. Mirrors /api/feed. */
 export interface FeedMatch extends Match {
-	tournament: { id: string; slug: string; name: string; shortName: string; status: string };
+	tournament: {
+		id: string;
+		slug: string;
+		name: string;
+		shortName: string;
+		status: string;
+		/** Competition key — the hub lives at /competitions/{key}?s={slug}. */
+		competition: string;
+	};
 	stageName: string;
 	knockout: boolean;
 	myTip?: {

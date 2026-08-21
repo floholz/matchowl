@@ -164,8 +164,8 @@
 		</label>
 		<label class="field">
 			<span>Competition</span>
-			<select class="input" bind:value={competition}>
-				<option value="">— none —</option>
+			<select class="input" bind:value={competition} required>
+				<option value="" disabled>— choose —</option>
 				{#each competitions as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
 			</select>
 		</label>

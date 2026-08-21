@@ -26,6 +26,7 @@ type Proposal struct {
 	LeagueLogo string `json:"leagueLogo"`
 	Country    string `json:"country"`
 	Season     int    `json:"season"`
+	TeamKind   string `json:"teamKind"` // national | club (majority of teams)
 
 	// Editable.
 	Slug        string                   `json:"slug"`
@@ -237,6 +238,10 @@ func Derive(league football.League, season football.Season, fixtures []football.
 		}
 	}
 	national := nationalCount*2 > len(byID) // majority national → national-team event
+	p.TeamKind = "club"
+	if national {
+		p.TeamKind = "national"
+	}
 	for _, t := range byID {
 		if national || t.National {
 			t.ISO2 = CountryISO2(t.Country)

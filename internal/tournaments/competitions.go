@@ -1,12 +1,18 @@
 package tournaments
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/router"
 
 	"github.com/floholz/matchowl/internal/users"
@@ -28,7 +34,104 @@ func CompetitionView(r *core.Record) map[string]any {
 		"country":   r.GetString("country"),
 		"teamKind":  r.GetString("teamKind"),
 		"logo":      r.GetString("logo"), // filename; client builds /api/files/... URL
+		// Admin blurb; empty → the client derives one from the structure.
+		"description":       r.GetString("description"),
+		"apiFootballLeague": r.GetInt("apiFootballLeague"),
 	}
+}
+
+// ByLeagueID finds the competition mapped to an API-Football league id.
+func ByLeagueID(app core.App, leagueID int) (*core.Record, error) {
+	return app.FindFirstRecordByFilter(compCollection,
+		"apiFootballLeague = {:l}", map[string]any{"l": leagueID})
+}
+
+// LeagueLogoURL is the provider's stable (public, key-less) league badge.
+func LeagueLogoURL(leagueID int) string {
+	return fmt.Sprintf("https://media.api-sports.io/football/leagues/%d.png", leagueID)
+}
+
+var compKeyJunk = regexp.MustCompile(`[^a-z0-9]+`)
+
+// KeyFromName makes a competition key from a display name ("UEFA Champions
+// League" → "uefa-champions-league"), de-duplicated against existing keys.
+func KeyFromName(app core.App, name string) string {
+	base := strings.Trim(compKeyJunk.ReplaceAllString(strings.ToLower(name), "-"), "-")
+	if len(base) < 2 {
+		base = "competition"
+	}
+	if len(base) > 32 {
+		base = strings.Trim(base[:32], "-")
+	}
+	key := base
+	for i := 2; ; i++ {
+		if _, err := app.FindFirstRecordByFilter(compCollection, "key = {:k}", map[string]any{"k": key}); err != nil {
+			return key
+		}
+		suffix := fmt.Sprintf("-%d", i)
+		key = base
+		if len(key)+len(suffix) > 32 {
+			key = key[:32-len(suffix)]
+		}
+		key += suffix
+	}
+}
+
+// LeagueInfo is what the importer knows about a provider league.
+type LeagueInfo struct {
+	ID       int
+	Name     string
+	Country  string
+	TeamKind string // national | club
+	LogoURL  string
+}
+
+// EnsureForLeague returns the competition mapped to the league, creating
+// one from the league's catalog entry when none exists yet (the admin can
+// rename it afterwards). The logo is fetched best-effort, outside any
+// transaction the caller may hold.
+func EnsureForLeague(app core.App, l LeagueInfo) (*core.Record, error) {
+	if c, err := ByLeagueID(app, l.ID); err == nil {
+		return c, nil
+	}
+	col, err := app.FindCollectionByNameOrId(compCollection)
+	if err != nil {
+		return nil, err
+	}
+	rec := core.NewRecord(col)
+	rec.Set("key", KeyFromName(app, l.Name))
+	rec.Set("name", strings.TrimSpace(l.Name))
+	rec.Set("country", strings.TrimSpace(l.Country))
+	if l.TeamKind != "club" {
+		l.TeamKind = "national"
+	}
+	rec.Set("teamKind", l.TeamKind)
+	rec.Set("apiFootballLeague", l.ID)
+	if err := app.Save(rec); err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
+
+// AttachLogo downloads the league badge into competitions.logo when the
+// record has none yet. Best-effort; returns whether a logo was stored.
+func AttachLogo(ctx context.Context, app core.App, rec *core.Record, url string) bool {
+	if rec.GetString("logo") != "" || url == "" {
+		return false
+	}
+	fctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	f, err := filesystem.NewFileFromURL(fctx, url)
+	if err != nil {
+		log.Printf("[competitions] logo %s: %v", rec.GetString("key"), err)
+		return false
+	}
+	rec.Set("logo", f)
+	if err := app.Save(rec); err != nil {
+		log.Printf("[competitions] save logo %s: %v", rec.GetString("key"), err)
+		return false
+	}
+	return true
 }
 
 // competitionOf loads a tournament's competition record ("" relation → nil).
@@ -50,6 +153,7 @@ type compPayload struct {
 	ShortName         *string `json:"shortName"`
 	Country           *string `json:"country"`
 	TeamKind          *string `json:"teamKind"`
+	Description       *string `json:"description"`
 	APIFootballLeague *int    `json:"apiFootballLeague"`
 }
 
@@ -80,6 +184,13 @@ func (p *compPayload) applyTo(rec *core.Record) error {
 		}
 		rec.Set("teamKind", *p.TeamKind)
 	}
+	if p.Description != nil {
+		d := strings.TrimSpace(*p.Description)
+		if len(d) > 500 {
+			return apis.NewBadRequestError("description max 500 chars", nil)
+		}
+		rec.Set("description", d)
+	}
 	if p.APIFootballLeague != nil {
 		rec.Set("apiFootballLeague", *p.APIFootballLeague)
 	}
@@ -106,9 +217,7 @@ func registerCompetitions(app core.App, se *core.ServeEvent) {
 		}
 		out := make([]map[string]any, 0, len(recs))
 		for _, r := range recs {
-			v := CompetitionView(r)
-			v["apiFootballLeague"] = r.GetInt("apiFootballLeague")
-			out = append(out, v)
+			out = append(out, CompetitionView(r))
 		}
 		return e.JSON(http.StatusOK, map[string]any{"competitions": out})
 	})
@@ -149,6 +258,24 @@ func registerCompetitions(app core.App, se *core.ServeEvent) {
 		}
 		if err := app.Save(rec); err != nil {
 			return err
+		}
+		return e.JSON(http.StatusOK, CompetitionView(rec))
+	})
+
+	// POST /{id}/logo — (re)fetch the league badge from API-Football by the
+	// competition's league id. Replaces an existing logo.
+	g.POST("/{id}/logo", func(e *core.RequestEvent) error {
+		rec, err := app.FindRecordById(compCollection, e.Request.PathValue("id"))
+		if err != nil {
+			return apis.NewNotFoundError("no such competition", nil)
+		}
+		lid := rec.GetInt("apiFootballLeague")
+		if lid == 0 {
+			return apis.NewBadRequestError("competition has no apiFootballLeague id", nil)
+		}
+		rec.Set("logo", nil)
+		if !AttachLogo(e.Request.Context(), app, rec, LeagueLogoURL(lid)) {
+			return e.JSON(http.StatusBadGateway, map[string]string{"error": "could not fetch the logo"})
 		}
 		return e.JSON(http.StatusOK, CompetitionView(rec))
 	})

@@ -232,7 +232,18 @@ export interface AdminCompetition {
 	country: string;
 	teamKind: 'national' | 'club';
 	logo: string;
+	description: string;
 	apiFootballLeague: number;
+}
+
+export interface AdminCompetitionPayload {
+	key?: string;
+	name?: string;
+	shortName?: string;
+	country?: string;
+	teamKind?: 'national' | 'club';
+	description?: string;
+	apiFootballLeague?: number;
 }
 
 /** API-Football catalog entry. */
@@ -254,6 +265,7 @@ export interface ImportProposal {
 	leagueLogo: string;
 	country: string;
 	season: number;
+	teamKind: 'national' | 'club';
 	slug: string;
 	name: string;
 	shortName: string;
@@ -367,6 +379,10 @@ export const api = {
 	adminTournamentLogos: (id: string) =>
 		post<{ status: string; logos: number }>(`/api/admin/tournaments/${id}/logos`, {}),
 	adminCompetitions: () => get<{ competitions: AdminCompetition[] }>('/api/admin/competitions'),
+	adminCompetitionUpdate: (id: string, body: AdminCompetitionPayload) =>
+		post<AdminCompetition>(`/api/admin/competitions/${id}`, body),
+	adminCompetitionLogo: (id: string) =>
+		post<AdminCompetition>(`/api/admin/competitions/${id}/logo`, {}),
 	footballLeagues: (search: string) =>
 		get<{ leagues: FootballLeague[] }>(
 			`/api/admin/football/leagues?search=${encodeURIComponent(search)}`

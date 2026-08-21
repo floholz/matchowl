@@ -11,6 +11,8 @@
 	import TournamentForm from '$lib/components/admin/TournamentForm.svelte';
 	import ImportWizard from '$lib/components/admin/ImportWizard.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { describeSeason } from '$lib/describe';
+	import type { Tournament } from '$lib/tournament.svelte';
 	import {
 		Plus,
 		Download,
@@ -37,6 +39,9 @@
 			const [t, c] = await Promise.all([api.adminTournaments(), api.adminCompetitions()]);
 			list = t.tournaments ?? [];
 			competitions = c.competitions ?? [];
+			compDraft = Object.fromEntries(
+				competitions.map((x) => [x.id, { name: x.name, description: x.description ?? '' }])
+			);
 			loadError = '';
 		} catch (e) {
 			loadError = msg(e);
@@ -57,6 +62,61 @@
 	const compName = $derived(
 		(id: string) => competitions.find((c) => c.id === id)?.name ?? ''
 	);
+	const compKey = $derived(
+		(id: string) => competitions.find((c) => c.id === id)?.key ?? ''
+	);
+
+	// ---- competitions: inline edit of name / description, logo fetch ----
+	let compDraft = $state<Record<string, { name: string; description: string }>>({});
+	let compBusy = $state('');
+	let compError = $state('');
+	function compDirty(c: AdminCompetition): boolean {
+		const d = compDraft[c.id];
+		return !!d && (d.name !== c.name || d.description !== (c.description ?? ''));
+	}
+	async function saveComp(c: AdminCompetition) {
+		const d = compDraft[c.id];
+		if (!d) return;
+		compBusy = c.id;
+		compError = '';
+		try {
+			const r = await api.adminCompetitionUpdate(c.id, { name: d.name, description: d.description });
+			competitions = competitions.map((x) => (x.id === c.id ? { ...x, ...r } : x));
+			compDraft[c.id] = { name: r.name, description: r.description ?? '' };
+			flash = `Saved ${r.name}.`;
+		} catch (e) {
+			compError = msg(e);
+		} finally {
+			compBusy = '';
+		}
+	}
+	async function fetchCompLogo(c: AdminCompetition) {
+		compBusy = c.id;
+		compError = '';
+		try {
+			const r = await api.adminCompetitionLogo(c.id);
+			competitions = competitions.map((x) => (x.id === c.id ? { ...x, ...r } : x));
+		} catch (e) {
+			compError = msg(e);
+		} finally {
+			compBusy = '';
+		}
+	}
+	/** Placeholder for an empty description: what the hub derives from
+	 *  the competition's most recent season. */
+	function derivedBlurb(c: AdminCompetition): string {
+		const t = list
+			.filter((x) => x.competition === c.id)
+			.sort((a, b) => (a.startsAt < b.startsAt ? 1 : -1))[0];
+		if (!t) return 'No seasons yet.';
+		return describeSeason(
+			{ ...t, competition: c } as unknown as Tournament,
+			t.teams
+		);
+	}
+	function compLogo(c: AdminCompetition): string {
+		return c.logo ? `/api/files/competitions/${c.id}/${c.logo}` : '';
+	}
 
 	// ---- panels ----
 	type Panel = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; t: AdminTournament } | { kind: 'seed'; t: AdminTournament };
@@ -323,12 +383,68 @@
 								<Trash2 size={14} /> Delete
 							</button>
 						{/if}
-						<a class="btn ghost sm" href={`/tournaments/${t.slug}`}>Open</a>
+						<a class="btn ghost sm" href={`/competitions/${compKey(t.competition)}?s=${t.slug}`}>Open</a>
 					</div>
 				</section>
 			{/each}
 		</div>
 	{/if}
+{/if}
+
+{#if auth.isAdmin && loaded && competitions.length}
+	<h2 class="sec comps-h">Competitions</h2>
+	<p class="muted small">
+		Seasons group under these on the Competitions page. The description shows on the hub;
+		leave it empty to use the line derived from the latest season (shown as placeholder).
+	</p>
+	{#if compError}<p class="error">{compError}</p>{/if}
+	<div class="clist">
+		{#each competitions.filter((c) => compDraft[c.id]) as c (c.id)}
+			<section class="card comp">
+				<div class="clogo" class:ph={!compLogo(c)}>
+					{#if compLogo(c)}<img src={compLogo(c)} alt="" />{:else}<ImageDown size={18} />{/if}
+				</div>
+				<div class="cmain">
+					<div class="ctop">
+						<input class="input cname" bind:value={compDraft[c.id].name} aria-label="Name" />
+						<span class="pill">{c.teamKind}</span>
+						{#if c.country}<span class="pill">{c.country}</span>{/if}
+					</div>
+					<p class="meta">
+						<code>{c.key}</code>
+						{#if c.apiFootballLeague}· API-Football league {c.apiFootballLeague}{/if}
+						· {list.filter((t) => t.competition === c.id).length} seasons
+					</p>
+					<textarea
+						class="input cdesc"
+						rows="2"
+						placeholder={derivedBlurb(c)}
+						bind:value={compDraft[c.id].description}
+						aria-label="Description"
+					></textarea>
+				</div>
+				<div class="cactions">
+					{#if c.apiFootballLeague}
+						<button
+							class="btn secondary sm"
+							disabled={compBusy === c.id}
+							onclick={() => fetchCompLogo(c)}
+							title="Download the league badge from API-Football"
+						>
+							<ImageDown size={14} /> {c.logo ? 'Refetch logo' : 'Fetch logo'}
+						</button>
+					{/if}
+					<button
+						class="btn sm"
+						disabled={compBusy === c.id || !compDirty(c)}
+						onclick={() => saveComp(c)}
+					>
+						{compBusy === c.id ? 'Saving…' : 'Save'}
+					</button>
+				</div>
+			</section>
+		{/each}
+	</div>
 {/if}
 
 <ImportWizard
@@ -500,5 +616,76 @@
 	}
 	.empty {
 		text-align: center;
+	}
+	/* ---- competitions editor ---- */
+	.comps-h {
+		margin-top: 2.2rem;
+	}
+	.clist {
+		display: grid;
+		gap: 0.7rem;
+		margin-top: 0.8rem;
+	}
+	.comp {
+		display: flex;
+		gap: 0.9rem;
+		align-items: flex-start;
+	}
+	.clogo {
+		flex: none;
+		width: 48px;
+		height: 48px;
+		display: grid;
+		place-items: center;
+		border-radius: 12px;
+		background: #fff;
+		overflow: hidden;
+	}
+	.clogo img {
+		width: 80%;
+		height: 80%;
+		object-fit: contain;
+	}
+	.clogo.ph {
+		background: var(--surface-2);
+		color: var(--muted);
+	}
+	.cmain {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.ctop {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+	.cname {
+		flex: 1;
+		min-width: 12rem;
+		font-weight: 700;
+	}
+	.cdesc {
+		resize: vertical;
+		font-size: 0.9rem;
+	}
+	.cactions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		flex: none;
+	}
+	@media (max-width: 640px) {
+		.comp {
+			flex-wrap: wrap;
+		}
+		.cactions {
+			flex-direction: row;
+			width: 100%;
+			justify-content: flex-end;
+		}
 	}
 </style>

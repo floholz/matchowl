@@ -36,15 +36,67 @@ export interface Structure {
 	pointsDraw?: number;
 }
 
+/** A competition (FIFA World Cup, Bundesliga, …); a tournament is one
+ *  season of it. Mirrors CompetitionView on the server. */
+export interface Competition {
+	id: string;
+	key: string;
+	name: string;
+	shortName: string;
+	country: string;
+	teamKind: 'national' | 'club';
+	logo: string; // filename, see competitionLogoUrl()
+	description: string; // admin blurb; '' → derive from the season
+	apiFootballLeague?: number;
+}
+
+export function competitionLogoUrl(c: Pick<Competition, 'id' | 'logo'> | null | undefined): string {
+	return c?.logo ? `/api/files/competitions/${c.id}/${c.logo}` : '';
+}
+
+export type TournamentStatus = 'draft' | 'upcoming' | 'active' | 'finished' | 'archived';
+
 export interface Tournament {
 	id: string;
 	slug: string;
 	name: string;
 	shortName: string;
-	status: 'draft' | 'upcoming' | 'active' | 'finished' | 'archived';
+	status: TournamentStatus;
 	startsAt: string;
 	endsAt: string;
 	structure: Structure;
+	competition: Competition;
+	/** Only `mode` matters to the hub ('none' → no forecast card). */
+	forecastSpec?: { mode?: string } | null;
+}
+
+const statusRank: Record<TournamentStatus, number> = {
+	active: 0,
+	upcoming: 1,
+	finished: 2,
+	archived: 3,
+	draft: 4
+};
+
+/** The season to land on by default: a running one, else the next
+ *  upcoming, else the most recent (mirrors the server's "current" pick). */
+export function defaultSeason(seasons: Tournament[]): Tournament | null {
+	let best: Tournament | null = null;
+	for (const t of seasons) {
+		if (!best) {
+			best = t;
+			continue;
+		}
+		const ra = statusRank[t.status] ?? 9;
+		const rb = statusRank[best.status] ?? 9;
+		if (ra !== rb) {
+			if (ra < rb) best = t;
+			continue;
+		}
+		const later = t.startsAt > best.startsAt;
+		if (t.status === 'upcoming' ? !later : later) best = t;
+	}
+	return best;
 }
 
 /** Loads the tournament list once and exposes the current tournament (the
@@ -82,6 +134,13 @@ class TournamentStore {
 				.finally(() => (this.inflight = null));
 		}
 		return this.inflight;
+	}
+
+	/** Seasons of a competition, newest first. */
+	seasonsOf(key: string): Tournament[] {
+		return this.list
+			.filter((t) => t.competition?.key === key)
+			.sort((a, b) => (a.startsAt < b.startsAt ? 1 : -1));
 	}
 
 	/** Point the app at a specific tournament (by slug) — used by the
@@ -191,8 +250,8 @@ class TournamentStore {
 
 export const tournamentStore = new TournamentStore();
 
-/** Honor a ?t=<slug> query param (the per-tournament detail pages are
- *  reached from the Tournaments catalog with it). */
+/** Honor a ?t=<slug> query param (the forecast page is reached from the
+ *  competition hub with it). */
 export async function selectFromUrl(): Promise<void> {
 	await tournamentStore.ready();
 	if (!browser) return;

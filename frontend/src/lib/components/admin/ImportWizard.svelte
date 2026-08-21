@@ -276,7 +276,7 @@
 					<label class="field">
 						<span>Competition</span>
 						<select class="input" bind:value={competition}>
-							<option value="">— none —</option>
+							<option value="">Auto — create “{proposal?.leagueName ?? 'the league'}” if needed</option>
 							{#each competitions as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
 						</select>
 					</label>

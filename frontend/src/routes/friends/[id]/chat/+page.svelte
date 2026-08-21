@@ -72,7 +72,7 @@
 			const mine = (await api.myLeagues()).leagues;
 			const lg = mine.find((l) => l.id === id);
 			if (!lg || lg.inviteCode === 'GLOBAL') {
-				goto(`/leagues/${id}`);
+				goto(`/friends/${id}`);
 				return;
 			}
 			leagueName = lg.name;
@@ -321,7 +321,7 @@
 
 <div class="chat">
 	<header class="chead">
-		<a class="back" href={`/leagues/${id}`} aria-label="Back to league">
+		<a class="back" href={`/friends/${id}`} aria-label="Back to league">
 			<ArrowLeft size={18} />
 		</a>
 		<div class="ctitle">

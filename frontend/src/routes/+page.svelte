@@ -95,9 +95,9 @@
 			<div class="card empty">
 				<p><b>Nothing in your feed yet.</b></p>
 				<p class="muted">
-					Play a tournament and its matches show up here, day by day.
+					Play a competition and its matches show up here, day by day.
 				</p>
-				<a class="btn" href="/tournaments">Browse tournaments</a>
+				<a class="btn" href="/competitions">Browse competitions</a>
 			</div>
 		{:else if feedStore.loaded}
 			<button class="btn ghost more" onclick={() => feedStore.earlier()}>
@@ -111,7 +111,10 @@
 					</h2>
 					{#each day.groups as g (g.tournament.id)}
 						<div class="comp">
-							<a class="comp-h" href={`/tournaments/${g.tournament.slug}`}>
+							<a
+								class="comp-h"
+								href={`/competitions/${g.tournament.competition}?s=${g.tournament.slug}`}
+							>
 								<span>{g.tournament.shortName || g.tournament.name}</span>
 								<ChevronRight size={16} />
 							</a>

@@ -1,31 +1,42 @@
+<!-- Live standings of the selected season: group / league tables computed
+     from finished matches, and the knockout bracket by round.
+
+     Full mode (the hub's Standings tab): a Tables | Bracket toggle that
+     lands on the bracket once the group stage is complete.
+     Compact mode (the hub's Overview): no toggle — shows the phase the
+     season is currently in, and only the current round of the bracket. -->
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
-	import { tournamentStore, selectFromUrl } from '$lib/tournament.svelte';
-	import TournamentMissing from '$lib/components/TournamentMissing.svelte';
-	import Flag from '$lib/components/Flag.svelte';
-	import { collapseOnScroll } from '$lib/actions';
+	import { tournamentStore } from '$lib/tournament.svelte';
+	import Flag from './Flag.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { LocateFixed } from '@lucide/svelte';
 
+	let { compact = false }: { compact?: boolean } = $props();
+
 	let view = $state<'groups' | 'bracket'>('groups');
-
-	$effect(() => {
-		selectFromUrl().then(() => tipsStore.load().catch(() => {}));
-	});
-
-	// Once the group stage is complete the bracket is the page's main
-	// content — land there by default. One-shot so the tabs still work.
-	let viewInit = false;
-	$effect(() => {
-		if (viewInit || !tipsStore.loaded) return;
-		viewInit = true;
-		const g = tipsStore.matches.filter((m) => tournamentStore.isGroup(m.stage));
-		if (g.length > 0 && g.every(played)) view = 'bracket';
-	});
 
 	function played(m: Match) {
 		return m.status === 'finished' || !!m.finalizedAt;
 	}
+
+	// Group stage complete → the bracket is the main content.
+	let groupsDone = $derived.by(() => {
+		const g = tipsStore.matches.filter((m) => tournamentStore.isGroup(m.stage));
+		return g.length > 0 && g.every(played);
+	});
+	let hasBracket = $derived(tournamentStore.knockoutStages.length > 0);
+	let hasGroups = $derived(tournamentStore.groupStageCode !== '');
+
+	// One-shot default so the toggle still works afterwards.
+	let viewInit = false;
+	$effect(() => {
+		if (viewInit || !tipsStore.loaded) return;
+		viewInit = true;
+		if (hasBracket && (groupsDone || !hasGroups)) view = 'bracket';
+	});
+	// Compact follows the season: no toggle, so keep tracking it.
+	let shown = $derived(compact ? (hasBracket && (groupsDone || !hasGroups) ? 'bracket' : 'groups') : view);
 
 	interface Standing {
 		id: string;
@@ -40,30 +51,18 @@
 
 	// Live group tables from finished group matches.
 	let groups = $derived.by(() => {
-		const blank = (id: string): Standing => ({
-			id,
-			p: 0,
-			w: 0,
-			d: 0,
-			l: 0,
-			gf: 0,
-			ga: 0,
-			pts: 0
-		});
+		const blank = (id: string): Standing => ({ id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 });
 		const byG: Record<string, Record<string, Standing>> = {};
 		// Seed every group with all its teams so the table is always full.
-		for (const [letter, ids] of Object.entries(
-			tipsStore.tournamentGroups
-		)) {
+		for (const [letter, ids] of Object.entries(tipsStore.tournamentGroups)) {
 			byG[letter] = {};
 			for (const id of ids) byG[letter][id] = blank(id);
 		}
 		for (const m of tipsStore.matches) {
 			if (!tournamentStore.isGroup(m.stage) || !played(m)) continue;
 			const g = m.groupLetter;
-			(byG[g] ||= {});
-			for (const id of [m.homeTeam, m.awayTeam])
-				byG[g][id] ||= blank(id);
+			byG[g] ||= {};
+			for (const id of [m.homeTeam, m.awayTeam]) byG[g][id] ||= blank(id);
 			const H = byG[g][m.homeTeam];
 			const A = byG[g][m.awayTeam];
 			H.p++;
@@ -91,27 +90,11 @@
 			.map(([letter, tbl]) => ({
 				letter,
 				rows: Object.values(tbl).sort(
-					(a, b) =>
-						b.pts - a.pts ||
-						b.gf - b.ga - (a.gf - a.ga) ||
-						b.gf - a.gf
+					(a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf
 				)
 			}))
 			.sort((a, b) => a.letter.localeCompare(b.letter));
 	});
-
-	let bracket = $derived(
-		tournamentStore.knockoutStages.map((s) => ({
-			stage: s.code,
-			name: s.name,
-			matches: tipsStore.matches
-				.filter((m) => m.stage === s.code)
-				.sort((a, b) => a.num - b.num)
-		}))
-	);
-
-	// Qualifier rules from the tournament structure.
-	let eq = $derived(tournamentStore.extraQualifiers);
 
 	// Current knockout stage = stage of the next KO match not yet started
 	// (or the last stage once it's all done).
@@ -119,19 +102,27 @@
 		const now = serverClock.now();
 		const ko = tipsStore.matches
 			.filter((m) => tournamentStore.isKnockout(m.stage))
-			.sort(
-				(a, b) =>
-					new Date(a.kickoff).getTime() -
-					new Date(b.kickoff).getTime()
-			);
+			.sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
 		const next = ko.find((m) => new Date(m.kickoff).getTime() >= now);
 		return next?.stage ?? ko[ko.length - 1]?.stage ?? '';
 	});
 
+	let bracket = $derived(
+		tournamentStore.knockoutStages
+			.filter((s) => !compact || s.code === currentStage)
+			.map((s) => ({
+				stage: s.code,
+				name: s.name,
+				matches: tipsStore.matches.filter((m) => m.stage === s.code).sort((a, b) => a.num - b.num)
+			}))
+			.filter((c) => c.matches.length > 0)
+	);
+
+	// Qualifier rules from the tournament structure.
+	let eq = $derived(tournamentStore.extraQualifiers);
+
 	function goNow() {
-		document
-			.getElementById(`st-${currentStage}`)
-			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		document.getElementById(`st-${currentStage}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 	}
 
 	function tn(id: string) {
@@ -146,27 +137,21 @@
 	}
 </script>
 
-<div class="stickyhead" use:collapseOnScroll>
-	<p class="kicker">{tournamentStore.current?.name ?? 'Tournament'}</p>
-	<div class="sh-expand"><div class="sh-inner"><h1>The Tournament</h1></div></div>
-	{#if tournamentStore.knockoutStages.length > 0}
-		<div class="seg">
-			<button class:on={view === 'groups'} onclick={() => (view = 'groups')}
-				>{tournamentStore.singleTable ? 'Table' : 'Group tables'}</button
-			>
-			<button class:on={view === 'bracket'} onclick={() => (view = 'bracket')}>Bracket</button>
-		</div>
-	{/if}
-</div>
-
-<TournamentMissing />
+{#if !compact && hasBracket && hasGroups}
+	<div class="seg sub">
+		<button class:on={view === 'groups'} onclick={() => (view = 'groups')}
+			>{tournamentStore.singleTable ? 'Table' : 'Group tables'}</button
+		>
+		<button class:on={view === 'bracket'} onclick={() => (view = 'bracket')}>Bracket</button>
+	</div>
+{/if}
 
 {#if !tipsStore.loaded}
 	<p class="muted">Loading…</p>
-{:else if view === 'groups'}
+{:else if shown === 'groups'}
 	{#if groups.length === 0}
 		<div class="card empty">
-			<p class="muted">No group matches played yet. Tables light up as results come in.</p>
+			<p class="muted">No matches played yet. Tables light up as results come in.</p>
 		</div>
 	{:else}
 		<div class="gwrap stagger" class:single={tournamentStore.singleTable}>
@@ -192,7 +177,11 @@
 								>
 									<td class="rk">{i + 1}</td>
 									<td class="tm">
-										<Flag iso2={tn(r.id)?.iso2 ?? ''} code={tn(r.id)?.fifaCode ?? ''} logo={tn(r.id)?.logo ?? ''} />
+										<Flag
+											iso2={tn(r.id)?.iso2 ?? ''}
+											code={tn(r.id)?.fifaCode ?? ''}
+											logo={tn(r.id)?.logo ?? ''}
+										/>
 										<span>{tn(r.id)?.name ?? '?'}</span>
 									</td>
 									<td class="digits">{r.p}</td>
@@ -239,39 +228,19 @@
 				</div>
 			{/each}
 		{/each}
-		<div class="fabpad"></div>
+		{#if !compact}<div class="fabpad"></div>{/if}
 	</div>
 {/if}
 
-{#if tipsStore.loaded && view === 'bracket' && currentStage}
+{#if !compact && tipsStore.loaded && shown === 'bracket' && currentStage}
 	<button class="fab" onclick={goNow} aria-label="Jump to the current round">
 		<LocateFixed size={18} /> Now
 	</button>
 {/if}
 
 <style>
-	.stickyhead {
-		position: sticky;
-		top: var(--topbar-h);
-		z-index: 20;
-		margin: 0 -1rem;
-		padding: 0.6rem 1rem 0.75rem;
-		background: color-mix(in srgb, var(--bg) 86%, transparent);
-		backdrop-filter: blur(12px) saturate(1.3);
-		border-bottom: 1px solid var(--border);
-	}
-	.stickyhead h1 {
-		margin: 0.1rem 0 0.7rem;
-	}
-	.stickyhead .seg {
-		margin: 0;
-	}
-	@media (min-width: 900px) {
-		.stickyhead {
-			top: 0;
-			margin: 0 -2rem;
-			padding: 0.75rem 2rem 0.85rem;
-		}
+	.seg.sub {
+		margin: 0.2rem 0 0.85rem;
 	}
 	.gwrap {
 		display: grid;
@@ -394,12 +363,10 @@
 		letter-spacing: 0.04em;
 		color: var(--muted);
 		margin: 1.4rem 0 0.6rem;
-		scroll-margin-top: 150px;
+		scroll-margin-top: calc(var(--topbar-h) + 4.2rem);
 	}
-	@media (min-width: 900px) {
-		.rname {
-			scroll-margin-top: 96px;
-		}
+	.rname:first-child {
+		margin-top: 0.2rem;
 	}
 	.fabpad {
 		height: 4rem;
@@ -417,8 +384,7 @@
 		border-radius: var(--radius-pill);
 		background: var(--accent);
 		color: var(--accent-fg);
-		font:
-			800 0.8rem var(--font);
+		font: 800 0.8rem var(--font);
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		cursor: pointer;

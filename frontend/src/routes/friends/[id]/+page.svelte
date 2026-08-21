@@ -290,7 +290,7 @@
 	}
 </script>
 
-<a href="/leagues" class="muted back">← Leagues</a>
+<a href="/friends" class="muted back">← Friends</a>
 
 {#if error}
 	<p class="error">{error}</p>
@@ -351,7 +351,7 @@
 	</div>
 
 	{#if canChat}
-		<a class="chatfab" href={`/leagues/${id}/chat`} aria-label="League chat" title="League chat">
+		<a class="chatfab" href={`/friends/${id}/chat`} aria-label="League chat" title="League chat">
 			<MessageSquare size={24} />
 			{#if chatUnread > 0}
 				<span class="fab-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>

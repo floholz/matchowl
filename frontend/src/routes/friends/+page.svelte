@@ -60,7 +60,7 @@
 		try {
 			const r = await api.createLeague(newName);
 			newName = '';
-			goto(`/leagues/${r.id}`);
+			goto(`/friends/${r.id}`);
 		} catch {
 			error = 'Could not create league.';
 		} finally {
@@ -75,7 +75,7 @@
 		try {
 			const r = await api.joinLeague(joinCode);
 			joinCode = '';
-			goto(`/leagues/${r.id}`);
+			goto(`/friends/${r.id}`);
 		} catch {
 			error = 'Invalid invite code.';
 		} finally {
@@ -84,8 +84,8 @@
 	}
 </script>
 
-<p class="kicker">Play your friends</p>
-<h1>Leagues</h1>
+<p class="kicker">Play against your friends</p>
+<h1>Friends</h1>
 <p class="muted sub">Private competitions — your predictions vs. your friends'.</p>
 
 <h2 class="sec">Your leagues</h2>
@@ -96,7 +96,7 @@
 {:else}
 	<div class="llist">
 		{#each ordered as l (l.id)}
-			<a class="lrow" class:global={isGlobal(l)} href={`/leagues/${l.id}`}>
+			<a class="lrow" class:global={isGlobal(l)} href={`/friends/${l.id}`}>
 				{#if isGlobal(l)}
 					<span class="gico" aria-hidden="true"><Globe size={18} /></span>
 				{/if}

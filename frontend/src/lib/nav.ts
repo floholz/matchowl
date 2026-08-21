@@ -1,4 +1,4 @@
-import { Newspaper, Volleyball, Trophy } from '@lucide/svelte';
+import { Newspaper, Trophy, Users } from '@lucide/svelte';
 import type { Component } from 'svelte';
 
 export interface NavItem {
@@ -9,20 +9,14 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
 	{ href: '/', label: 'Feed', icon: Newspaper },
-	{ href: '/tournaments', label: 'Tournaments', icon: Volleyball },
-	{ href: '/leagues', label: 'Leagues', icon: Trophy }
+	{ href: '/competitions', label: 'Competitions', icon: Trophy },
+	{ href: '/friends', label: 'Friends', icon: Users }
 ];
 
 export function isActive(href: string, path: string): boolean {
 	if (href === '/') return path === '/';
-	// The per-tournament detail pages (/tips, /forecast, /tournament) belong
-	// to the Tournaments destination.
-	if (href === '/tournaments')
-		return (
-			path.startsWith('/tournaments') ||
-			path.startsWith('/tips') ||
-			path.startsWith('/forecast') ||
-			path.startsWith('/tournament')
-		);
+	// The forecast page is a per-season view; it belongs to Competitions.
+	if (href === '/competitions')
+		return path.startsWith('/competitions') || path.startsWith('/forecast');
 	return path.startsWith(href);
 }

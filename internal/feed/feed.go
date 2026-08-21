@@ -88,6 +88,10 @@ func Register(app core.App, se *core.ServeEvent) {
 				"shortName": t.GetString("shortName"),
 				"status":    t.GetString("status"),
 			}
+			// Competition key so rows can link to /competitions/{key}.
+			if c, err := app.FindRecordById("competitions", t.GetString("competition")); err == nil {
+				v["competition"] = c.GetString("key")
+			}
 			infos[tid] = &tInfo{rec: t, structure: st, view: v}
 			playing = append(playing, v)
 		}

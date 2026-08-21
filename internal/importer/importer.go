@@ -209,9 +209,25 @@ func Register(app core.App, se *core.ServeEvent) {
 			Structure: structure, Sync: syncJSON, ForecastSpec: spec,
 			ExtIDPrefix: &body.ExtIDPrefix,
 		}
+		// Every tournament is a season of a competition: use the one the
+		// admin picked, else the one already mapped to this league, else
+		// create it from the catalog entry (renameable afterwards).
+		var comp *core.Record
 		if body.Competition != "" {
-			pl.Competition = &body.Competition
+			comp, err = app.FindRecordById("competitions", body.Competition)
+			if err != nil {
+				return apis.NewBadRequestError("unknown competition", nil)
+			}
+		} else {
+			comp, err = tournaments.EnsureForLeague(app, tournaments.LeagueInfo{
+				ID: d.league.ID, Name: d.league.Name, Country: d.league.Country,
+				TeamKind: derived.TeamKind, LogoURL: d.league.Logo,
+			})
+			if err != nil {
+				return err
+			}
 		}
+		pl.Competition = &comp.Id
 		if body.Status != "" {
 			pl.Status = &body.Status
 		}
@@ -230,6 +246,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		// Crests: downloaded after the seed transaction so network time
 		// never holds the DB lock; failures just leave the code chip.
+		logoURL := d.league.Logo
+		if logoURL == "" {
+			logoURL = tournaments.LeagueLogoURL(d.league.ID)
+		}
+		tournaments.AttachLogo(ctx, app, comp, logoURL)
 		nLogos := attachLogos(ctx, app, rec.Id, logoURLs(derived))
 		nTeams, _ := app.CountRecords("teams", dbx.HashExp{"tournament": rec.Id})
 		nMatches, _ := app.CountRecords("matches", dbx.HashExp{"tournament": rec.Id})

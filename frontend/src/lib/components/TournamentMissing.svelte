@@ -10,9 +10,9 @@
 	<div class="card tmiss" role="status">
 		<TriangleAlert size={16} />
 		<span>
-			Tournament <code>{tournamentStore.missing}</code> isn't available (not published yet, or
+			Season <code>{tournamentStore.missing}</code> isn't available (not published yet, or
 			it doesn't exist) — showing <b>{tournamentStore.current?.name ?? '—'}</b> instead.
-			<a href="/tournaments">Browse tournaments</a>
+			<a href="/competitions">Browse competitions</a>
 		</span>
 	</div>
 {/if}

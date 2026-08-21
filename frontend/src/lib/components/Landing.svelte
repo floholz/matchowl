@@ -18,8 +18,8 @@
 			body: 'One big call before it all starts: full group standings and the whole knockout bracket. Locks at the first kickoff, pays out all tournament.'
 		},
 		{
-			title: 'Leagues',
-			body: 'Private leaderboards with the people you actually know. Join with an invite code or link — and your league carries over to the next tournament.'
+			title: 'Friends',
+			body: 'Private leaderboards with the people you actually know. Join with an invite code or link — and your league carries over to the next season.'
 		}
 	];
 
