@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
 	import { feedStore, type FeedMatch } from '$lib/feed.svelte';
+	import { otherLegView } from '$lib/tips.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import Landing from '$lib/components/Landing.svelte';
 	import TipCard from '$lib/components/TipCard.svelte';
@@ -129,6 +130,14 @@
 										onSave={(t) => feedStore.saveTip(m, t)}
 										open={openId === m.id}
 										onToggle={() => (openId = openId === m.id ? '' : m.id)}
+										leg={m.leg
+											? otherLegView(
+													m,
+													m.leg,
+													m.leg.first,
+													`/competitions/${m.tournament.competition}?s=${m.tournament.slug}&tab=matches&m=${m.leg.id}`
+												)
+											: null}
 									/>
 								</div>
 							{/each}

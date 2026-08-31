@@ -12,6 +12,8 @@
 	import { LocateFixed } from '@lucide/svelte';
 	import { tick } from 'svelte';
 
+	let { focusId = '' }: { focusId?: string } = $props();
+
 	let tab = $state<'all' | 'group' | 'ko'>('all');
 
 	// Accordion: only one match's tip inputs are open at a time.
@@ -95,6 +97,21 @@
 			document.getElementById(`day-${idx}`)?.scrollIntoView({ block: 'start' })
 		);
 	});
+
+	// Deep link to one match (?m= — e.g. "view the other leg"): open its card
+	// and scroll to it. Wins over the "now" auto-scroll.
+	let lastFocus = '';
+	$effect(() => {
+		const id = focusId;
+		if (!tipsStore.loaded || !id || id === lastFocus) return;
+		if (!tipsStore.matches.some((m) => m.id === id)) return;
+		lastFocus = id;
+		didAutoScroll = true;
+		openId = id;
+		tick().then(() =>
+			document.getElementById(`m-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		);
+	});
 </script>
 
 {#if tournamentStore.knockoutStages.length > 0 && tournamentStore.groupStageCode}
@@ -115,7 +132,7 @@
 	{#each days as [day, ms], i (day)}
 		<h3 class="day" id={`day-${i}`}>{day}</h3>
 		{#each ms as m (m.id)}
-			<div class="match">
+			<div class="match" id={`m-${m.id}`}>
 				<TipCard
 					match={m}
 					open={openId === m.id}

@@ -1,7 +1,7 @@
 import { pb } from './pb';
 import { auth } from './auth.svelte';
 import { serverClock } from './serverclock.svelte';
-import { teamLogoUrl, type Match, type Team, type Tip } from './tips.svelte';
+import { teamLogoUrl, type LegSource, type Match, type Team, type Tip } from './tips.svelte';
 
 /** One row of the feed: a match (same field names as the matches
  *  collection, so the shared TipCard renders it directly) denormalized
@@ -18,6 +18,9 @@ export interface FeedMatch extends Match {
 	};
 	stageName: string;
 	knockout: boolean;
+	/** The other leg of a two-legged tie (`first`: this match is leg 1) —
+	 *  denormalized server-side since it's usually outside the feed window. */
+	leg?: (LegSource & { first: boolean }) | null;
 	myTip?: {
 		ftHome: number;
 		ftAway: number;

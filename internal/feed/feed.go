@@ -20,6 +20,7 @@ import (
 	"github.com/floholz/matchowl/internal/clock"
 	"github.com/floholz/matchowl/internal/forecast"
 	"github.com/floholz/matchowl/internal/players"
+	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
 
@@ -185,6 +186,26 @@ func Register(app core.App, se *core.ServeEvent) {
 				"penHome":     m.GetInt("penHome"),
 				"penAway":     m.GetInt("penAway"),
 				"advancer":    m.GetString("advancer"),
+			}
+			// Two-legged ties: the other leg is usually outside the feed
+			// window, so denormalize what the card needs (result + which leg
+			// this is + where to jump).
+			if info.structure.IsKnockout(stage) {
+				if other, first := wmsync.OtherLeg(app, info.structure, m); other != nil {
+					row["leg"] = map[string]any{
+						"id":          other.Id,
+						"first":       first,
+						"kickoff":     other.GetString("kickoff"),
+						"status":      other.GetString("status"),
+						"finalizedAt": other.GetString("finalizedAt"),
+						"homeTeam":    other.GetString("homeTeam"),
+						"awayTeam":    other.GetString("awayTeam"),
+						"ftHome":      other.GetInt("ftHome"),
+						"ftAway":      other.GetInt("ftAway"),
+						"etHome":      other.GetInt("etHome"),
+						"etAway":      other.GetInt("etAway"),
+					}
+				}
 			}
 			if tip := tipByMatch[m.Id]; tip != nil {
 				myTip := map[string]any{

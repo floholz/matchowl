@@ -22,6 +22,8 @@
 
 	let key = $derived($page.params.key ?? '');
 	let sParam = $derived($page.url.searchParams.get('s') ?? '');
+	/** Deep link to one match on the Matches tab (e.g. "view the other leg"). */
+	let mParam = $derived($page.url.searchParams.get('m') ?? '');
 	let tab = $derived.by<Tab>(() => {
 		const t = $page.url.searchParams.get('tab') ?? '';
 		return (TABS as string[]).includes(t) ? (t as Tab) : 'overview';
@@ -280,7 +282,7 @@
 					<Standings compact />
 				{/if}
 			{:else if tab === 'matches'}
-				<MatchList />
+				<MatchList focusId={mParam} />
 			{:else}
 				<Standings />
 			{/if}

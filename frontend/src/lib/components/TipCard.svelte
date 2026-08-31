@@ -3,17 +3,21 @@
 		tipsStore,
 		isLocked,
 		teamsResolved,
+		findOtherLeg,
+		otherLegView,
+		legScore,
 		type Match,
 		type Team,
 		type Tip,
 		type FriendTip,
-		type PerfectScorers
+		type PerfectScorers,
+		type OtherLeg
 	} from '$lib/tips.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from './Flag.svelte';
 	import Scoreline from './Scoreline.svelte';
 	import Stepper from './Stepper.svelte';
-	import { Lock, ChevronDown, Check, Users, Target, Bot } from '@lucide/svelte';
+	import { Lock, ChevronDown, ChevronRight, Check, Users, Target, Bot } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 
@@ -29,7 +33,8 @@
 		tip = undefined,
 		knockout = undefined,
 		points = undefined,
-		onSave = undefined
+		onSave = undefined,
+		leg = undefined
 	}: {
 		match: Match;
 		open?: boolean;
@@ -39,6 +44,9 @@
 		knockout?: boolean;
 		points?: number;
 		onSave?: (t: Omit<Tip, 'id' | 'match'>) => Promise<void>;
+		/** Two-legged tie context; `undefined` (store mode) computes it from
+		 *  the tournament's full match list, the feed passes it explicitly. */
+		leg?: OtherLeg | null;
 	} = $props();
 
 	const teamOf = (id: string) => (team ? team(id) : tipsStore.team(id));
@@ -60,6 +68,41 @@
 	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
 	let live = $derived(match.status === 'live');
 	let pts = $derived(points ?? tipsStore.scores[match.id]);
+
+	// Two-legged ties: which leg is this, and how did the other one go.
+	let legView = $derived.by((): OtherLeg | null => {
+		if (leg !== undefined) return leg;
+		if (!isKO) return null;
+		const t = tournamentStore.current;
+		const found = findOtherLeg(tipsStore.matches, match);
+		if (!found || !t) return null;
+		return otherLegView(
+			match,
+			found.other,
+			found.first,
+			`/competitions/${t.competition.key}?s=${t.slug}&tab=matches&m=${found.other.id}`
+		);
+	});
+	// First legs are tipped like group matches: a draw is a real final
+	// result, so no ET/pens phases and no advancer.
+	let phased = $derived(isKO && !(legView?.first ?? false));
+	// Aggregate over both legs, oriented to this card's sides — once the
+	// other leg is played and this one is underway or done.
+	let agg = $derived.by((): [number, number] | null => {
+		const l = legView;
+		if (!l || !l.played || (!played && !live)) return null;
+		const [h, a] = legScore(match);
+		return [h + l.forHome, a + l.forAway];
+	});
+	const legDay = $derived(
+		legView
+			? new Date(legView.kickoff).toLocaleDateString(undefined, {
+					weekday: 'short',
+					day: 'numeric',
+					month: 'short'
+				})
+			: ''
+	);
 
 	$effect(() => {
 		if (locked || live || played) return;
@@ -92,7 +135,7 @@
 		pen = t?.penWinner ?? '';
 	});
 
-	let ftTie = $derived(isKO && ftH === ftA);
+	let ftTie = $derived(phased && ftH === ftA);
 	let etTie = $derived(ftTie && etH === etA);
 
 	// Keep ET >= FT (cumulative) as the user edits FT.
@@ -102,7 +145,7 @@
 	});
 
 	let advancerId = $derived(
-		!isKO
+		!phased
 			? ''
 			: ftH !== ftA
 				? ftH > ftA
@@ -266,7 +309,7 @@
 							away={match.ftAway}
 							etHome={match.etHome}
 							etAway={match.etAway}
-							et={isKO && played && match.ftHome === match.ftAway}
+							et={phased && played && match.ftHome === match.ftAway}
 							winner={winnerSide(match.advancer)}
 						/></b
 					>
@@ -286,7 +329,8 @@
 			<span class="muted round"
 				>{!isKO && match.groupLetter && !tournamentStore.singleTable
 					? `Group ${match.groupLetter} · ${match.roundLabel}`
-					: match.roundLabel}{#if played || live}
+					: match.roundLabel}{#if legView}
+					· {legView.first ? '1st leg' : '2nd leg'}{/if}{#if played || live}
 					· {kickoff}{/if}</span
 			>
 			<span class="spacer"></span>
@@ -298,7 +342,7 @@
 							away={existing.ftAway}
 							etHome={existing.etHome}
 							etAway={existing.etAway}
-							et={isKO && existing.ftHome === existing.ftAway}
+							et={phased && existing.ftHome === existing.ftAway}
 							winner={winnerSide(existing.advancer)}
 						/></span
 					> tip</span
@@ -324,6 +368,22 @@
 
 	{#if open}
 		<div class="body">
+			{#if legView}
+				<a class="leg" href={legView.href}>
+					<span class="leginfo">
+						{legView.first ? 'Second leg' : 'First leg'}:
+						{#if legView.played}
+							<b class="digits">{legView.forHome}–{legView.forAway}</b>
+						{:else}
+							{legDay}
+						{/if}
+						{#if agg}
+							<span class="aggsep">·</span> Aggregate <b class="digits">{agg[0]}–{agg[1]}</b>
+						{/if}
+					</span>
+					<ChevronRight size={14} />
+				</a>
+			{/if}
 			{#if isKO && !resolved}
 				<p class="muted">Opens once the matchup is decided.</p>
 			{:else if locked}
@@ -336,7 +396,7 @@
 								away={existing.ftAway}
 								etHome={existing.etHome}
 								etAway={existing.etAway}
-								et={isKO && existing.ftHome === existing.ftAway}
+								et={phased && existing.ftHome === existing.ftAway}
 								winner={winnerSide(existing.advancer)}
 							/></span
 						>
@@ -369,7 +429,7 @@
 									away={f.ftAway}
 									etHome={f.etHome}
 									etAway={f.etAway}
-									et={isKO && f.ftHome === f.ftAway}
+									et={phased && f.ftHome === f.ftAway}
 									winner={winnerSide(f.advancer)}
 								/></td
 							>
@@ -594,6 +654,31 @@
 	.adv {
 		text-align: center;
 		margin: 0.5rem 0;
+	}
+	/* Other-leg row of a two-legged tie: result / date + aggregate, links to
+	   the other leg. */
+	.leg {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin: 0.6rem 0 0.2rem;
+		padding: 0.45rem 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-2);
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-decoration: none;
+	}
+	.leg:hover {
+		border-color: var(--accent);
+	}
+	.leg b {
+		color: var(--text);
+	}
+	.aggsep {
+		opacity: 0.6;
 	}
 	.pill.done {
 		gap: 0.35rem;

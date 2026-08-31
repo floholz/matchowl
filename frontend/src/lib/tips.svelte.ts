@@ -40,6 +40,91 @@ export interface Match {
 	finalizedAt: string;
 }
 
+/** The raw fields of a tie's other leg (a subset of Match; the feed sends
+ *  exactly these for legs outside its window). */
+export interface LegSource {
+	id: string;
+	kickoff: string;
+	status: string;
+	finalizedAt: string;
+	homeTeam: string;
+	awayTeam: string;
+	ftHome: number;
+	ftAway: number;
+	etHome: number;
+	etAway: number;
+}
+
+/** What the TipCard needs to render a two-legged tie: which leg the card's
+ *  match is, the other leg's result oriented to the card's sides, and a link
+ *  to jump to the other leg. */
+export interface OtherLeg {
+	matchId: string;
+	/** The card's match is the FIRST leg. */
+	first: boolean;
+	href: string;
+	kickoff: string;
+	played: boolean;
+	/** Other-leg goals for the card's home/away team (sides flipped when the
+	 *  return leg swaps home advantage). */
+	forHome: number;
+	forAway: number;
+}
+
+/** A leg's score for aggregate purposes: the cumulative after-120 score when
+ *  it went to extra time (et 0/0 means "no ET"), else full time. */
+export function legScore(l: {
+	ftHome: number;
+	ftAway: number;
+	etHome: number;
+	etAway: number;
+}): [number, number] {
+	return l.etHome !== 0 || l.etAway !== 0 ? [l.etHome, l.etAway] : [l.ftHome, l.ftAway];
+}
+
+/** Builds the card view of the other leg, orienting its score to the card
+ *  match's home/away sides. */
+export function otherLegView(
+	m: { homeTeam: string; awayTeam: string },
+	other: LegSource,
+	first: boolean,
+	href: string
+): OtherLeg {
+	const [oh, oa] = legScore(other);
+	const flip = other.homeTeam === m.awayTeam;
+	return {
+		matchId: other.id,
+		first,
+		href,
+		kickoff: other.kickoff,
+		played: other.status === 'finished' || !!other.finalizedAt,
+		forHome: flip ? oa : oh,
+		forAway: flip ? oh : oa
+	};
+}
+
+/** Finds the other leg of a two-legged tie in a full match list (same
+ *  knockout stage, same two teams, exactly one partner). Caller ensures m is
+ *  a knockout match. */
+export function findOtherLeg(
+	matches: Match[],
+	m: Match
+): { other: Match; first: boolean } | null {
+	if (!m.homeTeam || !m.awayTeam) return null;
+	const legs = matches.filter(
+		(x) =>
+			x.stage === m.stage &&
+			((x.homeTeam === m.homeTeam && x.awayTeam === m.awayTeam) ||
+				(x.homeTeam === m.awayTeam && x.awayTeam === m.homeTeam))
+	);
+	if (legs.length !== 2) return null;
+	const other = legs.find((x) => x.id !== m.id);
+	if (!other) return null;
+	const first =
+		m.kickoff < other.kickoff || (m.kickoff === other.kickoff && m.num < other.num);
+	return { other, first };
+}
+
 export interface Tip {
 	id?: string;
 	match: string;

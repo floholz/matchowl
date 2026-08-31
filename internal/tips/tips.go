@@ -17,6 +17,7 @@ import (
 
 	"github.com/floholz/matchowl/internal/clock"
 	"github.com/floholz/matchowl/internal/scoring"
+	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 )
@@ -58,7 +59,8 @@ func validateAndDerive(app core.App, tip *core.Record) error {
 		return apis.NewBadRequestError("scores out of range", nil)
 	}
 
-	if !tournaments.NewStructureCache(app).IsKnockoutMatch(match) {
+	structures := tournaments.NewStructureCache(app)
+	if !structures.IsKnockoutMatch(match) {
 		tip.Set("etHome", 0)
 		tip.Set("etAway", 0)
 		tip.Set("penWinner", "")
@@ -71,6 +73,18 @@ func validateAndDerive(app core.App, tip *core.Record) error {
 	away := match.GetString("awayTeam")
 	if home == "" || away == "" {
 		return apis.NewBadRequestError("this matchup is not set yet", nil)
+	}
+
+	// First leg of a two-legged tie: a draw is a real final result — no
+	// ET/pens phases; the deciding leg carries the advancer.
+	if st := structures.For(match.GetString("tournament")); st != nil {
+		if _, first := wmsync.OtherLeg(app, st, match); first {
+			tip.Set("etHome", 0)
+			tip.Set("etAway", 0)
+			tip.Set("penWinner", "")
+			tip.Set("advancer", "")
+			return nil
+		}
 	}
 
 	if ftH != ftA {
