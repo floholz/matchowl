@@ -115,9 +115,15 @@ func resetMatch(m *core.Record, knockout bool) {
 	m.Set("advancer", "")
 	m.Set("finalizedAt", "")
 	if knockout {
-		// Knockout teams are only filled by the resolver from results.
-		m.Set("homeTeam", "")
-		m.Set("awayTeam", "")
+		// Clear knockout teams only where a placeholder label can re-resolve
+		// them (seeded brackets: "1A", "W73"). Imported matches get their
+		// teams from the provider — wiping those would be permanent.
+		if m.GetString("homeLabel") != "" {
+			m.Set("homeTeam", "")
+		}
+		if m.GetString("awayLabel") != "" {
+			m.Set("awayTeam", "")
+		}
 	}
 }
 
@@ -175,7 +181,15 @@ func simulate(app core.App, simNow time.Time) error {
 				continue
 			}
 			r := rngFor(m.GetString("extId"))
-			if !knockout {
+			// First legs of two-legged ties end like group matches — a draw
+			// stands, the deciding leg settles the tie.
+			firstLeg := false
+			if knockout {
+				if st := structures.For(m.GetString("tournament")); st != nil {
+					_, firstLeg = wmsync.OtherLeg(app, st, m)
+				}
+			}
+			if !knockout || firstLeg {
 				wmsync.ApplyResult(app, m, "finished",
 					intp(r.Intn(5)), intp(r.Intn(5)), nil, nil, nil, nil)
 			} else {
@@ -197,6 +211,15 @@ func simulate(app core.App, simNow time.Time) error {
 		}
 		if !changed {
 			break
+		}
+	}
+	// Per-leg advancers on two-legged ties are provisional — settle the
+	// aggregates before scoring.
+	if ts, err := app.FindRecordsByFilter("tournaments", "id != ''", "", 0, 0); err == nil {
+		for _, t := range ts {
+			if st, err := tournaments.StructureOf(t); err == nil {
+				wmsync.FixTwoLeggedAdvancers(app, t.Id, st)
+			}
 		}
 	}
 	if err := backfillBotAdvancers(app); err != nil {
