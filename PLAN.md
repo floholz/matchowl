@@ -1,101 +1,170 @@
-# WM-Pickems — Implementation Plan
+# Matchowl — Living Plan
 
-A WC 2026 prediction app for you + friends. Predict every match, predict the whole
-tournament up front, compare against friends on a leaderboard.
+Matchowl is a multi-tournament football prediction app for friends: you *play*
+tournaments (WC, Euro, UCL, league seasons), their matches join one shared
+feed, you tip scores per match, place a one-shot forecast per season, and
+compare in persistent friend leagues. It grew out of **wm-pickems**, a
+single-event WC 2026 app — the historical implementation plans that got it
+here are archived in [`docs/plans/`](docs/plans/README.md).
 
-## Glossary / naming
+This file is the single source of truth for project state and direction.
+Update it as work lands; don't start parallel PLAN-*.md files again.
 
-- **Forecast** — the one-time, pre-tournament prediction: full group standings (1–4 in
-  each of the 12 groups), manual pick of the 8 best third-placed qualifiers and their
-  R32 slots, and the full knockout bracket. No scores. Locks at the tournament's first
-  kickoff.
-- **Tip** — a per-match score prediction. Editable until that match kicks off.
-- **League** — a private competition group friends join via invite code. (Distinct from
-  the tournament's groups A–L.)
+---
 
-## Tech stack
+## Where the project stands (2026-08-31)
 
-- **Backend:** Go with PocketBase used as a framework (auth + SQLite + REST + hooks +
-  scheduler). SQLite data on a mounted `pb_data` volume.
-- **Frontend:** SvelteKit + `adapter-static` (SPA, `fallback: index.html`), mobile-first
-  and responsive, talking to PocketBase via the JS SDK on the same origin.
-- **Packaging:** one multistage Docker image — Node builds the SvelteKit bundle → Go
-  embeds it via `embed.FS` → minimal final image serving API + app from one binary,
-  with SPA fallback routing.
-- **Data:** seed teams/groups/fixtures from `openfootball/worldcup.json` (no key);
-  live results from API-Football free tier (100 req/day, `league=1&season=2026`) via a
-  scheduled, cached, ramped poller; manual admin override always available.
+**Built and verified:**
 
-## Data model (PocketBase collections)
+- Multi-tournament core (plans 03/04): `tournaments` root entity, structure
+  as data, per-tournament sync, persistent leagues ("Friends"), participation
+  model (Play/auto-subscribe), feed-centric IA (Feed · Competitions ·
+  Friends), forecastSpec (`full` / `calls` / `none`) with zones, competitions
+  as first-class entities with season hubs. WC 2026 migrated in as the
+  archived first tournament.
+- Matchowl identity: owl mark, three themes (warm-dark default, peach-paper
+  light, AMOLED), rebuilt landing.
+- Admin tournament browser (plan 05): API-Football catalog search → preview →
+  import wizard, seeded drafts, crests, league-shape UI, sync dashboard,
+  manual results.
+- UCL-shaped competitions (2026-08-31): 36-team Swiss league phase imports
+  (qualifiers auto-skipped by kickoff order), knockout fixtures **backfill
+  via sync as UEFA draws happen** (stages appended to the structure
+  automatically), two-legged ties get aggregate advancers (first leg carries
+  none, deciding leg carries the tie winner), first legs are tipped like
+  group matches (draws allowed), tip cards show the other leg + aggregate
+  with cross-leg navigation. Verified end-to-end in the dev simulator.
 
-- `users` (PB auth) — name, avatar. Email/password + optional Google OAuth (config).
-- `teams` — code, name, flag, confederation.
-- `tournament_groups` — letter A–L, team list.
-- `matches` — extId, stage (`group|R32|R16|QF|SF|3RD|FINAL`), group letter, kickoff (UTC),
-  status, FT score, ET score, penalty winner, resolved advancer, bracket slot, and
-  placeholder labels for unresolved KO slots ("Winner Grp A", "3rd A/D/E/F").
-- `leagues` — name, invite code, owner, scoring-config ref.
-- `league_members` — league, user, role, joinedAt.
-- `tips` — user, match, ftHome/ftAway, etHome/etAway, penWinner, derived advancer,
-  updatedAt. One per user/match. Server enforces edit only while `now < kickoff`.
-- `forecasts` — user, group orderings, third-place qualifiers + R32 slots, bracket
-  picks. One per user. Server enforces lock at tournament start.
-- `scoring_configs` — JSON weights; global default + optional per-league override.
-- `match_scores` / `forecast_scores` — per-user computed point components, recomputed
-  on result finalize and on later corrections.
+**Known waiting-on-reality:** the imported `uefa-champions-league-2026-27`
+(draft) has only the league phase; KOPO/R16/… fixtures arrive via sync
+backfill after the real draws (late January 2027).
 
-## Scoring (config-driven; defaults)
+---
 
-- **Tip, group match** vs actual 90′: tendency 1/X/2 = 3; exact +1; correct total
-  goals +1; correct goal diff +1 (max 6).
-- **Tip, KO match** (phased): predict FT; if FT a draw predict ET (cumulative after
-  120); if ET a draw pick penalty winner. Score = the 4 rules on FT vs actual 90′;
-  **ET bonus** (default on, switchable off to reproduce your legacy system) = exact /
-  total-goals / diff on ET vs actual-after-120 when the game truly went to ET and you
-  predicted an FT draw; **+2** for the correct advancer.
-- **Forecast** (awarded progressively as rounds resolve): correct group position = 1
-  each (+2 perfect-group bonus); correct best-third = 2 each; KO progression escalates
-  per surviving predicted team: R32 1 / R16 2 / QF 3 / SF 5 / Final 8 / Champion 13.
-- **Tiebreakers:** points → #exact scores → #correct winners → smaller aggregate
-  goal-diff deviation → earliest last edit.
+## Next: full app validation walkthrough
 
-## Visibility & deadline rules
+The app accreted from the WC26-only base through three reworks. Before
+building more, **every spot of the app gets validated**: either its current
+shape is confirmed, or the final direction is worked out.
 
-- A user's Tip becomes visible to other league members **only after that match kicks
-  off** (enforced server-side, not just hidden in UI).
-- KO Tips open as soon as both teams of a matchup are known, until that kickoff.
-- Forecast visible to league members only after it locks.
-- Leaderboard: **Overall (combined)** plus separate **Tips** and **Forecast** tabs.
+**Protocol** (session by session, spot by spot):
 
-## Screens (SvelteKit, mobile-first)
+1. Claude walks through one spot — what it does today, how it behaves, its
+   edge cases, anything inherited from the WC26 era that looks vestigial.
+2. floholz says how he imagined that spot.
+3. The verdict is recorded here, and concrete work items are added to the
+   backlog below.
 
-Auth · Dashboard (next tips due, your ranks, deadlines) · Matches + Tip entry
-(progressive KO UI) · Group tables + best-third tracker · Bracket tree · Forecast
-builder (drag group order, third-place slotting, bracket picker) · Leagues
-(create/join, members, leaderboards, others' tips post-kickoff) · Profile · Admin
-(PB admin + small manual result/sync panel).
+**Status legend:** ⬜ not reviewed · ✅ verified as-is · 🔨 direction decided,
+work pending · ⏭ deliberately deferred
 
-## Build phases (agent-time)
+### Inventory
 
-| # | Phase | Est. |
-|---|-------|------|
-| 0 | Scaffold: repo, Go+PocketBase, SvelteKit+static embed+SPA serving, Dockerfile, compose, config | ~0.5d |
-| 1 | Data model, migrations, openfootball seed, API-Football client + scheduled sync + manual override | ~0.5d |
-| 2 | Auth + Leagues (create/join/invite, membership, leaderboard scaffold) | ~0.5d |
-| 3 | Tips: CRUD with kickoff lock, progressive KO UI, KO availability gating, others-tips visibility gate | ~1d |
-| 4 | Forecast: group ordering + third-place + bracket builder, lock at start, advancer derivation | ~1d |
-| 5 | Scoring engine: config-driven match + progressive forecast scoring, recompute on finalize/correction, leaderboards + tiebreakers | ~1d |
-| 6 | UI polish: group tables, bracket tree, dashboards, responsive pass, locked/empty states | ~1d |
-| 7 | Hardening: server-side access rules, edge cases (postponed/abandoned, reseeding), scoring tests, final image, deploy doc | ~0.5d |
+#### 1. Entry & onboarding
+- ⬜ Landing page (logged-out `/`) — multi-tournament pitch, owl identity
+- ⬜ Register / login, Google OAuth
+- ⬜ Email flows: verification, password reset, email change (`/confirm-*`, `/forgot-password`) + system email templates
+- ⬜ `/welcome` post-signup flow
+- ⬜ `/join/{code}` league invite deep link
+- ⬜ PWA: install banners/button, manifest, service worker, update flow
 
-**Total ≈ 6–7 agent-days.**
+#### 2. Feed (`/`, the app's center)
+- ⬜ Day sections, per-competition grouping, today anchor, earlier/later window
+- ⬜ Inline tipping from the feed (cross-tournament TipCard usage)
+- ⬜ Deadline cards (forecast locks), suggestion cards (league-mates play X)
+- ⬜ Live score behavior in the feed, results + points display
+- ⬜ Empty states (plays nothing, no matches in window), SupportCard placement
 
-## Risks / notes
+#### 3. Competitions
+- ⬜ Catalog `/competitions` — grouping by competition, Play buttons, archive
+- ⬜ Season hub `/competitions/{key}` — Overview / Matches / Standings tabs, season picker, swipe navigation
+- ⬜ Overview tab content: spotlight matches, personal stats, forecast card
+- ⬜ Play / Leave semantics, auto-subscribe on first tip
+- ⬜ Missing/unknown-slug handling (`?t=`, TournamentMissing)
 
-- API-Football 100 req/day → mitigated by openfootball seed + caching + ramped polling
-  + manual override.
-- WC2026's best-third → R32 mapping follows FIFA's official combination table (depends
-  on which group letters the 8 thirds come from); implemented as a lookup table and
-  reused to resolve Forecast bracket slots.
-- The KO/OT-bonus default is a recommendation; flip via `scoring_configs` with no code
-  change.
+#### 4. Tipping (TipCard — the core interaction)
+- ⬜ Card states: upcoming / countdown / live / played / locked; points pills
+- ⬜ Group-match entry (steppers), KO phased entry (FT → ET → pens)
+- ⬜ Two-legged ties: leg chips, other-leg row, aggregate, cross-leg links (new — needs a UI eyeball once real legs exist or via dev sim)
+- ⬜ Friends' picks post-kickoff, bot tips list, perfect-tips stat
+- ⬜ Scoring rules for tips (tendency/exact/total/diff, ET bonus, advancer) — confirm the config is still what we want across shapes
+
+#### 5. Standings & tables
+- ⬜ Group tables / single-table league view, zones coloring + legend
+- ⬜ Best-thirds tracker (WC-style extra qualifiers)
+- ⬜ Standings full view vs compact hub view
+- ⬜ UCL league-phase table: define zones (1–8 → R16, 9–24 → KOPO) — decided in principle, not yet configured on the tournament
+
+#### 6. Forecast
+- ⬜ Full builder (groups + thirds + bracket) — WC/Euro ceremonial mode
+- ⬜ Calls mode (champion / zones / teamset picks) for leagues & cups
+- ⬜ Lock behavior, `/forecast?t=` entry points, viewing others (`/forecast/{userId}`)
+- ⬜ Forecast scoring (progressive resolution, calls evaluation)
+- ⬜ What forecast shape should UCL get? (calls linking to zones exists; confirm)
+
+#### 7. Friends (leagues)
+- ⬜ `/friends` list, create/join with invite codes, Global league semantics
+- ⬜ League page `/friends/{id}`: leaderboard (tournament selector), members, roles
+- ⬜ League chat (+ GIFs), notifications from chat
+- ⬜ Leaderboard tabs (overall / tips / forecast), tiebreakers
+
+#### 8. Profile & settings
+- ⬜ Settings: account, avatar, email/password change, delete account
+- ⬜ Notification preferences (NotifyPolicyCard) + push subscription lifecycle
+- ⬜ Theme switcher (3 themes + system)
+- ⬜ User menu contents
+
+#### 9. Communications
+- ⬜ Announcements (admin-authored banners) + dismissal behavior
+- ⬜ Push notifications + emails: which events notify, copy, per-tournament scoping
+- ⬜ Survey — one-shot WC 2026 feedback; keep, generalize, or retire?
+- ⬜ Polls — planned ([docs/plans/02](docs/plans/02-polls.md)), never built; build, fold into announcements, or drop?
+
+#### 10. Admin & ops
+- ⬜ `/admin` area overview
+- ⬜ `/admin/tournaments`: list, import wizard, edit form, status transitions
+- ⬜ Open follow-ups from plan 05: scoring-config picker, team-level edits (codes/flags), more bundled flags
+- ⬜ Competitions admin (rename, logo, merge?)
+- ⬜ Sync dashboard + manual result override UX
+- ⬜ `/owner` page — purpose & contents
+- ⬜ `/dev` harness — clock, simulate, bots, reset
+
+#### 11. Backend pipelines (validate behavior, not UI)
+- ⬜ Importer: shape derivation coverage (WC, Euro, league, UCL-Swiss, pure cups), qualifier exclusion, warnings
+- ⬜ Sync: provider pick, results application, fixture backfill, two-leg advancers, bracket resolution
+- ⬜ Scoring engine: recompute triggers, per-shape correctness, config management
+- ⬜ Seed (openfootball legacy path) — still needed, or importer-only now?
+- ⬜ Stats endpoints, players/participation
+
+#### 12. Bots (separate module, biggest known debt)
+- ⬜ Still WC-shaped (plan 03 phase 5 was never done): stage lists / bracket / 8-of-12 logic hardcoded, prompts WC-specific, rating table single-tournament
+- ⬜ Decide: generalize per structure endpoint, or park bots until the core is validated
+
+#### 13. Platform & delivery
+- ⬜ Docker image, deploy story (DEPLOY.md), pb_data migration safety
+- ⬜ PWA icons/screenshots (plan 03 phase 5 leftover), per-route titles/OG meta
+- ⬜ README / TRADEMARK / docs sweep
+
+---
+
+## Backlog
+
+Work items that exist independent of the walkthrough (the walkthrough will
+add more):
+
+- **UCL zones**: configure `zones` (1–8 R16, 9–24 KOPO) on
+  `uefa-champions-league-2026-27`; decide its forecastSpec.
+- **Scoring config for backfilled stages**: when KOPO/R16 appear, confirm
+  per-stage points handling for stage codes that didn't exist at config time.
+- **Bots generalization** (plan 03 phase 5) — see inventory §12.
+- **Admin follow-ups** (plan 05): scoring-config picker, team edits, flags.
+- **Polls** decision (plan 02) — see inventory §9.
+- **Screenshots / meta / docs sweep** (plan 03 phase 5).
+
+## Decision log
+
+Record walkthrough verdicts and any directional decisions here, newest first,
+one line each with a date.
+
+- 2026-08-31 — Plans consolidated: historical PLAN-*.md files archived to
+  `docs/plans/`; this file becomes the single living plan.

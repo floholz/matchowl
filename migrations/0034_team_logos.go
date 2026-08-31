@@ -5,7 +5,7 @@ import (
 	m "github.com/pocketbase/pocketbase/migrations"
 )
 
-// Admin tournament browser (PLAN-admin-tournaments.md): club crests.
+// Admin tournament browser (docs/plans/05-admin-tournaments.md): club crests.
 //
 //   - teams.logo (file, ≤1 MB image): downloaded from the results provider
 //     at import time (or via the admin "fetch logos" action) and served

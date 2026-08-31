@@ -18,7 +18,7 @@ Matchowl is **multi-tournament**: tournaments are records, not code. Each one
 carries its structure (stages, group shape, qualifier rules) and results-sync
 config as data, so a Euro, a World Cup, or a straight-knockout cup can be
 added from the admin API without touching the codebase (see
-[`PLAN-rework.md`](PLAN-rework.md)).
+[`docs/plans/03-matchowl-rework.md`](docs/plans/03-matchowl-rework.md)).
 
 ## Features
 
@@ -165,9 +165,9 @@ The dev endpoints are **not registered** unless `MATCHOWL_DEV=1`.
 
 ## Roadmap / known follow-ups
 
-See [PLAN.md](PLAN.md) for the original design. No major open items at the
-moment — Google OAuth, the official FIFA Annex C best-third → R32 table,
-and viewing friends' Forecast detail after lock have all shipped.
+[PLAN.md](PLAN.md) is the living project plan — current state, the app-wide
+validation walkthrough, and the backlog. Historical implementation plans are
+archived in [docs/plans/](docs/plans/README.md).
 
 ## License
 

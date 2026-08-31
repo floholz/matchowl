@@ -1,4 +1,4 @@
-// Package players owns tournament participation (PLAN-feed.md): who plays
+// Package players owns tournament participation (docs/plans/04-feed-nav-forecast.md): who plays
 // which tournament. Playing is what puts a tournament's matches into your
 // feed. Subscription is hybrid: an explicit Play button, plus
 // auto-subscribe the moment you submit your first tip or forecast in a

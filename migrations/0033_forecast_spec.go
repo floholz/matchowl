@@ -5,7 +5,7 @@ import (
 	m "github.com/pocketbase/pocketbase/migrations"
 )
 
-// Feed rework, step 4 (PLAN-feed.md): the forecast's shape becomes
+// Feed rework, step 4 (docs/plans/04-feed-nav-forecast.md): the forecast's shape becomes
 // per-tournament admin config.
 //
 //   - tournaments.forecastSpec (JSON): {"mode":"full"} (the ceremonial

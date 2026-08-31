@@ -5,7 +5,7 @@ import (
 	m "github.com/pocketbase/pocketbase/migrations"
 )
 
-// Feed rework, step 1 (PLAN-feed.md): competitions as a first-class entity
+// Feed rework, step 1 (docs/plans/04-feed-nav-forecast.md): competitions as a first-class entity
 // linking seasons, and explicit per-user tournament participation.
 //
 //   - `competitions`: key/name/country/teamKind/logo/apiFootballLeague; the

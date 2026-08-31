@@ -1,4 +1,4 @@
-// Package feed backs the app's center surface (PLAN-feed.md): one
+// Package feed backs the app's center surface (docs/plans/04-feed-nav-forecast.md): one
 // chronological stream of matches across every tournament the user plays,
 // plus the deadline moments (forecast locks) woven in. The server returns a
 // flat kickoff-sorted window with everything denormalized (tournament,
