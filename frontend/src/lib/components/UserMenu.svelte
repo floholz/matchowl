@@ -58,12 +58,15 @@
 					<div class="email">{auth.user?.email}</div>
 				</div>
 			</a>
-			<a class="item" href="/settings" onclick={() => (open = false)}>
-				<Settings size={17} /> Settings
-			</a>
 			{#if serverClock.dev}
 				<a class="item" href="/dev" onclick={() => (open = false)}>
 					<FlaskConical size={17} /> Dev tools
+				</a>
+				<div class="divider"></div>
+			{/if}
+			{#if auth.isOwner}
+				<a class="item" href="/owner" onclick={() => (open = false)}>
+					<Crown size={17} /> Owner stats
 				</a>
 			{/if}
 			{#if auth.isAdmin}
@@ -73,13 +76,6 @@
 				<a class="item" href="/admin" onclick={() => (open = false)}>
 					<LayoutDashboard size={17} /> Admin area
 				</a>
-			{/if}
-			{#if auth.isOwner}
-				<a class="item" href="/owner" onclick={() => (open = false)}>
-					<Crown size={17} /> Owner stats
-				</a>
-			{/if}
-			{#if auth.isAdmin}
 				<a
 					class="item"
 					href="/_/"
@@ -90,7 +86,11 @@
 					<Shield size={17} /> PB Dashboard
 					<ExternalLink size={14} class="ext" />
 				</a>
+				<div class="divider"></div>
 			{/if}
+			<a class="item" href="/settings" onclick={() => (open = false)}>
+				<Settings size={17} /> Settings
+			</a>
 			<button class="item" onclick={() => auth.logout()}>
 				<LogOut size={17} /> Log out
 			</button>
@@ -183,6 +183,10 @@
 	}
 	.item:hover {
 		background: var(--surface);
+	}
+	.divider {
+		border-bottom: 1px solid var(--muted);
+		margin: 0.2rem;
 	}
 	/* External-link affordance pushed to the right edge of the row. */
 	:global(.item .ext) {
