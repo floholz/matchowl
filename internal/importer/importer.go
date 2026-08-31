@@ -439,20 +439,24 @@ func seedFromFixtures(app core.App, t *core.Record, p *Proposal, fixtures []foot
 		return sorted[i].ID < sorted[j].ID
 	})
 	prefix := t.GetString("extIdPrefix")
-	for i, f := range sorted {
-		kind, _ := classifyRound(f.Round)
-		stage := "group"
-		if kind == kindKnockout {
-			stage = knockoutStage(f.Round).Code
+	// Qualifying rounds are excluded the same way Derive excluded them from
+	// the proposal — their stages aren't in the structure.
+	excluded := QualifierRounds(fixtures)
+	num := 0
+	for _, f := range sorted {
+		if excluded[f.Round] {
+			continue
 		}
+		stage := StageFor(f.Round).Code
 		if !valid[stage] {
 			return fmt.Errorf("round %q maps to stage %q which is not in the structure", f.Round, stage)
 		}
+		num++
 		rec := core.NewRecord(matchesCol)
 		rec.Set("tournament", t.Id)
 		rec.Set("extId", fmt.Sprintf("%s-AF-%d", prefix, f.ID))
 		rec.Set("stage", stage)
-		rec.Set("num", i+1)
+		rec.Set("num", num)
 		rec.Set("roundLabel", f.Round)
 		rec.Set("kickoff", f.Date.UTC())
 		rec.Set("status", "scheduled")

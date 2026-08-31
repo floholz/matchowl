@@ -118,9 +118,10 @@ func (s *Structure) Validate() error {
 		return fmt.Errorf("structure: at most one group stage is supported")
 	}
 	if groups == 1 {
-		// 24 covers big league seasons (Serie A = 20); WC-style groups are 4.
-		if s.GroupSize < 2 || s.GroupSize > 24 {
-			return fmt.Errorf("structure: groupSize must be 2..24")
+		// 36 covers the UEFA Swiss-model league phases (UCL/UEL/UECL);
+		// big domestic seasons are ≤ 24, WC-style groups are 4.
+		if s.GroupSize < 2 || s.GroupSize > 36 {
+			return fmt.Errorf("structure: groupSize must be 2..36")
 		}
 		if s.GamesPerTeam < 1 {
 			return fmt.Errorf("structure: gamesPerTeam must be >= 1")

@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -217,6 +218,53 @@ func TestDeriveUnletteredGroupsFromSchedule(t *testing.T) {
 	}
 	if len(p.Groups) != 2 || p.Groups[0].Letter != "A" || p.Groups[0].Teams[0] != "Team A" || p.Groups[1].Teams[0] != "Team E" {
 		t.Fatalf("groups = %+v", p.Groups)
+	}
+}
+
+// UCL-style season: qualifying rounds (including the ambiguous "Play-offs")
+// before a single league phase, knockout rounds after it. Qualifiers are
+// excluded; qualifier-only teams are not seeded.
+func TestDeriveUCLQualifiersExcluded(t *testing.T) {
+	fixtures := []football.Fixture{
+		fx(1, -40, "Preliminary Round", 7, 8),
+		fx(2, -30, "1st Qualifying Round", 5, 7),
+		fx(3, -10, "Play-offs", 5, 6), // qualifying play-off, both teams reach the league phase
+		fx(4, 0, "League Stage - 1", 1, 2), fx(5, 0, "League Stage - 1", 3, 4), fx(6, 0, "League Stage - 1", 5, 6),
+		fx(7, 7, "League Stage - 2", 2, 3), fx(8, 7, "League Stage - 2", 4, 5), fx(9, 7, "League Stage - 2", 6, 1),
+		fx(10, 14, "League Stage - 3", 1, 3), fx(11, 14, "League Stage - 3", 2, 5), fx(12, 14, "League Stage - 3", 4, 6),
+		fx(13, 100, "Knockout Round Play-offs", 0, 0),
+		fx(14, 110, "Semi-finals", 0, 0),
+		fx(15, 120, "Final", 0, 0),
+	}
+	standings := []football.StandingGroup{{Name: "League Stage", TeamIDs: []int{1, 2, 3, 4, 5, 6}}}
+	p := Derive(football.League{ID: 2, Name: "UEFA Champions League", Type: "Cup"}, football.Season{Year: 2026, Start: "2026-09-01", End: "2027-05-30"}, fixtures, teams(1, 2, 3, 4, 5, 6, 7, 8), standings)
+
+	if p.Shape != "league+knockout" {
+		t.Fatalf("shape = %q", p.Shape)
+	}
+	if got := stageCodes(p.Structure); !eqStrings(got, []string{"group", "KOPO", "SF", "FINAL"}) {
+		t.Fatalf("stages = %v", got)
+	}
+	if len(p.Teams) != 6 {
+		t.Fatalf("qualifier-only teams should be dropped, got %d teams: %+v", len(p.Teams), p.Teams)
+	}
+	if p.Structure.GroupSize != 6 || p.Structure.GamesPerTeam != 3 {
+		t.Fatalf("league phase shape = %+v", p.Structure)
+	}
+	if p.Fixtures != 12 {
+		t.Fatalf("fixtures = %d, want 12 (qualifiers excluded)", p.Fixtures)
+	}
+	found := false
+	for _, w := range p.Warnings {
+		if strings.Contains(w, "qualifying") && strings.Contains(w, "Play-offs") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a qualifying-rounds warning, got %v", p.Warnings)
+	}
+	if err := p.Structure.Validate(); err != nil {
+		t.Fatalf("structure invalid: %v", err)
 	}
 }
 

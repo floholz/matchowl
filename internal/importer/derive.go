@@ -119,6 +119,9 @@ func knockoutStage(label string) tournaments.Stage {
 		return tournaments.Stage{Code: "R32", Name: "Round of 32", Kind: tournaments.KindKnockout}
 	case strings.Contains(l, "round of 16") || strings.Contains(l, "8th finals"):
 		return tournaments.Stage{Code: "R16", Name: "Round of 16", Kind: tournaments.KindKnockout}
+	case strings.Contains(l, "knockout") && strings.Contains(l, "play"):
+		// UCL/UEL/UECL "Knockout Round Play-offs" between league phase and R16.
+		return tournaments.Stage{Code: "KOPO", Name: "Knockout play-offs", Kind: tournaments.KindKnockout}
 	case strings.Contains(l, "quarter"):
 		return tournaments.Stage{Code: "QF", Name: "Quarter-finals", Kind: tournaments.KindKnockout}
 	case strings.Contains(l, "semi"):
@@ -140,6 +143,55 @@ func knockoutStage(label string) tournaments.Stage {
 		name = name[:64]
 	}
 	return tournaments.Stage{Code: code, Name: name, Kind: tournaments.KindKnockout}
+}
+
+// StageFor maps a provider round label to the stage its matches belong to:
+// the shared "group" stage for group/table rounds, else the knockout stage.
+func StageFor(label string) tournaments.Stage {
+	if k, _ := classifyRound(label); k != kindKnockout {
+		return tournaments.Stage{Code: "group", Name: "Group stage", Kind: tournaments.KindGroup}
+	}
+	return knockoutStage(label)
+}
+
+// QualifierRounds returns the labels of qualifying rounds: knockout rounds
+// whose first kickoff precedes the first group/table kickoff (UCL-style
+// preliminary / qualifying rounds and the qualifying play-offs). They belong
+// to a phase Matchowl doesn't model — only the main competition is imported.
+// Label matching alone can't do this: UCL's qualifying round is literally
+// "Play-offs" while its post-league knockout is "Knockout Round Play-offs".
+// Nil when there's no group/table stage (pure knockout cups keep every round).
+func QualifierRounds(fixtures []football.Fixture) map[string]bool {
+	kindOf := map[string]roundKind{}
+	firstOf := map[string]time.Time{}
+	var firstMain time.Time
+	haveMain := false
+	for _, f := range fixtures {
+		k, ok := kindOf[f.Round]
+		if !ok {
+			k, _ = classifyRound(f.Round)
+			kindOf[f.Round] = k
+			firstOf[f.Round] = f.Date
+		} else if f.Date.Before(firstOf[f.Round]) {
+			firstOf[f.Round] = f.Date
+		}
+		if k != kindKnockout && (!haveMain || f.Date.Before(firstMain)) {
+			firstMain, haveMain = f.Date, true
+		}
+	}
+	if !haveMain {
+		return nil
+	}
+	out := map[string]bool{}
+	for lbl, k := range kindOf {
+		if k == kindKnockout && firstOf[lbl].Before(firstMain) {
+			out[lbl] = true
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // Slugify lowercases and dashes a name for slugs / club keys.
@@ -198,10 +250,32 @@ func prefixFor(name string, year int) string {
 // season hasn't started) — then teams come from fixtures without
 // codes/countries, and group membership is inferred from who plays whom.
 func Derive(league football.League, season football.Season, fixtures []football.Fixture, teams []football.Team, standings []football.StandingGroup) *Proposal {
+	excluded := QualifierRounds(fixtures)
+	mainTeams := map[int]bool{} // ids seen in non-qualifier fixtures
+	if len(excluded) > 0 {
+		kept := make([]football.Fixture, 0, len(fixtures))
+		for _, f := range fixtures {
+			if excluded[f.Round] {
+				continue
+			}
+			kept = append(kept, f)
+			mainTeams[f.HomeID] = true
+			mainTeams[f.AwayID] = true
+		}
+		fixtures = kept
+	}
 	p := &Proposal{
 		LeagueID: league.ID, LeagueName: league.Name, LeagueType: league.Type,
 		LeagueLogo: league.Logo, Country: league.Country, Season: season.Year,
 		Fixtures: len(fixtures),
+	}
+	if len(excluded) > 0 {
+		labels := make([]string, 0, len(excluded))
+		for l := range excluded {
+			labels = append(labels, l)
+		}
+		sort.Strings(labels)
+		p.Warnings = append(p.Warnings, fmt.Sprintf("skipped %d qualifying round(s) played before the main stage: %s", len(labels), strings.Join(labels, ", ")))
 	}
 	label := seasonLabel(season.Year, season.Start, season.End)
 	p.Slug = Slugify(league.Name) + "-" + label
@@ -215,6 +289,9 @@ func Derive(league football.League, season football.Season, fixtures []football.
 	// in fixtures.
 	byID := map[int]*TeamPreview{}
 	for _, t := range teams {
+		if len(excluded) > 0 && !mainTeams[t.ID] {
+			continue // eliminated in qualifying — never plays in the main stage
+		}
 		byID[t.ID] = &TeamPreview{ID: t.ID, Name: t.Name, Code: t.Code, Country: t.Country, National: t.National, Logo: t.Logo}
 	}
 	for _, f := range fixtures {
