@@ -163,7 +163,13 @@ func scoreValues(cfg Config, m MatchResult, p TipPrediction) tipComponents {
 		if sign(p.FtH-p.FtA) == sign(m.FtH-m.FtA) {
 			r.Tendency = cfg.Match.Tendency
 		}
-	} else if m.Advancer != "" && m.Advancer == p.Advancer {
+	} else if m.Advancer != "" {
+		if m.Advancer == p.Advancer {
+			r.Tendency = cfg.Match.Tendency
+		}
+	} else if sign(p.FtH-p.FtA) == sign(m.FtH-m.FtA) {
+		// First legs of two-legged ties carry no advancer — a draw is a real
+		// outcome there — so tendency falls back to the plain result.
 		r.Tendency = cfg.Match.Tendency
 	}
 

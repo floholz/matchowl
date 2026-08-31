@@ -7,6 +7,7 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/football"
+	"github.com/floholz/matchowl/internal/importer"
 	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 )
@@ -370,6 +372,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err := app.Save(rec); err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
+		if trec, err := app.FindRecordById("tournaments", rec.GetString("tournament")); err == nil {
+			if st, err := tournaments.StructureOf(trec); err == nil {
+				FixTwoLeggedAdvancers(app, trec.Id, st)
+			}
+		}
 		if err := ResolveBracket(app); err != nil {
 			log.Printf("[sync] resolve after manual override: %v", err)
 		}
@@ -407,6 +414,7 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 
 	byPair := map[string]*core.Record{}
 	byExt := map[string]*core.Record{} // imported tournaments: "<prefix>-AF-<fixtureId>"
+	maxNum := 0
 	for _, mrec := range matches {
 		h := teamName[mrec.GetString("homeTeam")]
 		a := teamName[mrec.GetString("awayTeam")]
@@ -416,6 +424,9 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 		if ext := mrec.GetString("extId"); strings.Contains(ext, "-AF-") {
 			byExt[ext] = mrec
 		}
+		if n := mrec.GetInt("num"); n > maxNum {
+			maxNum = n
+		}
 	}
 	teamByName := map[string]string{} // normalized name -> teamId
 	for id, n := range teamName {
@@ -423,15 +434,46 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 	}
 	prefix := t.GetString("extIdPrefix")
 
+	// Qualifying rounds were never seeded (see importer.QualifierRounds); a
+	// qualifier between two teams that both reached the main stage would
+	// otherwise pair-match a seeded match and smear its result onto it.
+	excluded := importer.QualifierRounds(fixtures)
+
+	// Kickoff order so backfilled matches get `num`s in play order.
+	sort.SliceStable(fixtures, func(i, j int) bool {
+		if !fixtures[i].Date.Equal(fixtures[j].Date) {
+			return fixtures[i].Date.Before(fixtures[j].Date)
+		}
+		return fixtures[i].ID < fixtures[j].ID
+	})
+
 	updated := 0
 	for _, f := range fixtures {
+		if excluded[f.Round] {
+			continue
+		}
 		key := canonName(f.HomeName) + "|" + canonName(f.AwayName)
 		rec, ok := byPair[key]
 		if !ok {
 			// Imported (API-Football-seeded) knockout rows are keyed by the
 			// provider fixture id; once the provider knows both teams, fill
 			// them in so the tip opens and the result below applies.
-			rec, ok = byExt[fmt.Sprintf("%s-AF-%d", prefix, f.ID)]
+			ext := fmt.Sprintf("%s-AF-%d", prefix, f.ID)
+			rec, ok = byExt[ext]
+			if !ok && len(byExt) > 0 {
+				// An imported tournament met a fixture the importer never saw:
+				// UEFA-style competitions create knockout fixtures one draw at
+				// a time, so backfill the match (and its stage) now.
+				rec, err = backfillMatch(app, t, st, f, ext, maxNum+1, teamByName)
+				if err != nil {
+					log.Printf("[sync] %s: backfill %q: %v", t.GetString("slug"), f.Round, err)
+					continue
+				}
+				maxNum++
+				byExt[ext] = rec
+				updated++
+				ok = true
+			}
 			if !ok {
 				// Otherwise KO matches resolve via ResolveBracket; unmatched
 				// group names usually mean an alias is missing — not fatal.
@@ -495,11 +537,112 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 		}
 	}
 
+	updated += FixTwoLeggedAdvancers(app, t.Id, st)
+
 	if err := ResolveBracket(app); err != nil {
 		log.Printf("[sync] resolve bracket: %v", err)
 	}
 	log.Printf("[sync] %s: fixtures=%d updated=%d", t.GetString("slug"), len(fixtures), updated)
 	return updated, nil
+}
+
+// appendStage adds the stage to the structure if it isn't there yet,
+// reporting whether it changed the structure. A group/table round whose
+// structure lacks a group stage is refused rather than invented.
+func appendStage(st *tournaments.Structure, stage tournaments.Stage) (bool, error) {
+	if st.Stage(stage.Code) != nil {
+		return false, nil
+	}
+	if stage.Kind != tournaments.KindKnockout {
+		return false, fmt.Errorf("no %q stage in the structure", stage.Code)
+	}
+	st.Stages = append(st.Stages, stage)
+	if err := st.Validate(); err != nil {
+		st.Stages = st.Stages[:len(st.Stages)-1]
+		return false, err
+	}
+	return true, nil
+}
+
+// backfillMatch creates a match row for a provider fixture that appeared
+// after the tournament was imported — UEFA-style competitions publish
+// knockout fixtures one draw at a time, so the importer never saw them.
+// New knockout stages are appended to the structure as their draws happen.
+func backfillMatch(app core.App, t *core.Record, st *tournaments.Structure, f football.Fixture, extID string, num int, teamByName map[string]string) (*core.Record, error) {
+	stage := importer.StageFor(f.Round)
+	changed, err := appendStage(st, stage)
+	if err != nil {
+		return nil, err
+	}
+	if changed {
+		raw, err := json.Marshal(st)
+		if err != nil {
+			return nil, err
+		}
+		t.Set("structure", string(raw))
+	}
+	// The import only saw the fixtures published at the time; matches from
+	// later draws can extend the season.
+	if end := t.GetDateTime("endsAt"); !end.IsZero() && f.Date.After(end.Time()) {
+		t.Set("endsAt", f.Date.UTC())
+		changed = true
+	}
+	if changed {
+		if err := app.Save(t); err != nil {
+			return nil, fmt.Errorf("save tournament: %w", err)
+		}
+	}
+	col, err := app.FindCollectionByNameOrId("matches")
+	if err != nil {
+		return nil, err
+	}
+	rec := core.NewRecord(col)
+	rec.Set("tournament", t.Id)
+	rec.Set("extId", extID)
+	rec.Set("stage", stage.Code)
+	rec.Set("num", num)
+	rec.Set("roundLabel", f.Round)
+	rec.Set("kickoff", f.Date.UTC())
+	rec.Set("status", "scheduled")
+	hID, aID := teamByName[canonName(f.HomeName)], teamByName[canonName(f.AwayName)]
+	if hID != "" {
+		rec.Set("homeTeam", hID)
+	} else if strings.TrimSpace(f.HomeName) != "" {
+		rec.Set("homeLabel", f.HomeName)
+	} else {
+		rec.Set("homeLabel", "TBD")
+	}
+	if aID != "" {
+		rec.Set("awayTeam", aID)
+	} else if strings.TrimSpace(f.AwayName) != "" {
+		rec.Set("awayLabel", f.AwayName)
+	} else {
+		rec.Set("awayLabel", "TBD")
+	}
+	if stage.Kind == tournaments.KindGroup {
+		rec.Set("groupLetter", groupLetterFor(app, t.Id, hID, aID))
+	}
+	if err := app.Save(rec); err != nil {
+		return nil, fmt.Errorf("save match %s: %w", extID, err)
+	}
+	return rec, nil
+}
+
+// groupLetterFor finds the group either team belongs to. Backfilled group
+// matches are rare (a rescheduled fixture under a new provider id), so this
+// queries per call instead of pre-building a map.
+func groupLetterFor(app core.App, tournamentID, homeID, awayID string) string {
+	for _, id := range []string{homeID, awayID} {
+		if id == "" {
+			continue
+		}
+		g, err := app.FindFirstRecordByFilter("tournament_groups",
+			"tournament = {:t} && teams ~ {:id}", map[string]any{"t": tournamentID, "id": id})
+		if err == nil {
+			return g.GetString("letter")
+		}
+	}
+	return "A"
 }
 
 // APICheck is a dev diagnostic: fetch a season's fixtures from API-Football

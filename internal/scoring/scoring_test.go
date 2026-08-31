@@ -69,6 +69,22 @@ func TestScoreValues(t *testing.T) {
 			wantGdDev: 2, // |(0-1)-(1-0)|
 		},
 		{
+			name:      "KO first leg (no advancer): tendency from the result",
+			m:         MatchResult{Knockout: true, FtH: 2, FtA: 0}, // leg 1 of a two-legged tie
+			p:         TipPrediction{FtH: 1, FtA: 0, Advancer: "T1"},
+			wantPts:   3, // tendency by sign; advancer ignored
+			wantTend:  3,
+			wantGdDev: 1,
+		},
+		{
+			name:      "KO first leg drawn: a draw tip earns tendency",
+			m:         MatchResult{Knockout: true, FtH: 1, FtA: 1},
+			p:         TipPrediction{FtH: 1, FtA: 1, Advancer: "T1"},
+			wantPts:   6, // tendency+exact+total+diff
+			wantExact: 1,
+			wantTend:  3,
+		},
+		{
 			name: "KO to ET, predicted draw then ET perfectly",
 			m: MatchResult{
 				Knockout: true, FtH: 1, FtA: 1, EtH: 2, EtA: 1, Advancer: "T1",
