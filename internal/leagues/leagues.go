@@ -40,13 +40,19 @@ func bad(e *core.RequestEvent, code int, msg string) error {
 	return e.JSON(code, map[string]string{"error": msg})
 }
 
-// tournamentIDs resolves season slugs to ids (drafts are not bindable).
+// tournamentIDs resolves season slugs to ids. Only running or upcoming
+// seasons can be bound — a pool for a finished season makes no sense.
 func tournamentIDs(app core.App, slugs []string) ([]string, error) {
 	out := make([]string, 0, len(slugs))
 	for _, slug := range slugs {
 		t, err := tournaments.BySlug(app, slug)
-		if err != nil || t.GetString("status") == tournaments.StatusDraft {
+		if err != nil {
 			return nil, fmt.Errorf("unknown season %q", slug)
+		}
+		switch t.GetString("status") {
+		case tournaments.StatusActive, tournaments.StatusUpcoming:
+		default:
+			return nil, fmt.Errorf("season %q is not open for pools", slug)
 		}
 		out = append(out, t.Id)
 	}

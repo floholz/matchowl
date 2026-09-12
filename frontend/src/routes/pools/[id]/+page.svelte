@@ -215,7 +215,7 @@
 	// ---- owner: bound seasons; set up next season ----
 	let seasonChoices = $derived(
 		tournamentStore.list
-			.filter((t) => t.status !== 'draft')
+			.filter((t) => t.status === 'active' || t.status === 'upcoming')
 			.sort((a, b) => (a.status === 'active' ? -1 : 1) - (b.status === 'active' ? -1 : 1) || (a.startsAt < b.startsAt ? 1 : -1))
 	);
 	let draftSeasons = $state<Set<string>>(new Set());

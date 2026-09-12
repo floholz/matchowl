@@ -110,9 +110,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		if len(q) < 2 {
 			return e.JSON(http.StatusOK, map[string]any{"users": []person{}})
 		}
+		// Starts-with on the name or on any word of it (case-insensitive),
+		// not a loose contains: "bo" finds "Bob" and "Anna Bode", not "Jacob".
 		recs, err := app.FindRecordsByFilter("users",
-			"name ~ {:q} && id != {:me} && role != 'bot'", "name", 10, 0,
-			map[string]any{"q": q, "me": e.Auth.Id})
+			"(name ~ {:p} || name ~ {:w}) && id != {:me} && role != 'bot'", "name", 10, 0,
+			map[string]any{"p": q + "%", "w": "% " + q + "%", "me": e.Auth.Id})
 		if err != nil {
 			return err
 		}

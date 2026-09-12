@@ -62,7 +62,7 @@
 	/** Seasons a new pool can count: anything visible, running first. */
 	let seasonChoices = $derived(
 		tournamentStore.list
-			.filter((t) => t.status !== 'draft')
+			.filter((t) => t.status === 'active' || t.status === 'upcoming')
 			.sort((a, b) => (a.status === 'active' ? -1 : 1) - (b.status === 'active' ? -1 : 1) || (a.startsAt < b.startsAt ? 1 : -1))
 	);
 
@@ -147,13 +147,16 @@
 	let boardRows = $state<LeaderboardRow[]>([]);
 	let boardLoading = $state(false);
 	let boardTournament = $derived(tournamentStore.list.find((t) => t.slug === boardSlug));
+	let boardChoices = $derived(
+		tournamentStore.list.filter((t) => t.status !== 'draft').sort((a, b) => (a.startsAt < b.startsAt ? 1 : -1))
+	);
 	let competitions = $derived.by(() => {
 		const seen = new Map<string, { key: string; name: string; shortName: string }>();
-		for (const t of seasonChoices) if (t.competition && !seen.has(t.competition.key)) seen.set(t.competition.key, t.competition);
+		for (const t of boardChoices) if (t.competition && !seen.has(t.competition.key)) seen.set(t.competition.key, t.competition);
 		return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
 	});
 	let boardSeasons = $derived(
-		boardTournament ? seasonChoices.filter((t) => t.competition?.key === boardTournament!.competition?.key) : []
+		boardTournament ? boardChoices.filter((t) => t.competition?.key === boardTournament!.competition?.key) : []
 	);
 	async function loadFriends() {
 		try {
@@ -187,7 +190,7 @@
 		loadBoard('');
 	});
 	function pickCompetition(key: string) {
-		const s = defaultSeason(seasonChoices.filter((t) => t.competition?.key === key));
+		const s = defaultSeason(boardChoices.filter((t) => t.competition?.key === key));
 		if (s) loadBoard(s.slug);
 	}
 	let searchTimer: ReturnType<typeof setTimeout>;
@@ -297,6 +300,9 @@
 	<label class="search">
 		<Search size={16} />
 		<input class="input" placeholder="Find people by name" bind:value={q} oninput={onSearch} />
+		{#if q}
+			<button type="button" class="clear" onclick={() => { q = ''; results = []; }} aria-label="Clear"><X size={16} /></button>
+		{/if}
 	</label>
 	{#if results.length}
 		<div class="card list">
@@ -670,6 +676,9 @@
 		.actpad {
 			display: none;
 		}
+		.sheet {
+			padding-bottom: calc(1.2rem + env(safe-area-inset-bottom));
+		}
 	}
 	.scrim {
 		position: fixed;
@@ -687,8 +696,10 @@
 		bottom: 0;
 		z-index: 61;
 		max-width: 560px;
+		max-height: calc(100dvh - var(--topbar-h));
+		overflow-y: auto;
 		margin: 0 auto;
-		padding: 0.6rem 1rem calc(1.2rem + env(safe-area-inset-bottom));
+		padding: 0.6rem 1rem calc(var(--nav-h) + 1rem + env(safe-area-inset-bottom));
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-bottom: none;
@@ -879,5 +890,18 @@
 	}
 	.search .input:focus {
 		outline: none;
+	}
+	.search .clear {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 30px;
+		height: 30px;
+		border: none;
+		border-radius: 50%;
+		background: var(--surface-2);
+		color: var(--muted);
+		cursor: pointer;
+		flex: none;
 	}
 </style>
