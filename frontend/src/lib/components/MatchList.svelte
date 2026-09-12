@@ -4,8 +4,9 @@
      kickoff. Lives in the competition hub's Matches tab. -->
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
-	import { tournamentStore } from '$lib/tournament.svelte';
-	import TipCard from './TipCard.svelte';
+	import { tournamentStore, competitionLogoUrl } from '$lib/tournament.svelte';
+	import MatchGroup from './MatchGroup.svelte';
+	import MatchRow from './MatchRow.svelte';
 	import GroupStandings from './GroupStandings.svelte';
 	import { bestThirds } from '$lib/standings';
 	import { serverClock } from '$lib/serverclock.svelte';
@@ -85,6 +86,19 @@
 
 	let nowDayIndex = $derived(days.findIndex(([, ms]) => ms.some((m) => m.id === nowId)));
 
+	/** Card sub-line for a day: the stage, plus the round when shared. */
+	function roundOf(ms: Match[]): string {
+		const stages = new Set(ms.map((m) => m.stage));
+		const stage = stages.size === 1 ? tournamentStore.stageName(ms[0].stage) : '';
+		const rounds = new Set(ms.map((m) => m.roundLabel));
+		const round = rounds.size === 1 ? ms[0].roundLabel : '';
+		return [stage, round !== stage ? round : ''].filter(Boolean).join(' · ');
+	}
+	let logo = $derived(competitionLogoUrl(tournamentStore.current?.competition));
+	let compName = $derived(
+		tournamentStore.current?.competition?.shortName || tournamentStore.current?.competition?.name || ''
+	);
+
 	// On first load, jump to the current point in the season.
 	let didAutoScroll = false;
 	$effect(() => {
@@ -131,15 +145,16 @@
 {:else}
 	{#each days as [day, ms], i (day)}
 		<h3 class="day" id={`day-${i}`}>{day}</h3>
-		{#each ms as m (m.id)}
-			<div class="match" id={`m-${m.id}`}>
-				<TipCard
+		<MatchGroup name={compName} round={roundOf(ms)} {logo}>
+			{#each ms as m (m.id)}
+				<MatchRow
 					match={m}
 					open={openId === m.id}
 					onToggle={() => (openId = openId === m.id ? '' : m.id)}
+					href={`/m/${m.id}`}
 				/>
-			</div>
-		{/each}
+			{/each}
+		</MatchGroup>
 		{#if tab === 'group'}
 			<GroupStandings matches={ms} bestThirds={thirdsAdv} />
 		{/if}
@@ -163,9 +178,6 @@
 		color: var(--muted);
 		/* Land below the fixed top bar + the hub's sticky tab strip. */
 		scroll-margin-top: calc(var(--topbar-h) + 4.2rem);
-	}
-	.match + .match {
-		margin-top: 6px;
 	}
 	.fabpad {
 		height: 4rem;

@@ -3,8 +3,10 @@
 	import { feedStore, type FeedMatch } from '$lib/feed.svelte';
 	import { otherLegView } from '$lib/tips.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
+	import { tournamentStore, competitionLogoUrl } from '$lib/tournament.svelte';
 	import Landing from '$lib/components/Landing.svelte';
-	import TipCard from '$lib/components/TipCard.svelte';
+	import MatchGroup from '$lib/components/MatchGroup.svelte';
+	import MatchRow from '$lib/components/MatchRow.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { tick } from 'svelte';
 	import { Telescope, Plus, ChevronUp, ChevronDown, ChevronRight } from '@lucide/svelte';
@@ -15,8 +17,23 @@
 	$effect(() => {
 		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error) {
 			feedStore.load().then(scrollToToday).catch(() => {});
+			// Competition crests for the card headers.
+			tournamentStore.ready().catch(() => {});
 		}
 	});
+
+	/** Crest of a feed tournament's competition (from the tournament list). */
+	function logoOf(tid: string): string {
+		const t = tournamentStore.list.find((x) => x.id === tid);
+		return t ? competitionLogoUrl(t.competition) : '';
+	}
+	/** Card sub-line: the stage, plus the round when the day's matches share one. */
+	function roundOf(ms: FeedMatch[]): string {
+		const stage = ms[0]?.stageName ?? '';
+		const rounds = new Set(ms.map((m) => m.roundLabel));
+		const round = rounds.size === 1 ? ms[0].roundLabel : '';
+		return [stage, round !== stage ? round : ''].filter(Boolean).join(' · ');
+	}
 
 	// Land on today (or the first upcoming day) once, after first render.
 	async function scrollToToday() {
@@ -111,37 +128,34 @@
 						{day.isToday ? 'Today' : day.label}
 					</h2>
 					{#each day.groups as g (g.tournament.id)}
-						<div class="comp">
-							<a
-								class="comp-h"
-								href={`/competitions/${g.tournament.competition}?s=${g.tournament.slug}`}
-							>
-								<span>{g.tournament.shortName || g.tournament.name}</span>
-								<ChevronRight size={16} />
-							</a>
+						<MatchGroup
+							name={g.tournament.shortName || g.tournament.name}
+							round={roundOf(g.matches)}
+							logo={logoOf(g.tournament.id)}
+							href={`/competitions/${g.tournament.competition}?s=${g.tournament.slug}`}
+						>
 							{#each g.matches as m (m.id)}
-								<div class="fm">
-									<TipCard
-										match={m}
-										team={(id) => feedStore.team(id)}
-										tip={tipFor(m)}
-										knockout={m.knockout}
-										points={m.myTip?.points}
-										onSave={(t) => feedStore.saveTip(m, t)}
-										open={openId === m.id}
-										onToggle={() => (openId = openId === m.id ? '' : m.id)}
-										leg={m.leg
-											? otherLegView(
-													m,
-													m.leg,
-													m.leg.first,
-													`/competitions/${m.tournament.competition}?s=${m.tournament.slug}&tab=matches&m=${m.leg.id}`
-												)
-											: null}
-									/>
-								</div>
+								<MatchRow
+									match={m}
+									team={(id) => feedStore.team(id)}
+									tip={tipFor(m)}
+									knockout={m.knockout}
+									points={m.myTip?.points}
+									onSave={(t) => feedStore.saveTip(m, t)}
+									open={openId === m.id}
+									onToggle={() => (openId = openId === m.id ? '' : m.id)}
+									href={`/m/${m.id}`}
+									leg={m.leg
+										? otherLegView(
+												m,
+												m.leg,
+												m.leg.first,
+												`/competitions/${m.tournament.competition}?s=${m.tournament.slug}&tab=matches&m=${m.leg.id}`
+											)
+										: null}
+								/>
 							{/each}
-						</div>
+						</MatchGroup>
 					{/each}
 				</section>
 			{/each}
@@ -216,42 +230,6 @@
 	}
 	.day-h.today {
 		color: var(--accent);
-	}
-	.comp + .comp {
-		margin-top: 1.1rem;
-	}
-	.comp-h {
-		display: flex;
-		align-items: center;
-		gap: 0.2rem;
-		margin: 0 0 0.45rem 0.25rem;
-		font-size: 0.8rem;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--muted);
-		text-decoration: none;
-	}
-	.comp-h:hover,
-	.comp-h:focus-visible {
-		color: var(--text);
-	}
-	/* Cards in a day/competition group touch and read as one bubble: only
-	   the group's top and bottom corners are rounded, and adjacent borders
-	   overlap by 1px so there's a single hairline between matches. */
-	.fm :global(.card) {
-		border-radius: 0;
-	}
-	.fm:first-of-type :global(.card) {
-		border-top-left-radius: var(--radius);
-		border-top-right-radius: var(--radius);
-	}
-	.fm:last-of-type :global(.card) {
-		border-bottom-left-radius: var(--radius);
-		border-bottom-right-radius: var(--radius);
-	}
-	.fm + .fm {
-		margin-top: -1px;
 	}
 	.btn.ghost.more {
 		display: flex;

@@ -7,6 +7,15 @@
 @import '@fontsource-variable/red-hat-mono';
 @import './lib/theme.css';
 
+/* The stadium board's seven-segment face (DSEG7 Classic Bold, SIL OFL;
+   digits only, ~5 KB). Everything else stays on the Fontsource faces. */
+@font-face {
+	font-family: 'DSEG7';
+	src: url('/fonts/dseg7.woff2') format('woff2');
+	font-weight: 700;
+	font-display: swap;
+}
+
 * {
 	box-sizing: border-box;
 }

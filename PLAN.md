@@ -156,8 +156,13 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
   desktop rule.
 
 ### Implementation order (proposed)
-1. `MatchRow` + `LedBoard` + `TipCapsule` components (all row states incl.
-   knockout/legs), fed by the existing tips/feed stores.
+1. ✅ 2026-09-12 — `MatchRow` + `LedBoard` + `TipCapsule` + `MatchGroup`
+   components (all row states incl. knockout/legs, inline stepper drawer
+   that saves on close), fed by the existing tips/feed stores. Rows are
+   live in the feed and the hub's Matches tab; DSEG7 is self-hosted
+   (`static/fonts`). `/m/{id}` exists as a bridge (the old TipCard,
+   expanded) until step 4 replaces it. TipCard itself is otherwise unused
+   now and goes away with step 4.
 2. Shell: 4-tab nav, contextual top bar, desktop top-bar links, page-owned
    sub-rows.
 3. Matches page (rename of the feed, Mine/All filter, day strip) and the new
@@ -294,7 +299,8 @@ one line each with a date.
 
 - 2026-09-12 — Open layout items drawn and proposed (hub Overview/Table/
   Knockout/Forecast tabs, league page tabs, tablet = wide phone); see
-  "Proposed 2026-09-12".
+  "Proposed 2026-09-12". Implementation started with the match row
+  components.
 - 2026-09-12 — Layout rework decided (see "Now: app layout rework"): 4 tabs,
   stacked match row with LED score board vs. orange tip capsule, knockout
   dot + leg lug + tie strip, match page route, desktop rail/panel rule.

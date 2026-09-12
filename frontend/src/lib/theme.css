@@ -67,6 +67,7 @@
 	--font: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-display: 'Baloo 2 Variable', 'Figtree Variable', sans-serif; /* round + warm */
 	--font-mono: 'Red Hat Mono Variable', ui-monospace, monospace; /* scoreboard */
+	--font-led: 'DSEG7', 'Red Hat Mono Variable', ui-monospace, monospace; /* the LED board */
 
 	/* ---- Layout metrics ---- */
 	--maxw: 740px;

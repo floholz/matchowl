@@ -5,13 +5,22 @@
 		value = $bindable(0),
 		min = 0,
 		max = 99,
-		disabled = false
-	}: { value: number; min?: number; max?: number; disabled?: boolean } =
-		$props();
+		disabled = false,
+		onchange = undefined
+	}: {
+		value: number;
+		min?: number;
+		max?: number;
+		disabled?: boolean;
+		onchange?: (value: number) => void;
+	} = $props();
 
 	function bump(d: number) {
 		const n = value + d;
-		if (n >= min && n <= max) value = n;
+		if (n >= min && n <= max) {
+			value = n;
+			onchange?.(n);
+		}
 	}
 </script>
 
