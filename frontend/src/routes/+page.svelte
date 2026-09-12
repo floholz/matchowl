@@ -16,10 +16,11 @@
 	let openId = $state('');
 
 	$effect(() => {
-		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error) {
-			feedStore.load().catch(() => {});
-			tournamentStore.ready().catch(() => {});
-		}
+		if (!auth.isAuthed || feedStore.loading || feedStore.error) return;
+		// Home always looks at the competitions you play.
+		if (feedStore.scope !== 'mine') feedStore.setScope('mine').catch(() => {});
+		else if (!feedStore.loaded) feedStore.load().catch(() => {});
+		tournamentStore.ready().catch(() => {});
 	});
 
 	// ---- leagues: where am I, who leads ----

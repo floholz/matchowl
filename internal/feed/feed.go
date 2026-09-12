@@ -59,6 +59,25 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return err
 		}
+		played := map[string]bool{}
+		for _, id := range playedIDs {
+			played[id] = true
+		}
+		// ?all=1 widens the window to every visible tournament (the "All"
+		// chip); deadlines and the playing list stay scoped to played ones.
+		ids := playedIDs
+		if e.Request.URL.Query().Get("all") == "1" {
+			recs, err := tournaments.All(app)
+			if err != nil {
+				return err
+			}
+			ids = make([]string, 0, len(recs))
+			for _, r := range recs {
+				if r.GetString("status") != tournaments.StatusDraft {
+					ids = append(ids, r.Id)
+				}
+			}
+		}
 
 		now := clock.Now(app)
 		past := intParam(e, "past", defaultPastDays, maxWindowDays)
@@ -73,7 +92,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		infos := map[string]*tInfo{}
 		playing := make([]map[string]any, 0, len(playedIDs))
-		for _, tid := range playedIDs {
+		for _, tid := range ids {
 			t, err := app.FindRecordById("tournaments", tid)
 			if err != nil {
 				continue
@@ -94,7 +113,9 @@ func Register(app core.App, se *core.ServeEvent) {
 				v["competition"] = c.GetString("key")
 			}
 			infos[tid] = &tInfo{rec: t, structure: st, view: v}
-			playing = append(playing, v)
+			if played[tid] {
+				playing = append(playing, v)
+			}
 		}
 
 		// Matches of played tournaments inside the window, kickoff-sorted.
@@ -213,7 +234,8 @@ func Register(app core.App, se *core.ServeEvent) {
 					"etHome": tip.GetInt("etHome"), "etAway": tip.GetInt("etAway"),
 					"penWinner": tip.GetString("penWinner"), "advancer": tip.GetString("advancer"),
 				}
-				if pts, ok := pointsByMatch[m.Id]; ok && row["finished"] == true {
+				finished := m.GetString("status") == "finished" || m.GetString("finalizedAt") != ""
+				if pts, ok := pointsByMatch[m.Id]; ok && finished {
 					myTip["points"] = pts
 				}
 				row["myTip"] = myTip
@@ -224,6 +246,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		// Deadline cards: played tournaments whose forecast is still open.
 		deadlines := make([]map[string]any, 0)
 		for tid, info := range infos {
+			if !played[tid] {
+				continue
+			}
 			status := info.rec.GetString("status")
 			if status != tournaments.StatusUpcoming && status != tournaments.StatusActive {
 				continue

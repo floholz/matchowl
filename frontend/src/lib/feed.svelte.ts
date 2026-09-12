@@ -67,7 +67,7 @@ export interface FeedDay {
 /** Deadline cards only surface this close to their lock. */
 const DEADLINE_LEAD_DAYS = 14;
 
-function localDayKey(iso: string): string {
+export function localDayKey(iso: string): string {
 	const d = new Date(iso);
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -99,6 +99,15 @@ class FeedStore {
 
 	past = $state(2);
 	ahead = $state(7);
+	/** `mine` = the competitions you play (default); `all` = every visible one. */
+	scope = $state<'mine' | 'all'>('mine');
+
+	/** Switch between your competitions and all of them, then refetch. */
+	async setScope(scope: 'mine' | 'all') {
+		if (this.scope === scope) return;
+		this.scope = scope;
+		await this.load();
+	}
 
 	async load() {
 		if (this.loading) return;
@@ -106,8 +115,9 @@ class FeedStore {
 		this.error = '';
 		try {
 			await serverClock.refresh();
+			const q = `past=${this.past}&days=${this.ahead}${this.scope === 'all' ? '&all=1' : ''}`;
 			const [r, s] = await Promise.all([
-				pb.send(`/api/feed?past=${this.past}&days=${this.ahead}`, { method: 'GET' }),
+				pb.send(`/api/feed?${q}`, { method: 'GET' }),
 				pb
 					.send('/api/tournaments/suggestions', { method: 'GET' })
 					.catch(() => ({ suggestions: [] }))
@@ -190,9 +200,29 @@ class FeedStore {
 		return out;
 	}
 
-	/** True when today has no section (no matches today). */
+	/** Local day key of "today" (server clock). */
 	get todayKey(): string {
 		return localDayKey(new Date(serverClock.now()).toISOString());
+	}
+
+	/** Every local day of the loaded window, oldest first, with whether it
+	 *  has matches — the day strip. */
+	get strip(): { key: string; weekday: string; day: number; isToday: boolean; has: boolean }[] {
+		const has = new Set(this.matches.map((m) => localDayKey(m.kickoff)));
+		const today = new Date(serverClock.now());
+		const out = [];
+		for (let i = -this.past; i <= this.ahead; i++) {
+			const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+			const key = localDayKey(d.toISOString());
+			out.push({
+				key,
+				weekday: d.toLocaleDateString(undefined, { weekday: 'short' }),
+				day: d.getDate(),
+				isToday: i === 0,
+				has: has.has(key)
+			});
+		}
+		return out;
 	}
 
 	/** Save (create or update) a tip for a feed match and mirror it back

@@ -170,8 +170,11 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
    from the list pages. The feed moved to `/matches`; `/` is a first Home
    (Tip now · forecast deadline · Live · Your leagues · Yesterday);
    league-mate suggestions moved to the Competitions catalog.
-3. Matches page: Mine/All filter, Live chip, sticky day strip (the Home
-   first cut may need a polish pass against the mockup).
+3. ✅ 2026-09-12 — Matches page: Mine/All scope (`/api/feed?all=1`), Live
+   chip (only while something is live), sticky day strip that scrolls and
+   follows the list. Feed points for finished matches were never sent
+   (server compared a key the row never had) — fixed on the way. The Home
+   first cut may still want a polish pass against the mockup.
 4. Match page route; desktop detail panel reusing it.
 5. Competition hub header + tabs; Friends rework.
 
