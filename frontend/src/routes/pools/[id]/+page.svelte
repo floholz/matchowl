@@ -138,7 +138,7 @@
 		tournamentStore.ready().catch(() => {});
 		Promise.all([api.leaderboard(lid, tslug), api.myPools()])
 			.then(([lb, mine]) => {
-				league = lb.league;
+				league = lb.pool;
 				rows = lb.rows;
 				boardSlug = lb.tournament ?? '';
 				bound = lb.tournaments ?? [];

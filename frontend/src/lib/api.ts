@@ -329,7 +329,7 @@ export const api = {
 	 *  server's current one). The response names the tournament used. */
 	leaderboard: (id: string, tournament = '') =>
 		get<{
-			league: { id: string; name: string };
+			pool: { id: string; name: string };
 			rows: LeaderboardRow[];
 			/** Season the board was scored for; '' = the pool's seasons summed. */
 			tournament?: string;
