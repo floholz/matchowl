@@ -645,3 +645,256 @@ canvas.artboards.push(
 canvas.annotations.push({ id: 'ko-note', page: 'page-1', x: 2880, y: -260, w: 860, text: 'Knockout rules\n• The board always shows the FINAL score; the status column says how it ended: FT, AET or PEN. The 90’ / 120’ timeline lives on the match page, never in the row.\n• A small LED dot marks the advancer: real one on the board, your pick on the capsule. A drawn KO tip + dot = your penalty pick, so the capsule alone is the full tip.\n• Two legs: a “1st / leg” tab docked to the front of the scoreboard (one black block with the board), and a strip under the row: next leg date, or aggregate · first-leg score · who advances and how. The strip links to the other leg.\n• Match page after FT: the board goes big in the hero, AET/PEN pills, aggregate strip, your tip card turns into the points breakdown, and friends’ picks become visible with the same capsules.' });
 writeFileSync('canvas.json', JSON.stringify(canvas, null, 2));
 console.log('built KO boards');
+
+// ======================= Open items (2026-09-12): hub tabs, league page, tablet =======================
+Object.assign(C, { BEN: ['BEN', '#e5202c', '#fff'], POR: ['POR', '#1c4a9e', '#fff'], CEL: ['CEL', '#1c8c3a', '#fff'], GAL: ['GAL', '#a90432', '#ffd166'], BRU: ['BRU', '#0a3d91', '#fff'], SPO: ['SPO', '#0d7a3a', '#fff'], MIL: ['MIL', '#c8102e', '#111'], FEY: ['FEY', '#e30613', '#fff'] });
+Object.assign(NAMES, { BEN: 'Benfica', POR: 'Porto', CEL: 'Celtic', GAL: 'Galatasaray', BRU: 'Club Brugge', SPO: 'Sporting', MIL: 'Milan', FEY: 'Feyenoord' });
+
+const HUB_CSS = KO_CSS + `
+.zone0{--zone:${T.accent}}.zone1{--zone:#4f9cf5}.zone2{--zone:#3fbf7f}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${T.muted};text-align:right;padding:9px 6px 7px;border-bottom:1px solid ${T.border}}
+.tbl th.l{text-align:left;padding-left:12px}
+.tbl td{padding:0 6px;height:36px;text-align:right;border-bottom:1px solid ${T.border};white-space:nowrap;font-family:'Red Hat Mono',monospace;font-weight:700;color:${T.muted};font-size:12.5px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td.rk{width:18px;text-align:center;padding-left:12px;font-size:12px}
+.tbl td.tm{text-align:left;font-family:'Figtree',sans-serif;font-weight:600;color:${T.text};font-size:13.5px;padding-left:8px}
+.tbl td.tm span{display:inline-flex;align-items:center;gap:8px}
+.tbl td.pts{color:${T.text};padding-right:14px;font-size:13.5px}
+.tbl tr.z td{background:color-mix(in srgb,var(--zone) 8%,transparent)}
+.tbl tr.z td.rk{color:var(--zone);box-shadow:inset 3px 0 0 var(--zone)}
+.tbl tr.gap td{height:26px;text-align:center;font-size:10px;letter-spacing:.3em;color:${T.muted};background:none;box-shadow:none}
+.zl{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 14px;font-size:11.5px;color:${T.muted};border-top:1px solid ${T.border}}
+.zl span{display:inline-flex;align-items:center;gap:6px}
+.zl i{width:8px;height:8px;border-radius:50%;background:var(--zone)}
+.tie{display:grid;grid-template-columns:1fr 30px 30px 44px;gap:0 8px;align-items:center;padding:8px 10px 8px 14px;border-bottom:1px solid ${T.border}}
+.tie:last-child{border-bottom:none}
+.tie .legs{display:flex;flex-direction:column;gap:7px;align-items:center;font-family:'Red Hat Mono',monospace;font-weight:700;font-size:13px;line-height:19px;color:${T.muted}}
+.tie .legs b{color:${T.text}}
+.tie .legs.live b{color:${T.live}}
+.tie .tfoot{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11.5px;color:${T.muted};padding:7px 2px 1px;margin-top:4px;border-top:1px dashed ${T.border};white-space:nowrap}
+.tie .tfoot b{color:${T.text}}
+.tie .tfoot .cv{margin-left:auto}
+.pchip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px 0 6px;border-radius:999px;border:1px solid ${T.border};background:${T.surface2};font-weight:600;font-size:13px;white-space:nowrap}
+.pchip.on{border-color:rgba(255,119,0,.55);background:rgba(255,119,0,.12)}
+.pchip.lk{border-color:${T.border};background:${T.surface2};color:${T.muted}}
+.pchip.empty{border-style:dashed;border-color:rgba(255,119,0,.6);color:${T.accent};padding:0 12px;background:transparent}
+.picks{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 14px}
+.callh{display:flex;align-items:center;gap:8px;padding:12px 14px 10px}
+.callh .t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.callh b{font-size:14.5px;white-space:nowrap}
+.lb{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid ${T.border};min-height:54px}
+.lb:last-child{border-bottom:none}
+.lb.me{background:rgba(255,119,0,.08);box-shadow:inset 3px 0 0 ${T.accent}}
+.lb .pos{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1}
+.lb .pos b{font-family:'Red Hat Mono',monospace;font-size:15px}
+.lb .who{display:flex;align-items:center;gap:10px;min-width:0;font-weight:600;font-size:14px}
+.lb .who .sub{font-size:11.5px;color:${T.muted};font-weight:500}
+.lb .p{font-family:'Red Hat Mono',monospace;font-weight:700;font-size:16px;text-align:right}
+.lb .det{grid-column:1/-1;display:flex;gap:12px;padding:6px 0 4px 46px;font-size:12px;color:${T.muted};flex-wrap:wrap;align-items:center}
+.lb .det b{color:${T.text};font-family:'Red Hat Mono',monospace}
+.seg{display:inline-flex;background:${T.surface2};border:1px solid ${T.border};border-radius:999px;padding:3px;gap:2px}
+.seg span{padding:6px 12px;border-radius:999px;font-weight:700;font-size:12.5px;color:${T.muted}}
+.seg span.on{background:${T.surface};color:${T.text};box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:${T.accent};color:${T.accentFg};font-size:10.5px;font-weight:800;margin-left:6px}
+.stat{display:flex;flex-direction:column;gap:2px;padding:12px 14px}
+.stat .n{font-family:'Red Hat Mono',monospace;font-weight:700;font-size:22px}
+.stat .n small{font-size:12px;color:${T.muted}}
+.stat .l{font-size:11.5px;color:${T.muted};font-weight:600}
+`;
+
+const HUB_TABS = ['Overview', 'Matches', 'Table', 'Knockout', 'Forecast'];
+const hubHead = (on, extra = '', sub = '2026/27') => `<header class="topbar" style="height:66px"><span class="iconbtn" style="margin-left:-8px">${ic('left', 22)}</span>${crest('UCL', 34)}
+  <div style="display:flex;flex-direction:column;gap:1px;min-width:0"><b style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Champions League</b><span class="muted" style="font-size:12.5px;display:inline-flex;align-items:center;gap:3px;font-weight:600">${sub} ${ic('down', 13)}</span></div>
+  <span style="flex:1"></span>
+  <span class="chip on" style="height:32px;padding:0 12px;font-size:12px">${ic('checkcircle', 15)} Playing</span>
+</header>
+<div class="subbar" style="top:66px">
+  <div class="utabs">${HUB_TABS.map((t) => `<span class="utab${t === on ? ' on' : ''}">${t}</span>`).join('')}</div>${extra}
+</div>`;
+const hubMain = (inner, top = 112) => `<main style="position:absolute;top:${top}px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden">${inner}</main>`;
+const stat = (n, l) => `<div class="card stat"><span class="n">${n}</span><span class="l">${l}</span></div>`;
+
+// ---- Overview tab: what's next, what's still to do, how you stand, then the season itself ----
+const hubOverview = phone(`${hubHead('Overview')}
+${hubMain(`
+  <div class="sec" style="margin-top:2px"><h2 class="display" style="font-size:17px">Next up</h2><span class="muted" style="font-size:12.5px">Matchday 1 · Tue 15 Sep</span><a class="more">Matches ${ic('right', 14)}</a></div>
+  <div class="card comp">
+    ${row({ when: ['18:45'], h: 'JUV', a: 'BVB', tip: [1, 1] })}
+    ${row({ when: ['21:00'], h: 'FCB', a: 'ARS', tip: 'empty' })}
+    ${row({ when: ['21:00'], h: 'RMA', a: 'LIV', tip: 'empty' })}
+  </div>
+  <div class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px;padding:12px 14px;border-color:rgba(255,119,0,.35)">
+    <span style="width:38px;height:38px;border-radius:12px;background:rgba(255,119,0,.14);color:${T.accent};display:inline-flex;align-items:center;justify-content:center">${ic('target', 20)}</span>
+    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><b style="font-size:14px">Forecast · 2 of 3 calls placed</b><span class="muted" style="font-size:12.5px">Locks Tue 18:45 · one shot for the season</span></span>
+    <span class="pill ok" style="margin-left:auto">3d 4h</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px">
+    ${stat('0', 'Your points')}${stat('1<small>/144</small>', 'Tipped')}${stat('#2<small>/8</small>', 'Bürocup')}
+  </div>
+  <div class="sec"><h2 class="display" style="font-size:17px">League phase</h2><a class="more">Table ${ic('right', 14)}</a></div>
+  <div class="card">
+    <div style="padding:14px 14px 10px;font-size:13px;line-height:1.4" class="muted">36 clubs, one table, 8 matchdays. The table lights up after matchday 1.</div>
+    <div class="zl"><span class="zone0"><i></i>Round of 16 <span class="muted">1–8</span></span><span class="zone1"><i></i>Knockout play-offs <span class="muted">9–24</span></span><span><i style="background:${T.border}"></i>Out <span class="muted">25–36</span></span></div>
+  </div>
+  <div class="sec"><h2 class="display" style="font-size:17px">About</h2></div>
+  <p style="margin:0;font-size:13.5px;line-height:1.45">The 2026/27 UEFA Champions League. 36 clubs play a single league phase of eight matchdays; the top eight go straight to the round of 16, places 9–24 meet in two-legged play-offs, and every knockout tie is played over two legs up to the final in Budapest.</p>
+  <p class="muted" style="margin:6px 0 0;font-size:12.5px">16 Sep 2026 – 30 May 2027 · Europe · Clubs</p>
+`)}
+${tabbar('Competitions')}`);
+
+// ---- Table tab: one table with zone bands; the WC/Euro shape shows group cards in the same tab ----
+const trow = (p, k, pl, gd, pts, z) => `<tr class="${z != null ? `z zone${z}` : ''}"><td class="rk">${p}</td><td class="tm"><span>${crest(k, 20)}${NAMES[k]}</span></td><td>${pl}</td><td>${gd > 0 ? '+' : ''}${gd}</td><td class="pts">${pts}</td></tr>`;
+const hubTable = phone(`${hubHead('Table')}
+${hubMain(`
+  <div class="card comp">
+    <div class="comph">${crest('UCL', 22)}<div style="display:flex;flex-direction:column;gap:1px"><b>League phase</b><span class="rnd">after matchday 3 · 36 clubs</span></div></div>
+    <table class="tbl">
+      <thead><tr><th class="l" colspan="2">Team</th><th>P</th><th>GD</th><th style="padding-right:14px">Pts</th></tr></thead>
+      <tbody>
+        ${trow(1, 'FCB', 3, 7, 9, 0)}${trow(2, 'RMA', 3, 6, 9, 0)}${trow(3, 'LIV', 3, 5, 7, 0)}${trow(4, 'ARS', 3, 4, 7, 0)}
+        ${trow(5, 'PSG', 3, 3, 7, 0)}${trow(6, 'BAR', 3, 3, 6, 0)}${trow(7, 'INT', 3, 2, 6, 0)}${trow(8, 'MCI', 3, 1, 6, 0)}
+        ${trow(9, 'ATM', 3, 1, 5, 1)}${trow(10, 'BVB', 3, 0, 4, 1)}${trow(11, 'JUV', 3, 0, 4, 1)}
+        <tr class="gap"><td colspan="5">···</td></tr>
+        ${trow(23, 'CEL', 3, -2, 3, 1)}${trow(24, 'FEY', 3, -3, 3, 1)}${trow(25, 'GAL', 3, -3, 2)}${trow(26, 'BRU', 3, -5, 1)}
+      </tbody>
+    </table>
+    <div class="zl"><span class="zone0"><i></i>Round of 16 <span class="muted">1–8</span></span><span class="zone1"><i></i>Knockout play-offs <span class="muted">9–24</span></span><span><i style="background:${T.border}"></i>Out <span class="muted">25–36</span></span></div>
+  </div>
+`)}
+${tabbar('Competitions')}`);
+
+// ---- Knockout tab: one round at a time, ties as rows (1st · 2nd · aggregate board) ----
+const tie = (o) => {
+  const dim = (k) => k in NAMES ? `<span class="team">${crest(k)}${NAMES[k]}</span>` : `<span class="team dim"><span class="crest" style="background:${T.surface2};color:${T.muted}">?</span>${k}</span>`;
+  const legs = (l, live) => l ? `<div class="legs${live ? ' live' : ''}"><b>${l[0]}</b><b>${l[1]}</b></div>` : `<div class="legs"><span>–</span><span>–</span></div>`;
+  const board = o.agg ? ledK(o.agg, { adv: o.adv, live: o.live }) : ledK(null, {});
+  return `<div class="tie"><div class="teams">${dim(o.h)}${dim(o.a)}</div>${legs(o.l1)}${legs(o.l2, o.live)}${board}${o.foot ? `<div class="tfoot">${o.foot}${ic('right', 14, 'class="cv"')}</div>` : ''}</div>`;
+};
+const rounds = `<div class="chips" style="padding:8px 16px 10px"><span class="chip" style="height:32px;padding:0 12px;font-size:12.5px">Play-offs</span><span class="chip on" style="height:32px;padding:0 12px;font-size:12.5px">Round of 16</span><span class="chip" style="height:32px;padding:0 12px;font-size:12.5px">QF</span><span class="chip" style="height:32px;padding:0 12px;font-size:12.5px">SF</span><span class="chip" style="height:32px;padding:0 12px;font-size:12.5px">Final</span></div>`;
+const hubKnockout = phone(`${hubHead('Knockout', rounds)}
+${hubMain(`
+  <div class="card comp">
+    <div class="comph">${crest('UCL', 22)}<div style="display:flex;flex-direction:column;gap:1px"><b>Round of 16</b><span class="rnd">10–11 Mar · 17–18 Mar</span></div><div class="cols"><span style="width:38px">1st</span><span style="width:38px">2nd</span><span style="width:52px">Agg</span></div></div>
+    ${tie({ h: 'ARS', a: 'FCB', l1: [2, 1], l2: [1, 2], agg: [3, 3], adv: 'a', foot: `<b>Bayern</b> advance on penalties` })}
+    ${tie({ h: 'RMA', a: 'LIV', l1: [1, 0], l2: [1, 1], agg: [2, 1], live: true, foot: `<span style="color:${T.live};font-weight:700">67’ live</span> · Real Madrid lead on aggregate` })}
+    ${tie({ h: 'PSG', a: 'INT', l1: [0, 0], agg: [0, 0], foot: `2nd leg <b>Wed 18 Mar</b> 21:00 · in Milan` })}
+    ${tie({ h: 'BAR', a: 'MCI', foot: `1st leg <b>Tue 10 Mar</b> · 2nd leg <b>Wed 18 Mar</b>` })}
+    ${tie({ h: 'JUV', a: 'ATM', foot: `1st leg <b>Wed 11 Mar</b> · 2nd leg <b>Tue 17 Mar</b>` })}
+  </div>
+  <div class="card comp" style="margin-top:12px;opacity:.75">
+    <div class="comph">${crest('UCL', 22)}<div style="display:flex;flex-direction:column;gap:1px"><b>Quarter-finals</b><span class="rnd">7–8 Apr · 14–15 Apr</span></div></div>
+    ${tie({ h: 'Winner R16 · 1', a: 'Winner R16 · 2' })}
+  </div>
+`, 162)}
+${tabbar('Competitions')}`);
+
+// ---- Forecast tab (calls mode): a summary per call; the picker is a sheet ----
+const pchip = (k, st = 'on') => `<span class="pchip ${st}">${crest(k, 22)}${NAMES[k]}${st === 'lk' ? ic('lock', 12) : ic('check', 13, `style="color:${T.accent}"`)}</span>`;
+const hubForecast = phone(`${hubHead('Forecast')}
+${hubMain(`
+  <div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-color:rgba(255,119,0,.35)">
+    <span style="width:38px;height:38px;border-radius:12px;background:rgba(255,119,0,.14);color:${T.accent};display:inline-flex;align-items:center;justify-content:center">${ic('target', 20)}</span>
+    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><b style="font-size:14px">Your forecast</b><span class="muted" style="font-size:12.5px">2 of 3 calls placed · locks Tue 15 Sep 18:45</span></span>
+    <span class="pill ok" style="margin-left:auto">3d 4h</span>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="callh"><span class="t"><b>Champion</b><span class="muted" style="font-size:12px">1 pick · 25 pt</span></span><span style="flex:1"></span><span class="pill ok">${ic('check', 11)} placed</span></div>
+    <div class="picks">${pchip('RMA')}</div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="callh"><span class="t"><b>Top 8</b><span class="muted" style="font-size:12px">straight to the round of 16 · 3 pt each</span></span><span style="flex:1"></span><span class="pill">6 / 8</span></div>
+    <div class="picks">${pchip('RMA', 'lk')}${pchip('FCB')}${pchip('LIV')}${pchip('ARS')}${pchip('PSG')}${pchip('BAR')}<span class="pchip empty">${ic('plus', 15)} 2 more</span></div>
+    <div class="muted" style="display:flex;align-items:center;gap:5px;padding:0 14px 12px;font-size:11.5px">${ic('lock', 12)} Real Madrid is in because of your Champion pick</div>
+  </div>
+  <div class="card" style="margin-top:12px">
+    <div class="callh"><span class="t"><b>Out after the league phase</b><span class="muted" style="font-size:12px">pick 3 · 4 pt each</span></span><span style="flex:1"></span><span class="pill">0 / 3</span></div>
+    <div class="picks"><span class="pchip empty">${ic('plus', 15)} Pick 3 clubs</span></div>
+  </div>
+  <p class="muted" style="margin:14px 4px 0;font-size:12px;line-height:1.4">After the lock every pick shows a hit or a miss and the points it earned; friends’ forecasts open from the league page.</p>
+`)}
+${tabbar('Competitions')}`);
+
+// ---- Friends league page: Leaderboard · Members · Chat as tabs, own row highlighted ----
+const lbrow = (o) => `<div class="lb${o.me ? ' me' : ''}">
+  <span class="pos"><b>${o.rank}</b>${o.d ? `<span class="delta ${o.d > 0 ? 'up' : 'down'}">${ic(o.d > 0 ? 'caretup' : 'caretdown', 10)}${Math.abs(o.d)}</span>` : `<span class="muted" style="font-size:10px">–</span>`}</span>
+  <span class="who">${avatar(30, o.in)}<span style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="display:flex;align-items:center;gap:6px">${o.name}${o.me ? `<span class="pill ok" style="font-size:9px;padding:2px 6px">you</span>` : ''}${o.bot ? `<span class="pill" style="font-size:9px;padding:2px 6px">bot</span>` : ''}</span><span class="sub">${o.sub}</span></span></span>
+  <span class="p">${o.pts}</span>
+  ${o.det ? `<div class="det">${o.det}</div>` : ''}
+</div>`;
+const leagueMobile = phone(`
+<header class="topbar" style="height:66px"><span class="iconbtn" style="margin-left:-8px">${ic('left', 22)}</span>
+  <div style="display:flex;flex-direction:column;gap:1px;min-width:0"><b style="font-size:16px">Bürocup</b><span class="muted" style="font-size:12.5px;font-weight:600">8 members · you own this league</span></div>
+  <span style="flex:1"></span><span class="iconbtn">${ic('share', 20)}</span><span class="iconbtn">${ic('help', 20)}</span></header>
+<div class="subbar" style="top:66px">
+  <div class="utabs"><span class="utab on">Leaderboard</span><span class="utab">Members</span><span class="utab">Chat<span class="badge">3</span></span></div>
+  <div class="chips" style="padding:0 16px 10px"><span class="chip" style="height:32px;padding:0 12px;font-size:12.5px">${crest('UCL', 18)} UCL 26/27 ${ic('down', 13)}</span><span style="flex:1"></span><span class="seg"><span class="on">Total</span><span>Tips</span><span>Forecast</span></span></div>
+</div>
+${hubMain(`
+  <div class="card">
+    ${lbrow({ rank: 1, d: 1, in: 'LE', name: 'Lena', sub: '3 exact · 9 winners', pts: 101 })}
+    ${lbrow({ rank: 2, d: -1, in: 'FH', name: 'floholz', me: true, sub: '4 exact · 8 winners', pts: 94, det: `Tips <b>82</b> · Forecast <b>12</b> · GD error <b>14</b> <a class="more" style="margin-left:auto;font-size:12px">Forecast ${ic('right', 12)}</a>` })}
+    ${lbrow({ rank: 3, d: 0, in: 'TO', name: 'Tom', sub: '2 exact · 9 winners', pts: 92 })}
+    ${lbrow({ rank: 4, d: 2, in: 'MK', name: 'Mara', sub: '2 exact · 7 winners', pts: 88 })}
+    ${lbrow({ rank: 5, d: 0, in: 'OW', name: 'Owlbert', bot: true, sub: 'form-based picks', pts: 85 })}
+    ${lbrow({ rank: 6, d: -2, in: 'JS', name: 'Jonas', sub: '1 exact · 7 winners', pts: 80 })}
+    ${lbrow({ rank: 7, d: 0, in: 'SM', name: 'Sam', sub: '1 exact · 6 winners', pts: 71 })}
+    ${lbrow({ rank: 8, d: 0, in: 'KI', name: 'Kim', sub: '0 exact · 5 winners', pts: 64 })}
+  </div>
+`, 162)}
+${tabbar('Friends')}`);
+
+// ---- Tablet (600–900px): the phone shell, just wider. Same chrome, more days, one column. ----
+const tabletMatches = `<div class="screen" style="width:768px;height:1024px">
+<header class="topbar"><span class="display" style="font-size:22px">Matches</span><span style="flex:1"></span><span class="iconbtn">${ic('search', 20)}</span>${avatar()}</header>
+<div class="subbar" style="padding:10px 16px 10px;display:flex;flex-direction:column;gap:10px">
+  <div class="chips"><span class="chip on">${ic('check', 14)} Mine</span><span class="chip">All</span><span style="flex:1"></span><span class="chip livechip"><span class="dot"></span> Live · 1</span><span class="iconbtn" style="width:34px">${ic('filter', 18)}</span></div>
+  <div class="days" style="justify-content:space-between">
+    ${[['Thu', 10], ['Fri', 11], ['Today', 12, 'on'], ['Sun', 13, 'm'], ['Mon', 14], ['Tue', 15, 'm'], ['Wed', 16, 'm'], ['Thu', 17, 'm'], ['Fri', 18], ['Sat', 19, 'm'], ['Sun', 20, 'm'], ['Mon', 21]].map(([d, n, f]) => `<span class="day${f === 'on' ? ' on' : ''}"><span>${d}</span><b>${n}</b>${f === 'm' ? '<span class="mark"></span>' : ''}</span>`).join('')}
+  </div>
+</div>
+<main style="position:absolute;top:174px;bottom:66px;left:0;right:0;padding:4px 16px;overflow:hidden">
+  <div style="max-width:740px;margin:0 auto">
+  <div class="dayh today">Today · Saturday 12 Sep</div>
+  ${comp({ crestKey: 'BL', name: 'Bundesliga', round: 'Matchday 3', rows: [
+    row({ when: ['67’', 'Live'], live: true, h: 'FCU', a: 'BMG', score: [1, 1], tip: [2, 1] }),
+    row({ when: ['15:30'], h: 'FCB', a: 'LEV', tip: 'empty' }),
+    row({ when: ['15:30'], h: 'BVB', a: 'SGE', tip: [2, 1] }),
+    row({ when: ['18:30'], h: 'VFB', a: 'WOB', tip: 'empty' }),
+  ] })}
+  <div class="dayh">Tuesday 15 Sep</div>
+  ${comp({ crestKey: 'UCL', name: 'Champions League', round: 'League phase · Matchday 1', rows: [
+    row({ when: ['18:45'], h: 'JUV', a: 'BVB', tip: [1, 1] }),
+    row({ when: ['21:00'], h: 'FCB', a: 'ARS', tip: 'empty' }),
+    row({ when: ['21:00'], h: 'RMA', a: 'LIV', tip: 'empty' }),
+    row({ when: ['21:00'], h: 'ATM', a: 'PSG', tip: 'empty' }),
+  ] })}
+  <div class="dayh">Wednesday 16 Sep</div>
+  ${comp({ crestKey: 'UCL', name: 'Champions League', round: 'League phase · Matchday 1', rows: [
+    row({ when: ['18:45'], h: 'NAP', a: 'AJX', tip: 'empty' }),
+    row({ when: ['21:00'], h: 'BAR', a: 'INT', tip: 'empty' }),
+  ] })}
+  </div>
+</main>
+${tabbar('Matches')}</div>`;
+
+const openFiles = {
+  'HubOverview.dc.html': hubOverview, 'HubTable.dc.html': hubTable, 'HubKnockout.dc.html': hubKnockout,
+  'HubForecast.dc.html': hubForecast, 'League.dc.html': leagueMobile, 'Tablet.dc.html': tabletMatches,
+};
+for (const [n, b] of Object.entries(openFiles)) writeFileSync(n, wrap(b, HUB_CSS));
+canvas.artboards.push(
+  { file: 'HubOverview.dc.html', title: 'Hub · Overview', x: 0, y: 2760, w: 390, h: 844, page: 'page-1' },
+  { file: 'HubTable.dc.html', title: 'Hub · Table (UCL zones)', x: 480, y: 2760, w: 390, h: 844, page: 'page-1' },
+  { file: 'HubKnockout.dc.html', title: 'Hub · Knockout', x: 960, y: 2760, w: 390, h: 844, page: 'page-1' },
+  { file: 'HubForecast.dc.html', title: 'Hub · Forecast (calls)', x: 1440, y: 2760, w: 390, h: 844, page: 'page-1' },
+  { file: 'League.dc.html', title: 'Friends · League page', x: 1920, y: 2760, w: 390, h: 844, page: 'page-1' },
+  { file: 'Tablet.dc.html', title: 'Tablet · Matches (768)', x: 2400, y: 2760, w: 768, h: 1024, page: 'page-1' },
+);
+canvas.annotations.push(
+  { id: 'hub-note', page: 'page-1', x: 0, y: 2500, w: 1400, text: 'Competition hub tabs (proposed 2026-09-12)\n• Overview = what’s next (rows), what’s still to do (forecast card with lock countdown), how you stand (points · tipped · best league rank), the table snippet or its empty state with the zone legend, then description + dates as “About”. Nothing else.\n• Table = one table, zone bands + legend at the bottom (UCL: 1–8 R16, 9–24 play-offs, 25–36 out). Group shapes show group cards in the same tab, best-thirds tracker under them.\n• Knockout = one round at a time (round pills sticky under the tabs, “Now” = current round). A tie is one row: teams stacked, 1st · 2nd leg scores, aggregate on the LED board with the advancer dot; strip says how/when. Single-match rounds drop the leg columns. Undecided pairings are dim placeholders. Desktop lays the rounds out side by side as a bracket.\n• Forecast = calls mode is a summary card per call (picks as chips, count, points); tapping a call opens a picker sheet with the whole field. Full mode (WC/Euro) keeps the builder as-is inside the tab.' },
+  { id: 'league-note', page: 'page-1', x: 1920, y: 2500, w: 440, text: 'League page (proposed)\nHeader: back, name, members line; share + rules behind icons. Tabs: Leaderboard · Members · Chat (unread badge) — no FAB. Under the tabs: tournament chip + Total / Tips / Forecast segment. Own row is tinted and pinned to the bottom edge while scrolled out of view; tapping a row expands the breakdown.' },
+  { id: 'tablet-note', page: 'page-1', x: 2400, y: 2500, w: 768, text: 'Tablet 600–900px (proposed)\nNo third layout: the phone shell, wider. Bottom tab bar and contextual top bar stay, the content column caps at 740px and centres, the day strip shows more days, the match page opens as a route (no side panel). ≥ 900px switches to the desktop rule.' },
+);
+writeFileSync('canvas.json', JSON.stringify(canvas, null, 2));
+console.log('built open-item boards');

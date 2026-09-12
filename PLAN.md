@@ -112,12 +112,48 @@ this page.
 behind, what happened this matchday, unread chat. Global row. Activity feed
 kept as a secondary section.
 
-### Still open (draw or decide before implementing)
-- Competition hub: Overview tab content, Table (UCL zones), Knockout bracket,
-  Forecast tab.
-- Friends league page internals (leaderboard with highlighted own row,
-  Members, Chat as tabs instead of the FAB).
-- Tablet range 600–900px (rule stated above; no board yet).
+### Proposed 2026-09-12 (drawn, awaiting floholz's confirmation)
+
+The three items that were still open are now on the canvas (second row of
+the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
+`League`, `Tablet`). Implementation treats them as decided unless changed.
+
+**Competition hub tabs**
+- *Overview*: what's next (up to 3 rows, live first), what's still to do
+  (forecast card with calls placed + lock countdown), how you stand (three
+  stats: points · tipped · best league rank), the table snippet or its empty
+  state with the zone legend, then description + dates as "About". Nothing
+  else.
+- *Table*: one table with zone bands and the legend at the bottom. UCL zones:
+  1–8 round of 16 (accent), 9–24 knockout play-offs (blue), 25–36 out (no
+  band). Group shapes show the group cards in the same tab with the
+  best-thirds tracker under them. The old "Tables | Bracket" toggle goes away
+  because Knockout is its own tab.
+- *Knockout*: one round at a time — round pills sticky under the tabs, "Now"
+  jumps to the current round. A tie is one row: teams stacked, 1st · 2nd leg
+  scores in mono, the aggregate on the LED board with the advancer dot, a
+  strip saying how/when (next leg date, live minute, "advance on
+  penalties"). Single-match rounds drop the leg columns. Undecided pairings
+  are dim placeholders. Desktop lays the rounds out side by side.
+- *Forecast*: calls mode is a summary card per call (picks as chips with
+  crest, count, points, implied picks shown locked); tapping a call opens a
+  picker sheet with the whole field. After the lock the chips show hit/miss
+  and points. Full mode (WC/Euro) keeps the existing builder inside the tab.
+
+**Friends league page**
+- Header: back, league name, members line; invite/share and the scoring rules
+  move behind two header icons. Tabs: Leaderboard · Members · Chat (unread
+  badge) — the chat FAB goes away.
+- Under the tabs: tournament chip + Total / Tips / Forecast segment. The own
+  row is tinted and stays pinned to the bottom edge while scrolled out of
+  view; tapping a row expands its breakdown (tips, forecast, GD error,
+  link to the forecast).
+
+**Tablet 600–900px**
+- No third layout: the phone shell, wider. Bottom tab bar and contextual top
+  bar stay, the content column caps at 740px and centres, the day strip shows
+  more days, the match page opens as a route (no side panel). ≥ 900px is the
+  desktop rule.
 
 ### Implementation order (proposed)
 1. `MatchRow` + `LedBoard` + `TipCapsule` components (all row states incl.
@@ -256,6 +292,9 @@ add more):
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
 
+- 2026-09-12 — Open layout items drawn and proposed (hub Overview/Table/
+  Knockout/Forecast tabs, league page tabs, tablet = wide phone); see
+  "Proposed 2026-09-12".
 - 2026-09-12 — Layout rework decided (see "Now: app layout rework"): 4 tabs,
   stacked match row with LED score board vs. orange tip capsule, knockout
   dot + leg lug + tie strip, match page route, desktop rail/panel rule.

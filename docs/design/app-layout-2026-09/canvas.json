@@ -135,6 +135,60 @@
       "w": 390,
       "h": 844,
       "page": "page-1"
+    },
+    {
+      "file": "HubOverview.dc.html",
+      "title": "Hub · Overview",
+      "x": 0,
+      "y": 2760,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "HubTable.dc.html",
+      "title": "Hub · Table (UCL zones)",
+      "x": 480,
+      "y": 2760,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "HubKnockout.dc.html",
+      "title": "Hub · Knockout",
+      "x": 960,
+      "y": 2760,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "HubForecast.dc.html",
+      "title": "Hub · Forecast (calls)",
+      "x": 1440,
+      "y": 2760,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "League.dc.html",
+      "title": "Friends · League page",
+      "x": 1920,
+      "y": 2760,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "Tablet.dc.html",
+      "title": "Tablet · Matches (768)",
+      "x": 2400,
+      "y": 2760,
+      "w": 768,
+      "h": 1024,
+      "page": "page-1"
     }
   ],
   "annotations": [
@@ -201,6 +255,30 @@
       "y": -260,
       "w": 860,
       "text": "Knockout rules\n• The board always shows the FINAL score; the status column says how it ended: FT, AET or PEN. The 90’ / 120’ timeline lives on the match page, never in the row.\n• A small LED dot marks the advancer: real one on the board, your pick on the capsule. A drawn KO tip + dot = your penalty pick, so the capsule alone is the full tip.\n• Two legs: a “1st / leg” tab docked to the front of the scoreboard (one black block with the board), and a strip under the row: next leg date, or aggregate · first-leg score · who advances and how. The strip links to the other leg.\n• Match page after FT: the board goes big in the hero, AET/PEN pills, aggregate strip, your tip card turns into the points breakdown, and friends’ picks become visible with the same capsules."
+    },
+    {
+      "id": "hub-note",
+      "page": "page-1",
+      "x": 0,
+      "y": 2500,
+      "w": 1400,
+      "text": "Competition hub tabs (proposed 2026-09-12)\n• Overview = what’s next (rows), what’s still to do (forecast card with lock countdown), how you stand (points · tipped · best league rank), the table snippet or its empty state with the zone legend, then description + dates as “About”. Nothing else.\n• Table = one table, zone bands + legend at the bottom (UCL: 1–8 R16, 9–24 play-offs, 25–36 out). Group shapes show group cards in the same tab, best-thirds tracker under them.\n• Knockout = one round at a time (round pills sticky under the tabs, “Now” = current round). A tie is one row: teams stacked, 1st · 2nd leg scores, aggregate on the LED board with the advancer dot; strip says how/when. Single-match rounds drop the leg columns. Undecided pairings are dim placeholders. Desktop lays the rounds out side by side as a bracket.\n• Forecast = calls mode is a summary card per call (picks as chips, count, points); tapping a call opens a picker sheet with the whole field. Full mode (WC/Euro) keeps the builder as-is inside the tab."
+    },
+    {
+      "id": "league-note",
+      "page": "page-1",
+      "x": 1920,
+      "y": 2500,
+      "w": 440,
+      "text": "League page (proposed)\nHeader: back, name, members line; share + rules behind icons. Tabs: Leaderboard · Members · Chat (unread badge) — no FAB. Under the tabs: tournament chip + Total / Tips / Forecast segment. Own row is tinted and pinned to the bottom edge while scrolled out of view; tapping a row expands the breakdown."
+    },
+    {
+      "id": "tablet-note",
+      "page": "page-1",
+      "x": 2400,
+      "y": 2500,
+      "w": 768,
+      "text": "Tablet 600–900px (proposed)\nNo third layout: the phone shell, wider. Bottom tab bar and contextual top bar stay, the content column caps at 740px and centres, the day strip shows more days, the match page opens as a route (no side panel). ≥ 900px switches to the desktop rule."
     }
   ],
   "launch": {

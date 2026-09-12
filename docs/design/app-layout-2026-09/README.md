@@ -26,6 +26,11 @@ Page "Screens": `Home`, `Main` (= Matches), `Competition` (hub), `Match`
 `RowStates` (match row anatomy), `KOStates` (extra time / pens / two legs),
 `DesktopMatches`, `DesktopHome`.
 
+Open items, drawn 2026-09-12 (second row of "Screens", proposals awaiting
+confirmation): `HubOverview`, `HubTable` (UCL zones), `HubKnockout`,
+`HubForecast` (calls mode), `League` (friends league page with tabs),
+`Tablet` (Matches at 768px).
+
 Page "Score vs tip": `OptionA`–`OptionD` — the four candidates for telling the
 result apart from the tip. **A (stadium board) was chosen.**
 
@@ -35,7 +40,7 @@ result apart from the tip. **A (stadium board) was chosen.**
 cd docs/design/app-layout-2026-09
 node build.mjs          # rewrites *.dc.html + canvas.json
 # quick look, no tooling needed:
-google-chrome --headless=new --screenshot=out.png --window-size=390,1200 "file://$PWD/Main.dc.html"
+google-chrome-stable --headless=new --hide-scrollbars --screenshot=out.png --window-size=390,844 "file://$PWD/Main.dc.html"
 ```
 
 To push changes back to the canvas from Claude Code: run `/design`, point it
