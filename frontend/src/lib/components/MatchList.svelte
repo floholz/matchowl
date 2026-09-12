@@ -1,78 +1,69 @@
 <!-- The full fixture list of the selected season (tournamentStore.current,
-     loaded into tipsStore): every match as a TipCard, grouped by day /
-     group / knockout round, with a "Now" button that jumps to the next
-     kickoff. Lives in the competition hub's Matches tab. -->
+     loaded into tipsStore): rows grouped by day, one card per day. A
+     sticky pills row picks the matchday (round) or a team; "Now" jumps to
+     the next kick-off when showing everything. Lives in the competition
+     hub's Matches tab. -->
 <script lang="ts">
 	import { tipsStore, type Match } from '$lib/tips.svelte';
 	import { tournamentStore, competitionLogoUrl } from '$lib/tournament.svelte';
 	import MatchGroup from './MatchGroup.svelte';
 	import MatchRow from './MatchRow.svelte';
-	import GroupStandings from './GroupStandings.svelte';
-	import { bestThirds } from '$lib/standings';
 	import { serverClock } from '$lib/serverclock.svelte';
-	import { LocateFixed } from '@lucide/svelte';
+	import { LocateFixed, ChevronDown, X } from '@lucide/svelte';
 	import { tick } from 'svelte';
 
 	let { focusId = '' }: { focusId?: string } = $props();
 
-	let tab = $state<'all' | 'group' | 'ko'>('all');
-
 	// Accordion: only one match's tip inputs are open at a time.
 	let openId = $state('');
 
-	// Projected best extra-qualifier teams (per the tournament structure, e.g.
-	// WC2026's 8 best thirds) across all groups (empty until every group is
-	// filled) — shared by every group's standings table.
-	let thirdsAdv = $derived.by(() => {
-		const by: Record<string, Match[]> = {};
-		for (const m of tipsStore.matches)
-			if (tournamentStore.isGroup(m.stage)) (by[m.groupLetter] ||= []).push(m);
-		return bestThirds(Object.values(by), tipsStore.tips);
+	const byKickoff = (a: Match, b: Match) =>
+		new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime() || a.num - b.num;
+	const played = (m: Match) => m.status === 'finished' || !!m.finalizedAt;
+
+	/** Rounds in play order (first kick-off), as "stage · round" keys. */
+	let rounds = $derived.by(() => {
+		const seen = new Map<string, { key: string; label: string; first: number }>();
+		for (const m of [...tipsStore.matches].sort(byKickoff)) {
+			const key = `${m.stage}|${m.roundLabel}`;
+			if (seen.has(key)) continue;
+			const stage = tournamentStore.stageName(m.stage);
+			const label = m.roundLabel && m.roundLabel !== stage ? m.roundLabel : stage;
+			seen.set(key, { key, label, first: new Date(m.kickoff).getTime() });
+		}
+		return [...seen.values()];
 	});
+	/** The round in play: holds the next match not yet kicked off. */
+	let currentRound = $derived.by(() => {
+		const now = serverClock.now();
+		const ms = [...tipsStore.matches].sort(byKickoff);
+		const next = ms.find((m) => new Date(m.kickoff).getTime() >= now && !played(m)) ?? ms[ms.length - 1];
+		return next ? `${next.stage}|${next.roundLabel}` : '';
+	});
+	/** '' = all rounds. Starts on the current round once loaded. */
+	let round = $state<string | null>(null);
+	let roundKey = $derived(round ?? currentRound);
+	let team = $state('');
+	let teams = $derived(Object.values(tipsStore.teams).sort((a, b) => a.name.localeCompare(b.name)));
 
 	let filtered = $derived(
 		tipsStore.matches.filter((m) => {
-			if (tab === 'group') return tournamentStore.isGroup(m.stage);
-			if (tab === 'ko') return tournamentStore.isKnockout(m.stage);
+			if (team) return m.homeTeam === team || m.awayTeam === team;
+			if (roundKey) return `${m.stage}|${m.roundLabel}` === roundKey;
 			return true;
 		})
 	);
 
-	// "Now" = the next match not yet kicked off (or the last one if the
-	// season is over) within the current filter.
+	// "Now" = the next match not yet kicked off within the current filter.
 	let nowId = $derived.by(() => {
 		const now = serverClock.now();
 		const next = filtered.find((m) => new Date(m.kickoff).getTime() >= now);
 		return (next ?? filtered[filtered.length - 1])?.id ?? '';
 	});
 
-	function goNow() {
-		document
-			.getElementById(`day-${nowDayIndex}`)
-			?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
-
-	// Groups tab: by group letter (A..L). Knockout tab: by stage, in the
-	// structure's play order. All tab: by calendar day.
-	let days = $derived.by(() => {
-		const byKickoff = (a: Match, b: Match) =>
-			new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
-		if (tab === 'group') {
-			const byGroup: Record<string, Match[]> = {};
-			for (const m of filtered) (byGroup[m.groupLetter] ||= []).push(m);
-			return Object.keys(byGroup)
-				.sort()
-				.map((l) => [tournamentStore.groupLabel(l), byGroup[l].sort(byKickoff)] as [string, Match[]]);
-		}
-		if (tab === 'ko') {
-			const byStage: Record<string, Match[]> = {};
-			for (const m of filtered) (byStage[m.stage] ||= []).push(m);
-			return tournamentStore.knockoutStages
-				.filter((s) => byStage[s.code])
-				.map((s) => [s.name, byStage[s.code].sort(byKickoff)] as [string, Match[]]);
-		}
-		return Object.entries(
-			filtered.reduce<Record<string, Match[]>>((acc, m) => {
+	let days = $derived(
+		Object.entries(
+			[...filtered].sort(byKickoff).reduce<Record<string, Match[]>>((acc, m) => {
 				const d = new Date(m.kickoff).toLocaleDateString(undefined, {
 					weekday: 'long',
 					day: 'numeric',
@@ -81,46 +72,36 @@
 				(acc[d] ||= []).push(m);
 				return acc;
 			}, {})
-		);
-	});
-
+		)
+	);
 	let nowDayIndex = $derived(days.findIndex(([, ms]) => ms.some((m) => m.id === nowId)));
+	function goNow() {
+		document.getElementById(`day-${nowDayIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
 
 	/** Card sub-line for a day: the stage, plus the round when shared. */
 	function roundOf(ms: Match[]): string {
 		const stages = new Set(ms.map((m) => m.stage));
 		const stage = stages.size === 1 ? tournamentStore.stageName(ms[0].stage) : '';
-		const rounds = new Set(ms.map((m) => m.roundLabel));
-		const round = rounds.size === 1 ? ms[0].roundLabel : '';
-		return [stage, round !== stage ? round : ''].filter(Boolean).join(' · ');
+		const rs = new Set(ms.map((m) => m.roundLabel));
+		const r = rs.size === 1 ? ms[0].roundLabel : '';
+		return [stage, r !== stage ? r : ''].filter(Boolean).join(' · ');
 	}
 	let logo = $derived(competitionLogoUrl(tournamentStore.current?.competition));
 	let compName = $derived(
 		tournamentStore.current?.competition?.shortName || tournamentStore.current?.competition?.name || ''
 	);
 
-	// On first load, jump to the current point in the season.
-	let didAutoScroll = false;
-	$effect(() => {
-		if (didAutoScroll || !tipsStore.loaded) return;
-		const idx = nowDayIndex;
-		if (idx < 0) return;
-		didAutoScroll = true;
-		if (idx === 0) return;
-		tick().then(() =>
-			document.getElementById(`day-${idx}`)?.scrollIntoView({ block: 'start' })
-		);
-	});
-
-	// Deep link to one match (?m= — e.g. "view the other leg"): open its card
-	// and scroll to it. Wins over the "now" auto-scroll.
+	// Deep link to one match (?m= — e.g. "view the other leg"): show all
+	// rounds, open its row and scroll to it.
 	let lastFocus = '';
 	$effect(() => {
 		const id = focusId;
 		if (!tipsStore.loaded || !id || id === lastFocus) return;
 		if (!tipsStore.matches.some((m) => m.id === id)) return;
 		lastFocus = id;
-		didAutoScroll = true;
+		round = '';
+		team = '';
 		openId = id;
 		tick().then(() =>
 			document.getElementById(`m-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -128,15 +109,37 @@
 	});
 </script>
 
-{#if tournamentStore.knockoutStages.length > 0 && tournamentStore.groupStageCode}
-	<div class="seg sub">
-		<button class:on={tab === 'all'} onclick={() => (tab = 'all')}>All</button>
-		<button class:on={tab === 'group'} onclick={() => (tab = 'group')}
-			>{tournamentStore.singleTable ? 'Table' : 'Groups'}</button
-		>
-		<button class:on={tab === 'ko'} onclick={() => (tab = 'ko')}>Knockout</button>
+<div class="subbar pills">
+	<div class="chips">
+		<label class="chip sel" class:on={!team && !!roundKey}>
+			<select
+				value={team ? '' : roundKey}
+				onchange={(e) => {
+					team = '';
+					round = (e.currentTarget as HTMLSelectElement).value;
+				}}
+				aria-label="Matchday"
+			>
+				<option value="">All matchdays</option>
+				{#each rounds as r (r.key)}<option value={r.key}>{r.label}</option>{/each}
+			</select>
+			<span class="lbl">{team ? 'Matchday' : (rounds.find((r) => r.key === roundKey)?.label ?? 'All matchdays')}</span>
+			<ChevronDown size={14} />
+		</label>
+		<label class="chip sel" class:on={!!team}>
+			<select value={team} onchange={(e) => (team = (e.currentTarget as HTMLSelectElement).value)} aria-label="Team">
+				<option value="">By team</option>
+				{#each teams as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
+			</select>
+			<span class="lbl">{team ? (tipsStore.team(team)?.name ?? 'Team') : 'By team'}</span>
+			{#if team}<X size={14} />{:else}<ChevronDown size={14} />{/if}
+		</label>
+		<span class="spacer"></span>
+		{#if !roundKey && !team && nowId}
+			<button class="chip" onclick={goNow}><LocateFixed size={14} /> Now</button>
+		{/if}
 	</div>
-{/if}
+</div>
 
 {#if !tipsStore.loaded}
 	<p class="muted">Loading fixtures…</p>
@@ -155,68 +158,68 @@
 				/>
 			{/each}
 		</MatchGroup>
-		{#if tab === 'group'}
-			<GroupStandings matches={ms} bestThirds={thirdsAdv} />
-		{/if}
 	{/each}
-	<div class="fabpad"></div>
-{/if}
-
-{#if tipsStore.loaded && nowId}
-	<button class="fab" onclick={goNow} aria-label="Scroll to the next match">
-		<LocateFixed size={18} /> Now
-	</button>
 {/if}
 
 <style>
-	.seg.sub {
-		margin: 0.2rem 0 0.4rem;
+	.pills {
+		top: calc(var(--topbar-h) + 2.6rem);
+		z-index: 19;
 	}
-	.day {
-		margin: 1.3rem 0 0.6rem;
-		font-size: 0.95rem;
-		color: var(--muted);
-		/* Land below the fixed top bar + the hub's sticky tab strip. */
-		scroll-margin-top: calc(var(--topbar-h) + 4.2rem);
-	}
-	.fabpad {
-		height: 4rem;
-	}
-	.fab {
-		position: fixed;
-		right: 1rem;
-		bottom: calc(var(--nav-h) + 1rem);
-		z-index: 40;
-		display: inline-flex;
+	.chips {
+		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		padding: 0.7rem 1rem;
-		border: none;
+	}
+	.chip {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		height: 32px;
+		padding: 0 0.7rem;
 		border-radius: var(--radius-pill);
-		background: var(--accent);
-		color: var(--accent-fg);
-		font: 800 0.8rem var(--font);
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--muted);
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		white-space: nowrap;
 		cursor: pointer;
-		box-shadow: var(--shadow-pop);
-		transition:
-			transform 0.12s ease,
-			box-shadow 0.2s ease;
+		max-width: 48vw;
 	}
-	.fab:hover {
-		transform: translateY(-2px);
-		box-shadow: var(--glow);
+	.chip .lbl {
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
-	@media (min-width: 900px) {
-		.fab {
-			bottom: 1.5rem;
-			right: 1.5rem;
-		}
+	.chip.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-fg);
 	}
-	@media (prefers-reduced-motion: reduce) {
-		.fab {
-			transition: none;
-		}
+	/* The native select sits invisibly over the chip: real dropdown, our look. */
+	.chip.sel select {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		opacity: 0;
+		cursor: pointer;
+		color-scheme: dark;
+	}
+	.chip.sel option {
+		background: var(--surface);
+		color: var(--text);
+	}
+	.day {
+		margin: 1rem 0.15rem 0.55rem;
+		font-family: var(--font);
+		font-size: 0.76rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--muted);
+		/* Land below the fixed top bar + the hub's sticky tab strip + pills. */
+		scroll-margin-top: calc(var(--topbar-h) + 6.2rem);
 	}
 </style>

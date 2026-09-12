@@ -147,7 +147,7 @@
 			{@const v = view(t)}
 			{@const H = tn(t.home)}
 			{@const A = tn(t.away)}
-			<a class="tie" class:dim={!t.home || !t.away} href={`/m/${v.target.id}`}>
+			<a class="tie" class:twoleg={twoLeg} class:dim={!t.home || !t.away} href={`/m/${v.target.id}`}>
 				<span class="teams">
 					<span class="team" class:ph={!H}>
 						{#if H}<Flag iso2={H.iso2} code={H.fifaCode} logo={H.logo} size={20} />{:else}<span class="phc">?</span>{/if}
@@ -252,13 +252,15 @@
 	}
 	.tie {
 		display: grid;
-		grid-template-columns: 1fr auto;
-		grid-auto-flow: column;
+		grid-template-columns: minmax(0, 1fr) 44px;
 		align-items: center;
 		gap: 0 8px;
 		padding: 8px 10px 8px 14px;
 		border-bottom: 1px solid var(--border);
 		color: var(--text);
+	}
+	.tie.twoleg {
+		grid-template-columns: minmax(0, 1fr) 30px 30px 44px;
 	}
 	.tie:last-child {
 		border-bottom: none;
@@ -322,7 +324,6 @@
 	}
 	.foot {
 		grid-column: 1 / -1;
-		grid-row: 2;
 		display: flex;
 		align-items: center;
 		gap: 6px;

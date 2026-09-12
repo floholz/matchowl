@@ -191,6 +191,17 @@
 		return fcHas ? 'Placed' : 'Not placed yet';
 	});
 
+	/** "UEFA Champions League 2025/26" → "2025/26": the season without the
+	 *  competition's name in front (the import names seasons that way). */
+	function seasonLabel(t: Tournament): string {
+		const n = t.name.trim();
+		const c = competition?.name.trim() ?? '';
+		if (c && n.toLowerCase().startsWith(c.toLowerCase())) {
+			const rest = n.slice(c.length).replace(/^[\s·–-]+/, '');
+			if (rest) return rest;
+		}
+		return t.shortName || n;
+	}
 	const statusLabel: Record<string, string> = { active: 'live', upcoming: 'upcoming', finished: 'finished', archived: 'archived', draft: 'draft' };
 	function initials(name: string): string {
 		return name.split(/\s+/).filter((w) => /^[A-Z0-9]/.test(w)).map((w) => w[0]).join('').slice(0, 3);
@@ -208,7 +219,7 @@
 			<span class="hsub">
 				<label class="season" class:single={seasons.length < 2}>
 					<select value={season.slug} disabled={seasons.length < 2} onchange={(e) => pickSeason((e.currentTarget as HTMLSelectElement).value)} aria-label="Season">
-						{#each seasons as s (s.id)}<option value={s.slug}>{s.name}</option>{/each}
+						{#each seasons as s (s.id)}<option value={s.slug}>{seasonLabel(s)}</option>{/each}
 					</select>
 					<ChevronDown size={13} />
 				</label>
@@ -419,9 +430,15 @@
 		font-weight: 600;
 		font-size: 0.78rem;
 		color: inherit;
+		color-scheme: dark;
 		cursor: pointer;
-		max-width: 40vw;
+		max-width: 30vw;
 		text-overflow: ellipsis;
+	}
+	:global(.season option) {
+		background: var(--surface);
+		color: var(--text);
+		font-weight: 600;
 	}
 	:global(.season > svg) {
 		position: absolute;

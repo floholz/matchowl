@@ -175,6 +175,27 @@ func (s *Structure) Normalize() {
 			s.PointsDraw = 1
 		}
 	}
+	if len(s.Zones) == 0 {
+		s.Zones = defaultZones(s)
+	}
+}
+
+// defaultZones fills the table zones of the UEFA league-phase shape (one
+// 36-team table, then knockouts): 1–8 go straight to the round of 16, 9–24
+// meet in the first knockout round, the rest are out. Anything else keeps
+// no zones until an admin sets them.
+func defaultZones(s *Structure) []Zone {
+	if s.GroupSize != 36 || s.GroupStage() == nil {
+		return nil
+	}
+	ko := s.KnockoutStages()
+	if len(ko) == 0 {
+		return nil
+	}
+	return []Zone{
+		{Key: "r16", Name: "Round of 16", From: 1, To: 8},
+		{Key: "po", Name: ko[0].Name, From: 9, To: 24},
+	}
 }
 
 // HasGroups reports whether the tournament has a group stage.

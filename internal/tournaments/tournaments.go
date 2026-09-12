@@ -32,6 +32,16 @@ func StructureOf(rec *core.Record) (*Structure, error) {
 	return s, nil
 }
 
+// structureView is the structure as the app should see it: parsed and
+// normalized (default points, default zones), falling back to the raw JSON
+// when it doesn't parse.
+func structureView(r *core.Record) any {
+	if st, err := StructureOf(r); err == nil {
+		return st
+	}
+	return r.Get("structure")
+}
+
 // SyncOf parses and returns a record's sync JSON.
 func SyncOf(rec *core.Record) (*Sync, error) {
 	s := &Sync{}
@@ -105,7 +115,7 @@ func view(r *core.Record) map[string]any {
 		"status":       r.GetString("status"),
 		"startsAt":     r.GetString("startsAt"),
 		"endsAt":       r.GetString("endsAt"),
-		"structure":    r.Get("structure"),
+		"structure":    structureView(r),
 		"forecastSpec": spec,
 		"extIdPrefix":  r.GetString("extIdPrefix"),
 	}
