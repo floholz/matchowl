@@ -181,7 +181,16 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
    mirrored in `lib/scoring.ts`), friends' picks, bots, mini table.
    Cross-leg links target `/m/{id}`. TipCard is now unused (delete with
    step 5 once nothing else imports it).
-5. Competition hub header + tabs; Friends rework.
+5. ✅ 2026-09-12 — Competition hub: compact header drawn into the mobile
+   top bar (`shell.bar` snippet via `PageChrome`), underline tabs
+   Overview · Matches · Table/Groups · Knockout (`KnockoutTies`) · Forecast
+   (summary + link to the builder). Friends: league cards (place, points,
+   leader, gap, unread), league page as Leaderboard · Members · Chat tabs
+   with the owner tools under Members. Still open from the proposal:
+   the hub's "Matchday ▾ / By team" pills on the Matches tab, the forecast
+   picker sheet (the tab links to the existing builder), the pinned own
+   row on long leaderboards, the activity feed on Friends, and desktop
+   side-by-side knockout rounds.
 
 ---
 

@@ -3,11 +3,11 @@
 	import { auth } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 	import { pageChrome } from '$lib/shell.svelte';
-	import { Users, Globe, ChevronRight, MessageSquare } from '@lucide/svelte';
+	import { Globe, ChevronRight, MessageSquare } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Friends' }));
 
-	type Rank = { rank: number; total: number };
+	type Rank = { rank: number; total: number; points: number; leader: string; leaderPoints: number };
 
 	let leagues = $state<LeagueSummary[]>([]);
 	let ranks = $state<Record<string, Rank | null>>({});
@@ -51,10 +51,21 @@
 			.leaderboard(id)
 			.then(({ rows }) => {
 				const i = rows.findIndex((r) => r.userId === auth.user?.id);
-				ranks[id] = i >= 0 ? { rank: i + 1, total: rows.length } : null;
+				ranks[id] =
+					i >= 0
+						? {
+								rank: i + 1,
+								total: rows.length,
+								points: rows[i].total,
+								leader: rows[0]?.name ?? '',
+								leaderPoints: rows[0]?.total ?? 0
+							}
+						: null;
 			})
 			.catch(() => (ranks[id] = null));
 	}
+	let privateLeagues = $derived(ordered.filter((l) => !isGlobal(l)));
+	let global = $derived(ordered.find(isGlobal));
 
 	async function create(e: Event) {
 		e.preventDefault();
@@ -87,41 +98,58 @@
 	}
 </script>
 
-<h2 class="sec first">Your leagues</h2>
 {#if !loaded}
 	<p class="muted pad">Loading…</p>
 {:else if leagues.length === 0}
-	<p class="muted pad">None yet — create one or join with a code below.</p>
+	<div class="card quiet muted">No leagues yet — create one or join with a code below.</div>
 {:else}
-	<div class="llist">
-		{#each ordered as l (l.id)}
-			<a class="lrow" class:global={isGlobal(l)} href={`/friends/${l.id}`}>
-				{#if isGlobal(l)}
-					<span class="gico" aria-hidden="true"><Globe size={18} /></span>
-				{/if}
-				<span class="lname">{l.name}</span>
+	{#each privateLeagues as l (l.id)}
+		{@const r = ranks[l.id]}
+		<a class="card league" href={`/friends/${l.id}`}>
+			<span class="lhead">
+				<b class="lname">{l.name}</b>
 				{#if l.role === 'owner'}<span class="pill">owner</span>{/if}
-				{#if unread[l.id]}
-					<span class="cbadge" title="Unread messages">
-						<MessageSquare size={12} />
-						{unread[l.id] > 99 ? '99+' : unread[l.id]}
-					</span>
-				{/if}
 				<span class="spacer"></span>
-				<span class="standing" title="Your placement · players">
-					<Users size={15} />
-					{#if ranks[l.id]}
-						<b class="rk">#{ranks[l.id]?.rank}</b><small>/{ranks[l.id]?.total}</small>
+				{#if unread[l.id]}
+					<span class="pill ok"><MessageSquare size={12} /> {unread[l.id] > 99 ? '99+' : unread[l.id]}</span>
+				{:else}
+					<span class="muted"><MessageSquare size={16} /></span>
+				{/if}
+			</span>
+			<span class="lgrid">
+				<span class="cell">
+					<span class="big digits">{r ? `#${r.rank}` : '–'}<small>/{r?.total ?? l.members}</small></span>
+					<span class="muted lbl">{r && r.rank === 1 ? (r.total > 1 ? 'you lead' : 'only you') : 'your place'}</span>
+				</span>
+				<span class="cell">
+					<span class="big digits">{r?.points ?? 0}</span>
+					<span class="muted lbl">your points</span>
+				</span>
+				<span class="cell right">
+					{#if r && r.rank > 1}
+						<span class="big digits">{r.leaderPoints}</span>
+						<span class="muted lbl">{r.leader} leads · {r.leaderPoints - r.points} behind</span>
 					{:else}
-						<span class="cnt">{l.members}</span>
+						<span class="big digits">{l.members}</span>
+						<span class="muted lbl">{l.members === 1 ? 'member' : 'members'}</span>
 					{/if}
 				</span>
-				<ChevronRight size={18} class="cv" />
-			</a>
-		{/each}
-	</div>
+			</span>
+		</a>
+	{/each}
+	{#if global}
+		{@const r = ranks[global.id]}
+		<a class="card grow" href={`/friends/${global.id}`}>
+			<span class="gico"><Globe size={18} /></span>
+			<span class="gtxt"><b>Global</b><span class="muted">everyone on Matchowl</span></span>
+			<span class="spacer"></span>
+			<span class="digits">{r ? `#${r.rank}` : '–'}<small class="muted">/{r?.total ?? global.members}</small></span>
+			<ChevronRight size={16} class="cv" />
+		</a>
+	{/if}
 {/if}
 
+<h2 class="sec">Create or join</h2>
 <section class="card actions">
 	<form class="action" onsubmit={create}>
 		<input
@@ -147,161 +175,123 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
-	.sec.first {
-		margin-top: 0.2rem;
-	}
-
 	.sec {
 		font-size: 1.05rem;
-		margin: 0 0 0.7rem;
+		margin: 1.2rem 0 0.7rem;
 	}
 	.pad {
 		padding: 0.4rem 0.2rem;
 	}
-
-	/* ---------- league list: the page's primary, comfortably tappable list --- */
-	.llist {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin-bottom: 1.6rem;
+	.card.quiet {
+		padding: 0.9rem 1rem;
+		font-size: 0.9rem;
 	}
-	.lrow {
+	.card.league,
+	.card.grow {
+		display: flex;
+		color: var(--text);
+		padding: 0;
+	}
+	.card.league {
+		flex-direction: column;
+	}
+	.card + .card {
+		margin-top: 0.75rem;
+	}
+	.lhead {
 		display: flex;
 		align-items: center;
-		gap: 0.65rem;
-		min-height: 60px;
-		padding: 0.85rem 0.95rem;
-		background:
-			linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
-			var(--surface);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		color: var(--text);
-		transition:
-			border-color 0.15s ease,
-			background 0.15s ease,
-			transform 0.05s ease;
-	}
-	.lrow:hover {
-		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-		background: color-mix(in srgb, var(--accent) 6%, var(--surface));
-	}
-	.lrow:active {
-		transform: scale(0.992);
-	}
-	/* Global is special — give it a faint accent edge so it reads as the pinned,
-	   everyone-league at the top. */
-	.lrow.global {
-		border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
-	}
-	.gico {
-		display: inline-grid;
-		place-items: center;
-		width: 30px;
-		height: 30px;
-		flex-shrink: 0;
-		border-radius: var(--radius-pill);
-		background: color-mix(in srgb, var(--accent) 16%, var(--surface-2));
-		color: var(--accent);
+		gap: 0.6rem;
+		padding: 0.75rem 0.9rem 0.4rem;
 	}
 	.lname {
-		font-weight: 600;
-		font-size: 1.02rem;
-		/* Flex items refuse to shrink below their content without this. */
+		font-size: 1.05rem;
+	}
+	.lgrid {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1.3fr;
+		gap: 0.5rem;
+		padding: 0.2rem 0.9rem 0.8rem;
+	}
+	.cell {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
 		min-width: 0;
+	}
+	.cell.right {
+		align-items: flex-end;
+		text-align: right;
+	}
+	.big {
+		font-size: 1.45rem;
+	}
+	.big small {
+		font-size: 0.75rem;
+		color: var(--muted);
+		font-weight: 600;
+	}
+	.lbl {
+		font-size: 0.74rem;
+		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		white-space: nowrap;
+		max-width: 100%;
 	}
-	.spacer {
-		flex: 1;
-	}
-	.cbadge {
-		display: inline-flex;
+	.card.grow {
 		align-items: center;
-		gap: 0.25rem;
-		flex-shrink: 0;
-		padding: 0.1rem 0.45rem;
-		border-radius: var(--radius-pill);
-		background: var(--accent);
-		color: var(--accent-fg);
-		font-size: 0.72rem;
-		font-weight: 800;
-		font-variant-numeric: tabular-nums;
+		gap: 0.75rem;
+		padding: 0.75rem 0.9rem;
 	}
-	/* Combined right-hand indicator: people icon + your placement (#rank/size).
-	   The /size doubles as the member count, so no separate count is shown. */
-	.standing {
+	.gico {
+		color: var(--muted);
 		display: inline-flex;
-		align-items: baseline;
-		gap: 0.3rem;
-		flex-shrink: 0;
-		color: var(--muted);
-		font-variant-numeric: tabular-nums;
 	}
-	.standing :global(svg) {
-		align-self: center;
+	.gtxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		font-size: 0.92rem;
 	}
-	.rk {
-		color: var(--accent);
-		font-weight: 700;
-		font-size: 1rem;
-	}
-	.standing small {
+	.gtxt .muted {
 		font-size: 0.78rem;
-		font-weight: 600;
 	}
-	.cnt {
-		font-size: 0.95rem;
-	}
-	:global(.lrow .cv) {
+	.card.grow :global(.cv) {
 		color: var(--muted);
-		flex-shrink: 0;
 	}
-	.lrow:hover :global(.cv) {
-		color: var(--accent);
-	}
-
-	/* ---------- secondary actions: compact, lower-priority ------------------- */
 	.actions {
-		padding: 1rem;
+		margin-top: 0;
 	}
 	.action {
 		display: flex;
-		gap: 0.55rem;
-	}
-	.action .input {
-		flex: 1;
-		min-width: 0;
+		gap: 0.5rem;
 	}
 	.action .btn {
 		width: auto;
-		flex-shrink: 0;
-		padding-inline: 1.3rem;
+		padding: 0.8rem 1.1rem;
 	}
-	.code {
+	.action .input {
+		flex: 1;
+	}
+	.input.code {
 		text-transform: uppercase;
-		letter-spacing: 0.2em;
-		font-weight: 700;
+		letter-spacing: 0.15em;
+		font-family: var(--font-mono);
 	}
 	.orsep {
 		display: flex;
 		align-items: center;
-		gap: 0.7rem;
-		margin: 0.85rem 0;
+		gap: 0.6rem;
+		margin: 0.7rem 0;
+		font-size: 0.75rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 		color: var(--muted);
-		font-size: 0.8rem;
 	}
 	.orsep::before,
 	.orsep::after {
 		content: '';
 		flex: 1;
-		height: 1px;
-		background: var(--border);
-	}
-	.error {
-		color: var(--danger);
-		margin-top: 0.8rem;
+		border-top: 1px solid var(--border);
 	}
 </style>

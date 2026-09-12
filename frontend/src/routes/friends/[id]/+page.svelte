@@ -6,6 +6,7 @@
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import { pageChrome } from '$lib/shell.svelte';
 	import {
 		Eye,
 		EyeOff,
@@ -66,8 +67,8 @@
 
 	let revealed = $state(false);
 	let openRow = $state<string | null>(null);
-	// The invite/share card is hidden by default behind the header "Share" toggle.
-	let showShare = $state(false);
+	/** Page tabs: the leaderboard, or the members (invite, roles, management). */
+	let view = $state<'board' | 'members'>('board');
 
 	let id = $derived($page.params.id ?? '');
 	let league = $state<{ id: string; name: string } | null>(null);
@@ -98,7 +99,6 @@
 		cfg = null;
 		editing = false;
 		confirmRegen = false;
-		showShare = false;
 		mgmtError = '';
 		availableBots = [];
 		// The leaderboard's forecast columns come from the tournament structure.
@@ -265,6 +265,10 @@
 	let sorted = $derived(
 		[...rows].sort((a, b) => b[tab] - a[tab])
 	);
+	let memberLine = $derived(
+		`${rows.length} ${rows.length === 1 ? 'member' : 'members'}${isOwner ? ' · you own this league' : ''}`
+	);
+	pageChrome(() => ({ back: '/friends', title: league?.name ?? 'League', context: loaded ? memberLine : '' }));
 	let fcView = $derived(tab === 'forecastPoints');
 
 	// Build the avatar URL the same way auth.svelte does — a users.avatar file
@@ -290,77 +294,38 @@
 	}
 </script>
 
-<a href="/friends" class="muted back">← Friends</a>
-
 {#if error}
 	<p class="error">{error}</p>
 {:else if !loaded}
 	<p class="muted">Loading…</p>
 {:else if league}
-	<div class="lhead">
-		<div class="ltitle">
-			<p class="kicker">League</p>
-			{#if editing}
-				<input
-					class="input nameedit"
-					bind:value={nameDraft}
-					maxlength="64"
-					aria-label="League name"
-					onkeydown={(e) => e.key === 'Enter' && saveName()}
-				/>
-			{:else}
-				<h1>{league.name}</h1>
+	<div class="subbar tabrow">
+		<div class="utabs" role="tablist">
+			<button class="utab" class:on={view === 'board'} role="tab" aria-selected={view === 'board'} onclick={() => (view = 'board')}>Leaderboard</button>
+			<button class="utab" class:on={view === 'members'} role="tab" aria-selected={view === 'members'} onclick={() => (view = 'members')}>Members</button>
+			{#if canChat}
+				<a class="utab chat" href={`/friends/${id}/chat`}>Chat{#if chatUnread > 0}<span class="badge">{chatUnread > 99 ? '99+' : chatUnread}</span>{/if}</a>
 			{/if}
 		</div>
-		{#if isOwner || (invite && invite !== 'GLOBAL')}
-			<div class="lactions">
-				{#if editing}
-					<button
-						class="btn secondary icon"
-						onclick={saveName}
-						disabled={mgmtBusy}
-						aria-label="Save name"><Check size={18} /></button
-					>
-					<button
-						class="btn secondary icon"
-						onclick={exitEdit}
-						disabled={mgmtBusy}
-						aria-label="Done editing"><X size={18} /></button
-					>
-				{:else}
-					{#if invite && invite !== 'GLOBAL'}
-						<button
-							class="btn secondary sharebtn"
-							class:active={showShare}
-							aria-pressed={showShare}
-							onclick={() => (showShare = !showShare)}
-						>
-							<Share2 size={16} /> Share
-						</button>
-					{/if}
-					{#if isOwner}
-						<button
-							class="btn secondary icon"
-							onclick={enterEdit}
-							aria-label="Manage league"><Settings size={18} /></button
-						>
-					{/if}
-				{/if}
-			</div>
-		{/if}
 	</div>
-
-	{#if canChat}
-		<a class="chatfab" href={`/friends/${id}/chat`} aria-label="League chat" title="League chat">
-			<MessageSquare size={24} />
-			{#if chatUnread > 0}
-				<span class="fab-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>
-			{/if}
-		</a>
-	{/if}
 
 	{#if mgmtError}<p class="error">{mgmtError}</p>{/if}
 
+	{#if view === 'members'}
+	<section class="card manage">
+		<div class="mrow">
+			{#if editing}
+				<input class="input nameedit" bind:value={nameDraft} maxlength="64" aria-label="League name" onkeydown={(e) => e.key === 'Enter' && saveName()} />
+				<button class="btn secondary icon" onclick={saveName} disabled={mgmtBusy} aria-label="Save name"><Check size={18} /></button>
+				<button class="btn secondary icon" onclick={exitEdit} disabled={mgmtBusy} aria-label="Done editing"><X size={18} /></button>
+			{:else}
+				<span class="mtxt"><b>{league.name}</b><span class="muted small">{memberLine}</span></span>
+				{#if isOwner}
+					<button class="btn secondary slim" onclick={enterEdit}><Settings size={16} /> Manage</button>
+				{/if}
+			{/if}
+		</div>
+	</section>
 	{#if editing}
 		<section class="card vis">
 			<div class="muted small">Invite code visibility</div>
@@ -380,7 +345,7 @@
 		</section>
 	{/if}
 
-	{#if invite && invite !== 'GLOBAL' && (showShare || editing)}
+	{#if invite && invite !== 'GLOBAL'}
 		<section class="card invite">
 			<div class="irow">
 				<div class="ic">
@@ -432,6 +397,46 @@
 		</section>
 	{/if}
 
+	<section class="card members">
+		{#each rows as r (r.userId)}
+			<div class="mem">
+				<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={30} />
+				<span class="pname">{r.name}</span>
+				{#if r.userId === auth.user?.id}<span class="pill ok">you</span>{/if}
+				{#if r.role === 'bot'}
+					<span class="rolepill" title="Bot player"><Bot size={11} /> Bot</span>
+				{:else if r.role === 'admin'}
+					<span class="rolepill admin" title="Admin"><ShieldCheck size={11} /> Admin</span>
+				{:else if r.role === 'owner'}
+					<span class="rolepill owner" title="Platform owner"><Crown size={11} /> Owner</span>
+				{/if}
+				<span class="spacer"></span>
+				<a class="fclink" href={`/forecast/${r.userId}`} title="View {r.name}'s forecast"><Telescope size={16} /></a>
+				{#if editing && r.userId !== auth.user?.id}
+					<button class="rmbtn" title="Remove {r.name}" aria-label="Remove {r.name}" disabled={mgmtBusy} onclick={() => requestRemove(r.userId, r.name)}>
+						<UserMinus size={15} />
+					</button>
+				{/if}
+			</div>
+		{/each}
+		{#if editing && availableBots.length}
+			<div class="botsep">Add a bot player</div>
+			{#each availableBots as b (b.userId)}
+				<div class="mem">
+					<Avatar name={b.name} src={avatarUrl(b.userId, b.avatar)} size={30} />
+					<span class="pname">{b.name}</span>
+					<span class="rolepill" title="Bot player"><Bot size={11} /> {b.botKind || 'Bot'}</span>
+					<span class="spacer"></span>
+					<button class="addbtn" title="Add {b.name} to this league" disabled={botBusy === b.userId || mgmtBusy} onclick={() => addBot(b)}>
+						<UserPlus size={15} /> Add
+					</button>
+				</div>
+			{/each}
+		{/if}
+	</section>
+	{/if}
+
+	{#if view === 'board'}
 	<section class="card">
 		<div class="tabs">
 			<button class:active={tab === 'total'} onclick={() => (tab = 'total')}>Overall</button>
@@ -493,20 +498,6 @@
 								>
 									<Telescope size={15} />
 								</a>
-								{#if editing && r.userId !== auth.user?.id}
-									<button
-										class="rmbtn"
-										title="Remove {r.name}"
-										aria-label="Remove {r.name}"
-										disabled={mgmtBusy}
-										onclick={(e) => {
-											e.stopPropagation();
-											requestRemove(r.userId, r.name);
-										}}
-									>
-										<UserMinus size={15} />
-									</button>
-								{/if}
 								<ChevronDown size={14} class="rx" />
 							</div>
 						</td>
@@ -553,46 +544,15 @@
 					{/if}
 				{/each}
 
-				{#if editing && availableBots.length}
-					<tr class="botsep">
-						<td colspan="12">Add a bot player</td>
-					</tr>
-					{#each availableBots as b (b.userId)}
-						<tr class="addbot">
-							<td class="rank"></td>
-							<td class="player" colspan="11">
-								<div class="pwrap">
-									<Avatar
-										name={b.name}
-										src={avatarUrl(b.userId, b.avatar)}
-										size={28}
-									/>
-									<span class="pname">{b.name}</span>
-									<span class="rolepill" title="Bot player">
-										<Bot size={11} />
-										{b.botKind || 'Bot'}
-									</span>
-									<button
-										class="addbtn"
-										title="Add {b.name} to this league"
-										disabled={botBusy === b.userId || mgmtBusy}
-										onclick={() => addBot(b)}
-									>
-										<UserPlus size={15} /> Add
-									</button>
-								</div>
-							</td>
-						</tr>
-					{/each}
-				{/if}
 			</tbody>
 		</table>
 		<p class="muted small note">
 			Points update automatically as results come in.
 		</p>
 	</section>
+	{/if}
 
-	{#if cfg}
+	{#if view === 'members' && cfg}
 		<details class="card legend">
 			<summary>How points work</summary>
 
@@ -661,98 +621,18 @@
 />
 
 <style>
-	.back {
-		display: inline-block;
-		margin: 0.5rem 0 0.75rem;
-	}
-	h1 {
-		margin: 0 0 1rem;
-	}
-	.lhead {
-		display: flex;
-		align-items: flex-end;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
-	}
-	.ltitle {
-		flex: 1;
-		min-width: 0;
-	}
-	.lhead .kicker {
-		margin: 0;
-	}
-	.lhead h1 {
-		margin: 0.1rem 0 0;
-	}
 	.nameedit {
 		font-size: 1.5rem;
 		font-weight: 700;
 		margin-top: 0.15rem;
-	}
-	.lactions {
-		display: flex;
-		gap: 0.4rem;
-		flex: none;
 	}
 	.icon {
 		width: auto;
 		padding: 0.6rem;
 	}
 	/* Floating chat button, bottom-right, above the mobile tab bar. */
-	.chatfab {
-		position: fixed;
-		right: 1rem;
-		bottom: calc(var(--nav-h) + 1rem);
-		z-index: 40;
-		display: grid;
-		place-items: center;
-		width: 56px;
-		height: 56px;
-		border-radius: var(--radius-pill);
-		background: var(--accent);
-		color: var(--accent-fg);
-		box-shadow: var(--shadow-pop);
-		transition: transform 0.1s ease;
-	}
-	.chatfab:active {
-		transform: scale(0.94);
-	}
-	@media (min-width: 900px) {
-		.chatfab {
-			right: 1.5rem;
-			bottom: 1.5rem;
-		}
-	}
-	.fab-badge {
-		position: absolute;
-		top: -3px;
-		right: -3px;
-		min-width: 20px;
-		height: 20px;
-		padding: 0 0.25rem;
-		display: grid;
-		place-items: center;
-		border-radius: var(--radius-pill);
-		background: var(--danger);
-		/* Intentional literal: white on the danger red clears contrast on all
-		   three themes (--accent-fg is dark ink tuned for orange fills). */
-		color: #fff;
-		font-size: 0.7rem;
-		font-weight: 800;
-		font-variant-numeric: tabular-nums;
-		border: 2px solid var(--bg);
-	}
 	/* Header "Share" toggle: reveals the invite/share card. Filled accent when
 	   the card is open so the toggle state is obvious. */
-	.sharebtn {
-		width: auto;
-		padding: 0.6rem 0.85rem;
-	}
-	.sharebtn.active {
-		color: var(--accent-fg);
-		background: var(--accent);
-		border-color: var(--accent);
-	}
 	.vis {
 		margin-bottom: 1rem;
 	}
@@ -811,21 +691,6 @@
 	.rmbtn:disabled {
 		opacity: 0.5;
 		cursor: default;
-	}
-	.botsep td {
-		padding-top: 0.9rem;
-		color: var(--muted);
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		border-bottom: none;
-	}
-	tr.addbot .pname {
-		color: var(--muted);
-	}
-	tr.addbot .rolepill {
-		text-transform: capitalize;
 	}
 	.addbtn {
 		display: inline-flex;
@@ -921,6 +786,72 @@
 		width: 2rem;
 		color: var(--muted);
 		font-family: var(--font-mono);
+	}
+	.utab.chat {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		color: var(--muted);
+	}
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		border-radius: var(--radius-pill);
+		background: var(--accent);
+		color: var(--accent-fg);
+		font-size: 0.66rem;
+		font-weight: 800;
+	}
+	.card.manage {
+		padding: 0.75rem 0.9rem;
+	}
+	.mrow {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.mtxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		flex: 1;
+		min-width: 0;
+	}
+	.btn.slim {
+		width: auto;
+		padding: 0.5rem 0.9rem;
+		font-size: 0.78rem;
+		gap: 0.3rem;
+	}
+	.card.members {
+		padding: 0;
+	}
+	.mem {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.55rem 0.9rem;
+		border-bottom: 1px solid var(--border);
+		font-size: 0.92rem;
+	}
+	.mem:last-child {
+		border-bottom: none;
+	}
+	.mem .pname {
+		font-weight: 600;
+	}
+	.botsep {
+		padding: 0.6rem 0.9rem 0.3rem;
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+		border-bottom: 1px solid var(--border);
 	}
 	tr.lead td {
 		background: color-mix(in srgb, var(--accent) 9%, transparent);
