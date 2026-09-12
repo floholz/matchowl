@@ -59,6 +59,44 @@ func tournamentIDs(app core.App, slugs []string) ([]string, error) {
 	return out, nil
 }
 
+// Pool states, derived from the bound seasons: live while any of them
+// runs, upcoming before the first kick-off, finished once all are over,
+// open when nothing is bound (Global).
+const (
+	PoolLive     = "live"
+	PoolUpcoming = "upcoming"
+	PoolFinished = "finished"
+	PoolOpen     = "open"
+)
+
+func poolStatus(app core.App, lg *core.Record) string {
+	ids := lg.GetStringSlice("tournaments")
+	if len(ids) == 0 {
+		return PoolOpen
+	}
+	live, upcoming := false, false
+	for _, id := range ids {
+		t, err := app.FindRecordById("tournaments", id)
+		if err != nil {
+			continue
+		}
+		switch t.GetString("status") {
+		case tournaments.StatusActive:
+			live = true
+		case tournaments.StatusUpcoming:
+			upcoming = true
+		}
+	}
+	switch {
+	case live:
+		return PoolLive
+	case upcoming:
+		return PoolUpcoming
+	default:
+		return PoolFinished
+	}
+}
+
 // seasonViews lists a pool's bound seasons for the client.
 func seasonViews(app core.App, lg *core.Record) []map[string]any {
 	out := make([]map[string]any, 0)
@@ -303,6 +341,7 @@ func Register(app core.App, se *core.ServeEvent) {
 				"private":     private,
 				"members":     cnt,
 				"tournaments": seasonViews(app, lg),
+				"status":      poolStatus(app, lg),
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"pools": out})
@@ -347,6 +386,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		lb["tournament"] = used
 		lb["tournaments"] = seasonViews(app, lg)
+		lb["status"] = poolStatus(app, lg)
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
 		if lg, err := app.FindRecordById("pools", id); err == nil {

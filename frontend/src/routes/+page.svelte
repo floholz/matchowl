@@ -39,7 +39,7 @@
 		api
 			.myPools()
 			.then(async ({ pools: ls }) => {
-				const mine = ls.filter((l) => l.inviteCode !== 'GLOBAL');
+				const mine = ls.filter((l) => l.inviteCode !== 'GLOBAL' && l.status !== 'finished');
 				const lines = await Promise.all(
 					mine.map(async (league) => {
 						const { rows } = await api.leaderboard(league.id).catch(() => ({ rows: [] }));

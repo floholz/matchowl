@@ -57,7 +57,8 @@
 		}
 	}
 	const isGlobal = (l: PoolSummary) => l.inviteCode === 'GLOBAL';
-	let pools = $derived(leagues.filter((l) => !isGlobal(l)));
+	let pools = $derived(leagues.filter((l) => !isGlobal(l) && l.status !== 'finished'));
+	let finishedPools = $derived(leagues.filter((l) => !isGlobal(l) && l.status === 'finished'));
 	let global = $derived(leagues.find(isGlobal));
 	/** Seasons a new pool can count: anything visible, running first. */
 	let seasonChoices = $derived(
@@ -242,14 +243,18 @@
 {#if view === 'pools'}
 	{#if !loaded}
 		<p class="muted pad">Loading…</p>
-	{:else if pools.length === 0}
+	{:else if pools.length === 0 && finishedPools.length === 0}
 		<div class="card quiet muted">No pools yet — start one for the season with your friends, or join one with a code.</div>
 	{:else}
+		{#if pools.length === 0}
+			<div class="card quiet muted">Nothing running — start a pool for the new season, or set one of the finished ones up again.</div>
+		{/if}
 		{#each pools as l (l.id)}
 			{@const r = ranks[l.id]}
 			<a class="card league" href={`/pools/${l.id}`}>
 				<span class="lhead">
 					<span class="lt"><b class="lname">{l.name}</b><span class="muted lseasons">{seasonsLine(l)}</span></span>
+					{#if l.status === 'upcoming'}<span class="pill">soon</span>{:else if l.status === 'live'}<span class="pill live">live</span>{/if}
 					{#if l.role === 'owner'}<span class="pill">owner</span>{/if}
 					<span class="spacer"></span>
 					{#if unread[l.id]}
@@ -277,6 +282,21 @@
 						{/if}
 					</span>
 				</span>
+			</a>
+		{/each}
+	{/if}
+	{#if finishedPools.length}
+		<h2 class="sec">Finished</h2>
+		{#each finishedPools as l (l.id)}
+			{@const r = ranks[l.id]}
+			<a class="card grow done" href={`/pools/${l.id}`}>
+				<span class="gtxt">
+					<b>{l.name}</b>
+					<span class="muted">{seasonsLine(l)} · {r && r.rank === 1 && r.total > 1 ? 'you won it' : r ? `you finished #${r.rank} of ${r.total}` : `${l.members} members`}</span>
+				</span>
+				<span class="spacer"></span>
+				{#if l.role === 'owner'}<span class="pill">owner</span>{/if}
+				<ChevronRight size={16} class="cv" />
 			</a>
 		{/each}
 	{/if}
@@ -547,6 +567,9 @@
 	}
 	.card.grow :global(.cv) {
 		color: var(--muted);
+	}
+	.card.grow.done {
+		opacity: 0.85;
 	}
 	.chipset {
 		display: flex;

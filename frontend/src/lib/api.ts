@@ -35,6 +35,8 @@ export interface PoolSummary {
 	members: number;
 	/** Seasons the pool counts; empty for Global. */
 	tournaments: PoolSeason[];
+	/** live · upcoming · finished (all seasons over) · open (nothing bound). */
+	status: 'live' | 'upcoming' | 'finished' | 'open';
 }
 
 export interface Person {
@@ -334,6 +336,7 @@ export const api = {
 			/** Season the board was scored for; '' = the pool's seasons summed. */
 			tournament?: string;
 			tournaments?: PoolSeason[];
+			status?: PoolSummary['status'];
 			scoring?: Record<string, unknown>;
 		}>(`/api/pools/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
 	createPool: (name: string, tournaments: string[] = []) =>

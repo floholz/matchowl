@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { api, type LeaderboardRow, type BotSummary, type PoolSeason } from '$lib/api';
+	import { api, type LeaderboardRow, type BotSummary, type PoolSeason, type PoolSummary } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
@@ -64,6 +64,7 @@
 	let boardTournament = $derived(tournamentStore.list.find((t) => t.slug === boardSlug));
 	/** The pool's bound seasons (from the leaderboard response); Global has none. */
 	let bound = $state<PoolSeason[]>([]);
+	let poolStatus = $state<PoolSummary['status']>('open');
 	let isPool = $derived(bound.length > 0);
 	/** Seasons the board can be filtered to: the bound ones, or (Global) every visible one. */
 	let tournamentOptions = $derived(
@@ -142,6 +143,7 @@
 				rows = lb.rows;
 				boardSlug = lb.tournament ?? '';
 				bound = lb.tournaments ?? [];
+				poolStatus = lb.status ?? 'open';
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
 				const me = mine.pools.find((l) => l.id === lid);
 				invite = me?.inviteCode ?? '';
@@ -204,6 +206,7 @@
 			rows = lb.rows;
 			boardSlug = lb.tournament ?? '';
 			bound = lb.tournaments ?? [];
+			poolStatus = lb.status ?? 'open';
 		} catch {
 			/* keep current rows on a transient error */
 		}
@@ -366,7 +369,8 @@
 		[...rows].sort((a, b) => b[tab] - a[tab])
 	);
 	let memberLine = $derived(
-		`${rows.length} ${rows.length === 1 ? 'member' : 'members'}` +
+		(poolStatus === 'finished' ? 'Finished · ' : poolStatus === 'upcoming' ? 'Starts soon · ' : '') +
+			`${rows.length} ${rows.length === 1 ? 'member' : 'members'}` +
 			(bound.length
 				? ` · ${bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}`
 				: isOwner
@@ -622,6 +626,12 @@
 	{/if}
 
 	{#if view === 'board'}
+	{#if poolStatus === 'finished'}
+		<div class="card quiet done">
+			<span class="qtxt"><b>This pool is finished.</b><span class="muted small">{isOwner ? 'Set it up again for the next season under Members.' : 'The final standings stay here.'}</span></span>
+			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; enterEdit(); }}>Next season</button>{/if}
+		</div>
+	{/if}
 	<section class="card board">
 
 		<table class="lb">
@@ -1053,6 +1063,20 @@
 		margin-top: 0.5rem;
 		font-size: 0.82rem;
 		font-weight: 600;
+	}
+	.card.quiet.done {
+		display: flex;
+		align-items: center;
+		gap: 0.8rem;
+		padding: 0.8rem 0.9rem;
+		margin-bottom: 0.75rem;
+	}
+	.qtxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+		flex: 1;
 	}
 	.card.board {
 		padding-top: 0.4rem;
