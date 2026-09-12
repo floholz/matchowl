@@ -366,13 +366,31 @@
 		[...rows].sort((a, b) => b[tab] - a[tab])
 	);
 	let memberLine = $derived(
-		`${rows.length} ${rows.length === 1 ? 'member' : 'members'}${isOwner ? ' · you own this pool' : ''}`
+		`${rows.length} ${rows.length === 1 ? 'member' : 'members'}` +
+			(bound.length
+				? ` · ${bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}`
+				: isOwner
+					? ' · you own this pool'
+					: '')
 	);
 	pageChrome(() => ({ back: '/friends', title: league?.name ?? 'Pool', context: loaded ? memberLine : '' }));
 	let fcView = $derived(tab === 'forecastPoints');
 
 	// Build the avatar URL the same way auth.svelte does — a users.avatar file
 	// resolves to /api/files/users/{id}/{filename} (same origin).
+	// Pin your row to the bottom edge while it is scrolled out of view.
+	let meVisible = $state(true);
+	$effect(() => {
+		if (!loaded || view !== 'board') return;
+		void sorted;
+		const el = document.querySelector<HTMLElement>('tr.main.lead');
+		if (!el) return;
+		const io = new IntersectionObserver(([e]) => (meVisible = e.isIntersecting), { rootMargin: '-60px 0px -70px 0px' });
+		io.observe(el);
+		return () => io.disconnect();
+	});
+	let meRow = $derived(sorted.find((r) => r.userId === auth.user?.id));
+	let meIndex = $derived(sorted.findIndex((r) => r.userId === auth.user?.id));
 	function avatarUrl(userId: string, avatar?: string | null): string | null {
 		return avatar
 			? pb.files.getURL({ id: userId, collectionName: 'users' }, avatar)
@@ -425,6 +443,9 @@
 						<span class="lbl">{boardTournament ? seasonLabel(boardTournament) : ''}</span>
 						<ChevronDown size={14} />
 					</label>
+				{/if}
+				{#if invite && invite !== 'GLOBAL'}
+					<button class="chip inv" onclick={() => (view = 'members')}><Share2 size={14} /> Invite</button>
 				{/if}
 				<div class="seg2" role="tablist">
 					<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
@@ -637,7 +658,7 @@
 						onclick={() =>
 							(openRow = openRow === r.userId ? null : r.userId)}
 					>
-						<td class="rank">{i + 1}</td>
+						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
 						<td class="player">
 							<div class="pwrap">
 								<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={28} />
@@ -706,6 +727,16 @@
 			Points update automatically as results come in.
 		</p>
 	</section>
+	{#if meRow && !meVisible}
+		<button class="pin" onclick={() => document.querySelector('tr.main.lead')?.scrollIntoView({ block: 'center', behavior: 'smooth' })}>
+			<span class="medal" class:g={meIndex === 0} class:s={meIndex === 1} class:b={meIndex === 2}>{meIndex + 1}</span>
+			<Avatar name={meRow.name} src={avatarUrl(meRow.userId, meRow.avatar)} size={26} />
+			<span class="pname">{meRow.name}</span>
+			<span class="pill ok you">you</span>
+			<span class="spacer"></span>
+			<span class="digits ppts">{meRow[tab]}</span>
+		</button>
+	{/if}
 	{/if}
 
 	{#if view === 'members' && cfg}
@@ -1120,6 +1151,69 @@
 		text-transform: uppercase;
 		color: var(--muted);
 		border-bottom: 1px solid var(--border);
+	}
+	.medal {
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-mono);
+		font-weight: 800;
+		font-size: 0.72rem;
+		color: var(--muted);
+	}
+	.medal.g,
+	.medal.s,
+	.medal.b {
+		color: #1c0e00;
+	}
+	.medal.g {
+		background: var(--gold);
+	}
+	.medal.s {
+		background: #c9ccd3;
+	}
+	.medal.b {
+		background: #c98a52;
+	}
+	.chip.inv {
+		color: var(--accent);
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+	}
+	.pin {
+		position: fixed;
+		left: 1rem;
+		right: 1rem;
+		bottom: calc(var(--nav-h) + 0.75rem);
+		z-index: 30;
+		max-width: calc(var(--maxw) - 2rem);
+		margin: 0 auto;
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.55rem 0.9rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+		border-radius: 14px;
+		background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+		color: var(--text);
+		font: inherit;
+		font-weight: 600;
+		box-shadow: var(--shadow-pop);
+		cursor: pointer;
+	}
+	.pin .pill.you {
+		font-size: 0.56rem;
+		padding: 0.1rem 0.4rem;
+	}
+	.ppts {
+		font-size: 1rem;
+	}
+	@media (min-width: 900px) {
+		.pin {
+			bottom: 1rem;
+		}
 	}
 	tr.lead td {
 		background: color-mix(in srgb, var(--accent) 9%, transparent);

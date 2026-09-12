@@ -11,7 +11,7 @@
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
-	import { Globe, ChevronRight, ChevronDown, MessageSquare, Check, X, UserPlus, Search } from '@lucide/svelte';
+	import { Globe, ChevronRight, ChevronDown, MessageSquare, Check, X, UserPlus, Search, Plus, Copy, Share2 } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Friends' }));
 
@@ -31,6 +31,31 @@
 	let joinCode = $state('');
 	let error = $state('');
 	let busy = $state(false);
+	/** Bottom sheet: start a pool, join with a code, or the created pool's invite. */
+	let sheet = $state<'' | 'start' | 'join' | 'done'>('');
+	let created = $state<{ id: string; name: string; inviteCode: string } | null>(null);
+	let linkCopied = $state(false);
+	function openSheet(which: 'start' | 'join') {
+		error = '';
+		sheet = which;
+	}
+	function closeSheet() {
+		sheet = '';
+		if (created) {
+			created = null;
+			load();
+		}
+	}
+	function shareInvite() {
+		if (!created) return;
+		const url = `${window.location.origin}/join/${created.inviteCode}`;
+		if (navigator.share) navigator.share({ title: created.name, url }).catch(() => {});
+		else {
+			navigator.clipboard?.writeText(url);
+			linkCopied = true;
+			setTimeout(() => (linkCopied = false), 1800);
+		}
+	}
 	const isGlobal = (l: LeagueSummary) => l.inviteCode === 'GLOBAL';
 	let pools = $derived(leagues.filter((l) => !isGlobal(l)));
 	let global = $derived(leagues.find(isGlobal));
@@ -82,7 +107,8 @@
 			const r = await api.createLeague(newName, [...newSeasons]);
 			newName = '';
 			newSeasons = new Set();
-			goto(`/pools/${r.id}`);
+			created = r;
+			sheet = 'done';
 		} catch {
 			error = 'Could not create the pool.';
 		} finally {
@@ -96,6 +122,7 @@
 		try {
 			const r = await api.joinLeague(joinCode);
 			joinCode = '';
+			sheet = '';
 			goto(`/pools/${r.id}`);
 		} catch {
 			error = 'Invalid invite code.';
@@ -261,31 +288,53 @@
 		</a>
 	{/if}
 
-	<h2 class="sec">Start a pool</h2>
-	<section class="card actions">
-		<form class="action col" onsubmit={create}>
-			<input class="input" placeholder="Pool name" bind:value={newName} required />
-			<div class="seasons">
-				<span class="muted small">Counts these seasons</span>
-				<div class="chipset">
-					{#each seasonChoices as t (t.id)}
-						<button type="button" class="schip" class:on={newSeasons.has(t.slug)} onclick={() => toggleSeason(t.slug)}>
-							{#if newSeasons.has(t.slug)}<Check size={13} />{/if}
-							{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
-						</button>
-					{/each}
-				</div>
-			</div>
-			<button class="btn" disabled={busy || !newName.trim() || newSeasons.size === 0}>Create pool</button>
-		</form>
-		<div class="orsep"><span>or join one</span></div>
-		<form class="action" onsubmit={join}>
-			<input class="input code" placeholder="INVITE CODE" bind:value={joinCode} required />
-			<button class="btn secondary" disabled={busy || !joinCode.trim()}>Join</button>
-		</form>
-	</section>
-	{#if error}<p class="error">{error}</p>{/if}
+	<div class="actbar">
+		<button class="btn" onclick={() => openSheet('start')}><Plus size={16} /> Start a pool</button>
+		<button class="btn secondary" onclick={() => openSheet('join')}>Join with code</button>
+	</div>
+	<div class="actpad"></div>
 {:else}
+	<label class="search">
+		<Search size={16} />
+		<input class="input" placeholder="Find people by name" bind:value={q} oninput={onSearch} />
+	</label>
+	{#if results.length}
+		<div class="card list">
+			{#each results as p (p.userId)}
+				<div class="brow">
+					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<span class="bname">{p.name}</span>
+					<span class="spacer"></span>
+					{#if p.state === 'accepted'}
+						<span class="pill ok">friends</span>
+					{:else if p.state === 'pending'}
+						<span class="pill">requested</span>
+					{:else if p.state === 'incoming'}
+						<button class="tbtn p" onclick={() => accept(p)}><Check size={14} /> Accept</button>
+					{:else}
+						<button class="tbtn p" onclick={() => request(p)}><UserPlus size={14} /> Add</button>
+					{/if}
+				</div>
+			{/each}
+		</div>
+	{:else if q.trim().length >= 2 && !searching}
+		<p class="muted small pad">No one by that name.</p>
+	{/if}
+	{#if incoming.length}
+		<div class="sec2"><h2>Requests</h2><span class="pill ok">{incoming.length}</span></div>
+		<div class="card list">
+			{#each incoming as p (p.userId)}
+				<div class="brow">
+					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<span class="bname">{p.name}</span>
+					<span class="spacer"></span>
+					<button class="tbtn p" onclick={() => accept(p)}><Check size={14} /> Accept</button>
+					<button class="tbtn" onclick={() => remove(p)}>Decline</button>
+				</div>
+			{/each}
+		</div>
+	{/if}
+	<div class="sec2"><h2>Board</h2><span class="spacer"></span>
 	<div class="chips">
 		<label class="chip sel">
 			<select value={boardTournament?.competition?.key ?? ''} onchange={(e) => pickCompetition((e.currentTarget as HTMLSelectElement).value)} aria-label="Competition">
@@ -304,10 +353,11 @@
 			</label>
 		{/if}
 	</div>
+	</div>
 	<div class="card list" class:dim={boardLoading}>
 		{#each boardRows as r, i (r.userId)}
 			<div class="brow" class:me={r.userId === auth.user?.id}>
-				<span class="rank digits">{i + 1}</span>
+				<span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span>
 				<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={28} />
 				<span class="bname">{r.name}{#if r.userId === auth.user?.id}<span class="pill ok you">you</span>{/if}</span>
 				<span class="spacer"></span>
@@ -322,48 +372,6 @@
 		<a class="more" href={`/pools/${global.id}`}>Everyone on Matchowl <ChevronRight size={14} /></a>
 	{/if}
 
-	{#if incoming.length}
-		<h2 class="sec">Requests</h2>
-		<div class="card list">
-			{#each incoming as p (p.userId)}
-				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
-					<span class="bname">{p.name}</span>
-					<span class="spacer"></span>
-					<button class="ibtn ok" onclick={() => accept(p)} aria-label="Accept"><Check size={16} /></button>
-					<button class="ibtn" onclick={() => remove(p)} aria-label="Decline"><X size={16} /></button>
-				</div>
-			{/each}
-		</div>
-	{/if}
-
-	<h2 class="sec">Add friends</h2>
-	<label class="search">
-		<Search size={16} />
-		<input class="input" placeholder="Search by name" bind:value={q} oninput={onSearch} />
-	</label>
-	{#if results.length}
-		<div class="card list">
-			{#each results as p (p.userId)}
-				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
-					<span class="bname">{p.name}</span>
-					<span class="spacer"></span>
-					{#if p.state === 'accepted'}
-						<span class="pill ok">friends</span>
-					{:else if p.state === 'pending'}
-						<span class="pill">requested</span>
-					{:else if p.state === 'incoming'}
-						<button class="ibtn ok" onclick={() => accept(p)} aria-label="Accept"><Check size={16} /></button>
-					{:else}
-						<button class="ibtn ok" onclick={() => request(p)} aria-label="Add friend"><UserPlus size={16} /></button>
-					{/if}
-				</div>
-			{/each}
-		</div>
-	{:else if q.trim().length >= 2 && !searching}
-		<p class="muted small pad">No one by that name.</p>
-	{/if}
 
 	{#if friends.length || outgoing.length}
 		<h2 class="sec">Your friends</h2>
@@ -387,6 +395,51 @@
 			{/each}
 		</div>
 	{/if}
+{/if}
+
+{#if sheet}
+	<button class="scrim" onclick={closeSheet} aria-label="Close"></button>
+	<div class="sheet" role="dialog" aria-modal="true">
+		<div class="grab"></div>
+		{#if sheet === 'start'}
+			<div class="shead"><h2>Start a pool</h2><button class="ibtn" onclick={closeSheet} aria-label="Close"><X size={18} /></button></div>
+			<form class="sform" onsubmit={create}>
+				<label class="field"><span>Name</span><input class="input" placeholder="e.g. Bürocup 26/27" bind:value={newName} required /></label>
+				<div class="field">
+					<span>Counts these seasons</span>
+					<div class="chipset">
+						{#each seasonChoices as t (t.id)}
+							<button type="button" class="schip" class:on={newSeasons.has(t.slug)} onclick={() => toggleSeason(t.slug)}>
+								{#if newSeasons.has(t.slug)}<Check size={13} />{/if}
+								{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
+							</button>
+						{/each}
+					</div>
+				</div>
+				{#if error}<p class="error">{error}</p>{/if}
+				<button class="btn" disabled={busy || !newName.trim() || newSeasons.size === 0}>Create pool</button>
+			</form>
+		{:else if sheet === 'join'}
+			<div class="shead"><h2>Join a pool</h2><button class="ibtn" onclick={closeSheet} aria-label="Close"><X size={18} /></button></div>
+			<form class="sform" onsubmit={join}>
+				<label class="field"><span>Invite code</span><input class="input code" placeholder="ARS-FCB-21" bind:value={joinCode} required /></label>
+				{#if error}<p class="error">{error}</p>{/if}
+				<button class="btn secondary" disabled={busy || !joinCode.trim()}>Join</button>
+			</form>
+		{:else if sheet === 'done' && created}
+			<div class="done">
+				<h2>{created.name} is on</h2>
+				<p class="muted">Get your friends in — the code and the link both work.</p>
+			</div>
+			<div class="card codecard">
+				<span class="ctxt"><span class="muted small up">Invite code</span><span class="code">{created.inviteCode}</span></span>
+				<span class="spacer"></span>
+				<button class="ibtn" onclick={() => navigator.clipboard?.writeText(created!.inviteCode)} aria-label="Copy code"><Copy size={16} /></button>
+			</div>
+			<button class="btn" onclick={shareInvite}><Share2 size={16} /> {linkCopied ? 'Link copied!' : 'Share invite link'}</button>
+			<a class="btn ghost" href={`/pools/${created.id}`} onclick={() => (sheet = '')}>Open the pool</a>
+		{/if}
+	</div>
 {/if}
 
 <style>
@@ -489,31 +542,6 @@
 	.card.grow :global(.cv) {
 		color: var(--muted);
 	}
-	.actions {
-		margin-top: 0;
-	}
-	.action {
-		display: flex;
-		gap: 0.5rem;
-	}
-	.action.col {
-		flex-direction: column;
-	}
-	.action .btn {
-		width: auto;
-		padding: 0.8rem 1.1rem;
-	}
-	.action.col .btn {
-		width: 100%;
-	}
-	.action .input {
-		flex: 1;
-	}
-	.seasons {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-	}
 	.chipset {
 		display: flex;
 		flex-wrap: wrap;
@@ -544,22 +572,6 @@
 		letter-spacing: 0.15em;
 		font-family: var(--font-mono);
 	}
-	.orsep {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		margin: 0.7rem 0;
-		font-size: 0.75rem;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted);
-	}
-	.orsep::before,
-	.orsep::after {
-		content: '';
-		flex: 1;
-		border-top: 1px solid var(--border);
-	}
 
 	/* ---- friends tab ---- */
 	.chips {
@@ -567,7 +579,198 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 0.75rem;
+	}
+	.sec2 {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin: 1rem 0.15rem 0.55rem;
+	}
+	.sec2 h2 {
+		font-size: 1.15rem;
+	}
+	.medal {
+		width: 22px;
+		height: 22px;
+		flex: none;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-mono);
+		font-weight: 800;
+		font-size: 0.72rem;
+		color: var(--muted);
+	}
+	.medal.g,
+	.medal.s,
+	.medal.b {
+		color: #1c0e00;
+	}
+	.medal.g {
+		background: var(--gold);
+	}
+	.medal.s {
+		background: #c9ccd3;
+	}
+	.medal.b {
+		background: #c98a52;
+	}
+	.brow.me .medal:not(.g):not(.s):not(.b) {
+		color: var(--accent);
+	}
+	.tbtn {
+		height: 32px;
+		padding: 0 0.75rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--border);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-weight: 800;
+		font-size: 0.76rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+	.tbtn.p {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-fg);
+	}
+	/* ---- bottom action bar + sheet ---- */
+	.actbar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: var(--nav-h);
+		z-index: 30;
+		display: flex;
+		gap: 0.5rem;
+		padding: 0.6rem 1rem 0.75rem;
+		background: linear-gradient(180deg, transparent, var(--bg) 35%);
+	}
+	.actbar .btn {
+		flex: 1;
+		padding: 0.8rem;
+		display: inline-flex;
+		gap: 0.35rem;
+	}
+	.actpad {
+		height: 4.5rem;
+	}
+	@media (min-width: 900px) {
+		.actbar {
+			position: static;
+			padding: 1rem 0 0;
+			background: none;
+		}
+		.actpad {
+			display: none;
+		}
+	}
+	.scrim {
+		position: fixed;
+		inset: 0;
+		z-index: 60;
+		border: none;
+		padding: 0;
+		background: rgba(0, 0, 0, 0.55);
+		cursor: default;
+	}
+	.sheet {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 61;
+		max-width: 560px;
+		margin: 0 auto;
+		padding: 0.6rem 1rem calc(1.2rem + env(safe-area-inset-bottom));
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-bottom: none;
+		border-radius: var(--radius) var(--radius) 0 0;
+		box-shadow: 0 -18px 44px -12px rgba(0, 0, 0, 0.8);
+		display: flex;
+		flex-direction: column;
+		gap: 0.7rem;
+	}
+	.grab {
+		width: 36px;
+		height: 4px;
+		border-radius: 2px;
+		background: var(--border);
+		margin: 0 auto 0.2rem;
+	}
+	.shead {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.shead h2 {
+		font-size: 1.25rem;
+	}
+	.shead .ibtn {
+		margin-left: auto;
+	}
+	.sform {
+		display: flex;
+		flex-direction: column;
+		gap: 0.8rem;
+	}
+	.field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+	.field > span {
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.done {
+		text-align: center;
+		padding: 0.2rem 0 0.3rem;
+	}
+	.done h2 {
+		font-size: 1.3rem;
+	}
+	.done .muted {
+		margin: 0.3rem 0 0;
+		font-size: 0.88rem;
+	}
+	.codecard {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.75rem 0.9rem;
+		margin: 0;
+	}
+	.ctxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+	.up {
+		font-size: 0.66rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+	.code {
+		font-family: var(--font-mono);
+		font-size: 1.25rem;
+		font-weight: 700;
+		letter-spacing: 0.16em;
+	}
+	.sheet .btn {
+		display: inline-flex;
+		gap: 0.35rem;
 	}
 	.chip {
 		position: relative;
@@ -624,13 +827,6 @@
 		background: color-mix(in srgb, var(--accent) 8%, transparent);
 		box-shadow: inset 3px 0 0 var(--accent);
 	}
-	.rank {
-		width: 1.6rem;
-		color: var(--muted);
-	}
-	.brow.me .rank {
-		color: var(--accent);
-	}
 	.bname {
 		font-weight: 600;
 		display: inline-flex;
@@ -664,10 +860,6 @@
 		background: var(--surface-2);
 		color: var(--muted);
 		cursor: pointer;
-	}
-	.ibtn.ok {
-		color: var(--accent);
-		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 	}
 	.search {
 		display: flex;
