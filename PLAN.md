@@ -270,6 +270,15 @@ work pending · ⏭ deliberately deferred
 - 🔨 Migration: existing leagues become pools bound to WC 2026; Global
   becomes the everyone board on Friends. (Launch itself is a clean start
   with imported data — see the backlog.)
+- 🔨 Design pass 2026-09-13 (canvas boards `Pools` … `PoolMembers`):
+  Friends tab = search on top, requests pinned with Accept / Decline, the
+  board (medals for the top three, own row tinted), your friends. Pools tab
+  = cards with seasons line + place · points · leader gap + a one-line
+  "what happened"; Start / Join in a bottom action bar opening a sheet;
+  creating ends on the invite code + share link. Pool page = back · name ·
+  members + seasons · Invite; board chips All seasons / one season; own row
+  pinned while scrolled out. Members = invite code first, members with
+  roles and join dates, seasons, Next season.
 - ⬜ Pool chat (+ GIFs), notifications from chat — keep as is
 - ⬜ Leaderboard tabs (total / tips / forecast), tiebreakers — keep as is
 

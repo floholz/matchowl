@@ -189,6 +189,60 @@
       "w": 768,
       "h": 1024,
       "page": "page-1"
+    },
+    {
+      "file": "Pools.dc.html",
+      "title": "Friends · Pools tab",
+      "x": 0,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "FriendsTab.dc.html",
+      "title": "Friends · Friends tab",
+      "x": 480,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "PoolStart.dc.html",
+      "title": "Start a pool",
+      "x": 960,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "PoolDone.dc.html",
+      "title": "Pool created",
+      "x": 1440,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "PoolPage.dc.html",
+      "title": "Pool · Leaderboard",
+      "x": 1920,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "PoolMembers.dc.html",
+      "title": "Pool · Members",
+      "x": 2400,
+      "y": 4000,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
     }
   ],
   "annotations": [
@@ -279,6 +333,14 @@
       "y": 2500,
       "w": 768,
       "text": "Tablet 600–900px (proposed)\nNo third layout: the phone shell, wider. Bottom tab bar and contextual top bar stay, the content column caps at 740px and centres, the day strip shows more days, the match page opens as a route (no side panel). ≥ 900px switches to the desktop rule."
+    },
+    {
+      "id": "friends-pass",
+      "page": "page-1",
+      "x": 0,
+      "y": 3760,
+      "w": 1400,
+      "text": "Friends section pass (2026-09-13) — supersedes the Friends / League boards above\n• Friends = a mutual graph (request → accept). The Friends tab: search on top, requests pinned with Accept / Decline, the board (you + friends for one season, chips), then your friends. Everyone = the Global board.\n• Pools = the former leagues, bound to seasons. Cards answer place · points · leader gap, name the seasons, carry the unread chat count and a one-line “what happened”. Start / Join live in a bottom action bar and open a sheet; creating ends on the invite code + share link.\n• Pool page: back · name · members + seasons line · Invite. Tabs Leaderboard · Members · Chat. Board chips: All seasons (sum) or one season, Total / Tips / Forecast. Medals for the top three; your row is tinted and pins to the bottom edge while scrolled out.\n• Members: invite code first, members with roles and join dates (owner can remove, add bots), the seasons the pool counts, “Next season” → set up a fresh pool with the same members."
     }
   ],
   "launch": {

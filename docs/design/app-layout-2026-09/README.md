@@ -31,6 +31,10 @@ confirmation): `HubOverview`, `HubTable` (UCL zones), `HubKnockout`,
 `HubForecast` (calls mode), `League` (friends league page with tabs),
 `Tablet` (Matches at 768px).
 
+Friends section pass, 2026-09-13 (third row of "Screens", supersedes
+`Friends` and `League`): `Pools`, `FriendsTab`, `PoolStart`, `PoolDone`,
+`PoolPage`, `PoolMembers`.
+
 Page "Score vs tip": `OptionA`–`OptionD` — the four candidates for telling the
 result apart from the tip. **A (stadium board) was chosen.**
 

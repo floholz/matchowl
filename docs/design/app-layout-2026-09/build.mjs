@@ -898,3 +898,171 @@ canvas.annotations.push(
 );
 writeFileSync('canvas.json', JSON.stringify(canvas, null, 2));
 console.log('built open-item boards');
+
+// ======================= Friends section pass (2026-09-13) =======================
+// Friends = mutual graph + board; Pools = the former leagues, bound to seasons.
+const FR_CSS = HUB_CSS + `
+.medal{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-family:'Red Hat Mono',monospace;font-weight:800;font-size:11px;color:#1c0e00}
+.medal.g{background:${T.gold}}.medal.s{background:#c9ccd3}.medal.b{background:#c98a52}
+.medal.n{background:transparent;color:${T.muted};font-size:13px}
+.brow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid ${T.border};font-size:14px;font-weight:600}
+.brow:last-child{border-bottom:none}
+.brow.me{background:rgba(255,119,0,.08);box-shadow:inset 3px 0 0 ${T.accent}}
+.brow .sub{font-size:11.5px;color:${T.muted};font-weight:500}
+.brow .pts{margin-left:auto;font-size:16px}
+.brow.pin{position:absolute;left:16px;right:16px;bottom:78px;background:${T.surface};border:1px solid rgba(255,119,0,.5);border-radius:14px;box-shadow:${T.shadowPop ?? '0 18px 44px -12px rgba(0,0,0,.65)'}}
+.ibtn{width:34px;height:34px;border-radius:12px;border:1px solid ${T.border};background:${T.surface2};display:inline-flex;align-items:center;justify-content:center;color:${T.muted}}
+.ibtn.ok{color:${T.accent};border-color:rgba(255,119,0,.45)}
+.tbtn{height:32px;padding:0 12px;border-radius:999px;font-weight:800;font-size:12px;display:inline-flex;align-items:center;gap:4px}
+.tbtn.p{background:${T.accent};color:${T.accentFg}}.tbtn.s{border:1px solid ${T.border};color:${T.muted}}
+.search{display:flex;align-items:center;gap:8px;height:40px;padding:0 12px;border-radius:12px;background:${T.bg};border:1px solid ${T.border};color:${T.muted};font-size:13.5px}
+.hero{display:flex;flex-direction:column;gap:10px;padding:14px 14px 12px}
+.stack{display:flex}.stack .avatar{border:2px solid ${T.surface};margin-left:-8px}.stack .avatar:first-child{margin-left:0}
+.actbar{position:absolute;left:0;right:0;bottom:66px;padding:10px 16px 12px;display:flex;gap:8px;background:linear-gradient(180deg,transparent,${T.bg} 30%)}
+.actbar .btn{flex:1;padding:12px}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:${T.surface};border-radius:22px 22px 0 0;border-top:1px solid ${T.border};padding:10px 16px 20px;box-shadow:0 -18px 44px -12px rgba(0,0,0,.8)}
+.grab{width:36px;height:4px;border-radius:2px;background:${T.border};margin:0 auto 12px}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:${T.muted}}
+.input{height:44px;padding:0 12px;border-radius:12px;background:${T.bg};border:1px solid ${T.border};font-size:15px;display:flex;align-items:center}
+.code{font-family:'Red Hat Mono',monospace;font-size:20px;letter-spacing:.18em;font-weight:700}
+`;
+const friendsHead = (on) => `<header class="topbar"><span class="display" style="font-size:22px">Friends</span><span style="flex:1"></span>${avatar()}</header>
+<div class="subbar"><div class="utabs"><span class="utab${on === 'Pools' ? ' on' : ''}">Pools</span><span class="utab${on === 'Friends' ? ' on' : ''}">Friends</span></div></div>`;
+const medal = (i) => i === 1 ? `<span class="medal g">1</span>` : i === 2 ? `<span class="medal s">2</span>` : i === 3 ? `<span class="medal b">3</span>` : `<span class="medal n">${i}</span>`;
+const brow = (i, ini, name, sub, pts, me) => `<div class="brow${me ? ' me' : ''}">${medal(i)}${avatar(28, ini)}<span style="display:flex;flex-direction:column;gap:1px;min-width:0"><span>${name}${me ? ` <span class="pill ok" style="font-size:8.5px;padding:2px 5px;margin-left:4px">you</span>` : ''}</span><span class="sub">${sub}</span></span><span class="pts digits">${pts}</span></div>`;
+const poolCard = (o) => `<div class="card" style="margin-bottom:12px">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 14px 6px"><span style="display:flex;flex-direction:column;gap:1px;min-width:0"><b style="font-size:16px">${o.name}</b><span class="muted" style="font-size:11.5px">${o.seasons}</span></span>${o.owner ? `<span class="pill">owner</span>` : ''}<span style="flex:1"></span>${o.unread ? `<span class="pill ok">${ic('chat', 12)} ${o.unread}</span>` : `<span class="muted">${ic('chat', 16)}</span>`}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1.3fr;padding:4px 14px 12px;gap:8px">
+    <span style="display:flex;flex-direction:column;gap:1px"><span class="digits" style="font-size:24px">#${o.rank}<small class="muted" style="font-size:12px">/${o.n}</small></span><span class="muted" style="font-size:11.5px">${o.rank === 1 ? 'you lead' : 'your place'}</span></span>
+    <span style="display:flex;flex-direction:column;gap:1px"><span class="digits" style="font-size:24px">${o.pts}</span><span class="muted" style="font-size:11.5px">your points</span></span>
+    <span style="display:flex;flex-direction:column;gap:1px;align-items:flex-end;text-align:right"><span class="digits" style="font-size:24px">${o.leaderPts}</span><span class="muted" style="font-size:11.5px">${o.rank === 1 ? `${o.n} members` : `${o.leader} leads · ${o.gap} behind`}</span></span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid ${T.border};font-size:12.5px" class="muted">${o.foot}<span style="flex:1"></span>${ic('right', 16)}</div>
+</div>`;
+
+// ---- Pools tab ----
+const poolsMobile = phone(`${friendsHead('Pools')}
+<main style="position:absolute;top:104px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden">
+  ${poolCard({ name: 'Bürocup', seasons: 'Champions League 2026/27 · Serie A 2026/27', owner: true, unread: 3, rank: 2, n: 8, pts: 94, leader: 'Lena', leaderPts: 101, gap: 7, foot: 'Matchday 3 · Tom leads the round with 9 pts' })}
+  ${poolCard({ name: 'Stammtisch', seasons: 'World Cup 2026', rank: 1, n: 12, pts: 212, leaderPts: 212, foot: 'Finished · you won it' })}
+  <div class="lrow card" style="padding:12px 14px;margin-bottom:12px"><span style="color:${T.muted}">${ic('globe', 18)}</span><span style="display:flex;flex-direction:column;gap:2px"><b>Everyone</b><span class="muted" style="font-size:12px">all of Matchowl · Champions League</span></span><span style="margin-left:auto" class="digits">#148<small class="muted" style="font-size:12px">/2,310</small></span><span style="color:${T.muted}">${ic('right', 16)}</span></div>
+</main>
+<div class="actbar"><span class="btn">${ic('plus', 16)} Start a pool</span><span class="btn secondary">Join with code</span></div>
+${tabbar('Friends')}`);
+
+// ---- Friends tab: requests pinned, board, your friends ----
+const friendsTab = phone(`${friendsHead('Friends')}
+<main style="position:absolute;top:104px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden">
+  <div class="search">${ic('search', 16)} Find people by name</div>
+  <div class="sec"><h2 class="display" style="font-size:17px">Requests</h2><span class="pill ok">2</span></div>
+  <div class="card" style="padding:0">
+    <div class="brow">${avatar(30, 'MK')}<span style="display:flex;flex-direction:column;gap:1px"><span>Mara Klein</span><span class="sub">3 mutual friends</span></span><span style="flex:1"></span><span class="tbtn p">${ic('check', 14)} Accept</span><span class="tbtn s">Decline</span></div>
+    <div class="brow">${avatar(30, 'PS')}<span style="display:flex;flex-direction:column;gap:1px"><span>Paul S.</span><span class="sub">plays Serie A</span></span><span style="flex:1"></span><span class="tbtn p">${ic('check', 14)} Accept</span><span class="tbtn s">Decline</span></div>
+  </div>
+  <div class="sec"><h2 class="display" style="font-size:17px">Board</h2><span style="flex:1"></span><span class="chip" style="height:30px;padding:0 10px;font-size:12px">${crest('UCL', 16)} UCL ${ic('down', 12)}</span><span class="chip" style="height:30px;padding:0 10px;font-size:12px">26/27 ${ic('down', 12)}</span></div>
+  <div class="card" style="padding:0">
+    ${brow(1, 'LE', 'Lena', '4 exact · 12 winners', 101)}
+    ${brow(2, 'FH', 'floholz', '4 exact · 8 winners', 94, true)}
+    ${brow(3, 'TO', 'Tom', '2 exact · 9 winners', 92)}
+    ${brow(4, 'JS', 'Jonas', '1 exact · 7 winners', 80)}
+    ${brow(5, 'SM', 'Sam', '1 exact · 6 winners', 71)}
+  </div>
+  <a class="more" style="display:inline-flex;align-items:center;gap:2px;margin:8px 4px 0;font-size:13px;font-weight:600">Everyone on Matchowl ${ic('right', 14)}</a>
+  <div class="sec"><h2 class="display" style="font-size:17px">Your friends</h2><span class="muted" style="font-size:12.5px">5</span></div>
+  <div class="card" style="padding:0">
+    <div class="brow">${avatar(30, 'LE')}<span style="display:flex;flex-direction:column;gap:1px"><span>Lena</span><span class="sub">in Bürocup with you</span></span><span style="flex:1"></span><span class="ibtn">${ic('x', 14)}</span></div>
+    <div class="brow">${avatar(30, 'TO')}<span style="display:flex;flex-direction:column;gap:1px"><span>Tom</span><span class="sub">in Bürocup with you</span></span><span style="flex:1"></span><span class="ibtn">${ic('x', 14)}</span></div>
+  </div>
+</main>
+${tabbar('Friends')}`);
+
+// ---- Start a pool (sheet) → done state with code + link ----
+const poolStart = phone(`${friendsHead('Pools')}
+<main style="position:absolute;top:104px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden;opacity:.5">
+  ${poolCard({ name: 'Bürocup', seasons: 'Champions League 2026/27 · Serie A 2026/27', owner: true, unread: 3, rank: 2, n: 8, pts: 94, leader: 'Lena', leaderPts: 101, gap: 7, foot: 'Matchday 3 · Tom leads the round with 9 pts' })}
+</main>
+<div class="scrim"></div>
+<div class="sheet">
+  <div class="grab"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><b class="display" style="font-size:20px">Start a pool</b><span style="flex:1"></span><span class="iconbtn">${ic('x', 20)}</span></div>
+  <div class="field"><label>Name</label><div class="input">Bürocup 26/27</div></div>
+  <div class="field"><label>Counts these seasons</label><div class="chips" style="flex-wrap:wrap"><span class="chip on" style="height:32px;font-size:12.5px">${ic('check', 13)} Champions League 26/27</span><span class="chip on" style="height:32px;font-size:12.5px">${ic('check', 13)} Serie A 26/27</span><span class="chip" style="height:32px;font-size:12.5px">Premier League 26/27</span><span class="chip" style="height:32px;font-size:12.5px">La Liga 26/27</span><span class="chip" style="height:32px;font-size:12.5px">Ö. Bundesliga 26/27</span></div></div>
+  <div class="field"><label>Points</label><div class="chips"><span class="chip on" style="height:32px;font-size:12.5px">Default</span><span class="chip" style="height:32px;font-size:12.5px">Exact-heavy</span></div></div>
+  <span class="btn" style="width:100%;margin-top:4px">Create pool</span>
+</div>
+${tabbar('Friends')}`);
+const poolDone = phone(`${friendsHead('Pools')}
+<main style="position:absolute;top:104px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden;opacity:.5">
+  ${poolCard({ name: 'Bürocup', seasons: 'Champions League 2026/27 · Serie A 2026/27', owner: true, unread: 3, rank: 2, n: 8, pts: 94, leader: 'Lena', leaderPts: 101, gap: 7, foot: 'Matchday 3 · Tom leads the round with 9 pts' })}
+</main>
+<div class="scrim"></div>
+<div class="sheet">
+  <div class="grab"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0 14px;text-align:center">${owl(44)}<b class="display" style="font-size:20px">Bürocup 26/27 is on</b><span class="muted" style="font-size:13px">Get your friends in — the code and the link both work.</span></div>
+  <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:10px"><span style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Invite code</span><span class="code">ARS-FCB-21</span></span><span style="flex:1"></span><span class="ibtn">${ic('share', 16)}</span></div>
+  <span class="btn" style="width:100%">${ic('share', 16)} Share invite link</span>
+  <span class="btn ghost" style="width:100%;margin-top:6px;background:transparent;color:${T.accent}">Open the pool</span>
+</div>
+${tabbar('Friends')}`);
+
+// ---- Pool page: hero + tabs + board with medals; own row pinned ----
+const poolPage = phone(`
+<header class="topbar" style="height:66px"><span class="iconbtn" style="margin-left:-8px">${ic('left', 22)}</span>
+  <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1"><b style="font-size:16px">Bürocup</b><span class="muted" style="font-size:12.5px;font-weight:600">8 members · Champions League 26/27 · Serie A 26/27</span></div>
+  <span class="tbtn s" style="color:${T.accent};border-color:rgba(255,119,0,.45)">${ic('share', 14)} Invite</span></header>
+<div class="subbar" style="top:66px">
+  <div class="utabs"><span class="utab on">Leaderboard</span><span class="utab">Members</span><span class="utab">Chat<span class="badge">3</span></span></div>
+  <div class="chips" style="padding:0 16px 10px;flex-wrap:wrap"><span class="chip on" style="height:30px;padding:0 10px;font-size:12px">All seasons ${ic('down', 12)}</span><span class="seg"><span class="on">Total</span><span>Tips</span><span>Forecast</span></span></div>
+</div>
+<main style="position:absolute;top:162px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden">
+  <div class="card" style="padding:0">
+    ${brow(1, 'LE', 'Lena', '4 exact · 12 winners', 101)}
+    ${brow(2, 'TO', 'Tom', '2 exact · 9 winners', 92)}
+    ${brow(3, 'MK', 'Mara', '2 exact · 7 winners', 88)}
+    ${brow(4, 'OW', 'Owlbert <span class="pill" style="font-size:8.5px;padding:2px 5px">bot</span>', 'form-based picks', 85)}
+    ${brow(5, 'JS', 'Jonas', '1 exact · 7 winners', 80)}
+    ${brow(6, 'SM', 'Sam', '1 exact · 6 winners', 71)}
+    ${brow(7, 'KI', 'Kim', '0 exact · 5 winners', 64)}
+    ${brow(8, 'AN', 'Anna', '0 exact · 4 winners', 60)}
+    ${brow(9, 'BE', 'Ben', '0 exact · 3 winners', 51)}
+  </div>
+  ${brow(11, 'FH', 'floholz', '1 exact · 4 winners', 44, true).replace('class="brow me"', 'class="brow me pin"')}
+</main>
+${tabbar('Friends')}`);
+
+// ---- Pool members: invite, members with roles, owner tools, next season ----
+const poolMembers = phone(`
+<header class="topbar" style="height:66px"><span class="iconbtn" style="margin-left:-8px">${ic('left', 22)}</span>
+  <div style="display:flex;flex-direction:column;gap:1px;min-width:0;flex:1"><b style="font-size:16px">Bürocup</b><span class="muted" style="font-size:12.5px;font-weight:600">8 members · you own this pool</span></div>
+  <span class="tbtn s" style="color:${T.accent};border-color:rgba(255,119,0,.45)">${ic('share', 14)} Invite</span></header>
+<div class="subbar" style="top:66px"><div class="utabs"><span class="utab">Leaderboard</span><span class="utab on">Members</span><span class="utab">Chat<span class="badge">3</span></span></div></div>
+<main style="position:absolute;top:112px;bottom:66px;left:0;right:0;padding:12px 16px;overflow:hidden">
+  <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:12px"><span style="display:flex;flex-direction:column;gap:2px"><span class="muted" style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Invite code</span><span class="code">ARS-FCB-21</span></span><span style="flex:1"></span><span class="ibtn">${ic('share', 16)}</span></div>
+  <div class="card" style="padding:0;margin-bottom:12px">
+    ${[['FH', 'floholz', 'owner · you'], ['LE', 'Lena', 'joined Aug 21'], ['TO', 'Tom', 'joined Aug 21'], ['MK', 'Mara', 'joined Sep 2'], ['OW', 'Owlbert', 'bot · form-based']].map(([a, n, s]) => `<div class="brow">${avatar(30, a)}<span style="display:flex;flex-direction:column;gap:1px"><span>${n}</span><span class="sub">${s}</span></span><span style="flex:1"></span>${n === 'floholz' ? '' : `<span class="ibtn">${ic('x', 14)}</span>`}</div>`).join('')}
+    <div class="brow" style="color:${T.accent}">${ic('plus', 18)} Add a bot player</div>
+  </div>
+  <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px">
+    <span class="muted" style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Counts these seasons</span>
+    <div class="chips" style="flex-wrap:wrap"><span class="chip on" style="height:30px;font-size:12px">${ic('check', 12)} Champions League 26/27</span><span class="chip on" style="height:30px;font-size:12px">${ic('check', 12)} Serie A 26/27</span><span class="chip" style="height:30px;font-size:12px">Premier League 26/27</span></div>
+  </div>
+  <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px"><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><b style="font-size:14px">Next season</b><span class="muted" style="font-size:12px">Same members and settings, fresh pool. This one stays as history.</span></span><span class="tbtn s" style="flex:none">Set up</span></div>
+  <p class="muted" style="font-size:12px;margin:14px 4px 0">Owner tools: rename · invite code visibility · regenerate code · remove members · points rules.</p>
+</main>
+${tabbar('Friends')}`);
+
+const frFiles = { 'Pools.dc.html': poolsMobile, 'FriendsTab.dc.html': friendsTab, 'PoolStart.dc.html': poolStart, 'PoolDone.dc.html': poolDone, 'PoolPage.dc.html': poolPage, 'PoolMembers.dc.html': poolMembers };
+for (const [n, b] of Object.entries(frFiles)) writeFileSync(n, wrap(b, FR_CSS));
+canvas.artboards.push(
+  { file: 'Pools.dc.html', title: 'Friends · Pools tab', x: 0, y: 4000, w: 390, h: 844, page: 'page-1' },
+  { file: 'FriendsTab.dc.html', title: 'Friends · Friends tab', x: 480, y: 4000, w: 390, h: 844, page: 'page-1' },
+  { file: 'PoolStart.dc.html', title: 'Start a pool', x: 960, y: 4000, w: 390, h: 844, page: 'page-1' },
+  { file: 'PoolDone.dc.html', title: 'Pool created', x: 1440, y: 4000, w: 390, h: 844, page: 'page-1' },
+  { file: 'PoolPage.dc.html', title: 'Pool · Leaderboard', x: 1920, y: 4000, w: 390, h: 844, page: 'page-1' },
+  { file: 'PoolMembers.dc.html', title: 'Pool · Members', x: 2400, y: 4000, w: 390, h: 844, page: 'page-1' },
+);
+canvas.annotations.push({ id: 'friends-pass', page: 'page-1', x: 0, y: 3760, w: 1400, text: 'Friends section pass (2026-09-13) — supersedes the Friends / League boards above\n• Friends = a mutual graph (request → accept). The Friends tab: search on top, requests pinned with Accept / Decline, the board (you + friends for one season, chips), then your friends. Everyone = the Global board.\n• Pools = the former leagues, bound to seasons. Cards answer place · points · leader gap, name the seasons, carry the unread chat count and a one-line “what happened”. Start / Join live in a bottom action bar and open a sheet; creating ends on the invite code + share link.\n• Pool page: back · name · members + seasons line · Invite. Tabs Leaderboard · Members · Chat. Board chips: All seasons (sum) or one season, Total / Tips / Forecast. Medals for the top three; your row is tinted and pins to the bottom edge while scrolled out.\n• Members: invite code first, members with roles and join dates (owner can remove, add bots), the seasons the pool counts, “Next season” → set up a fresh pool with the same members.' });
+writeFileSync('canvas.json', JSON.stringify(canvas, null, 2));
+console.log('built friends boards');
