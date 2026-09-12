@@ -66,6 +66,19 @@ export interface FeedDay {
 
 /** Deadline cards only surface this close to their lock. */
 const DEADLINE_LEAD_DAYS = 14;
+/** How far the feed reaches in either direction (the API's cap). */
+export const MAX_DAYS = 30;
+
+export interface StripDay {
+	key: string;
+	/** Days from today (negative = past). */
+	offset: number;
+	weekday: string;
+	day: number;
+	isToday: boolean;
+	loaded: boolean;
+	has: boolean;
+}
 
 export function localDayKey(iso: string): string {
 	const d = new Date(iso);
@@ -152,13 +165,13 @@ class FeedStore {
 
 	/** Extend the window backwards (older results) and refetch. */
 	async earlier(days = 5) {
-		this.past = Math.min(this.past + days, 30);
+		this.past = Math.min(this.past + days, MAX_DAYS);
 		await this.load();
 	}
 
 	/** Extend the window forwards (further fixtures) and refetch. */
 	async later(days = 7) {
-		this.ahead = Math.min(this.ahead + days, 30);
+		this.ahead = Math.min(this.ahead + days, MAX_DAYS);
 		await this.load();
 	}
 
@@ -205,24 +218,43 @@ class FeedStore {
 		return localDayKey(new Date(serverClock.now()).toISOString());
 	}
 
-	/** Every local day of the loaded window, oldest first, with whether it
-	 *  has matches — the day strip. */
-	get strip(): { key: string; weekday: string; day: number; isToday: boolean; has: boolean }[] {
+	/** Every local day the feed can reach (± MAX_DAYS around today), oldest
+	 *  first — the day strip. `loaded` = inside the fetched window; `has`
+	 *  is only known for loaded days. */
+	get strip(): StripDay[] {
 		const has = new Set(this.matches.map((m) => localDayKey(m.kickoff)));
 		const today = new Date(serverClock.now());
-		const out = [];
-		for (let i = -this.past; i <= this.ahead; i++) {
+		const out: StripDay[] = [];
+		for (let i = -MAX_DAYS; i <= MAX_DAYS; i++) {
 			const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
 			const key = localDayKey(d.toISOString());
+			const loaded = i >= -this.past && i <= this.ahead;
 			out.push({
 				key,
+				offset: i,
 				weekday: d.toLocaleDateString(undefined, { weekday: 'short' }),
 				day: d.getDate(),
 				isToday: i === 0,
-				has: has.has(key)
+				loaded,
+				has: loaded && has.has(key)
 			});
 		}
 		return out;
+	}
+
+	/** Grow the window so it covers the day at `offset` from today (a tap
+	 *  on an unloaded day of the strip), then refetch. */
+	async extendTo(offset: number) {
+		if (offset < -this.past) this.past = Math.min(-offset, MAX_DAYS);
+		else if (offset > this.ahead) this.ahead = Math.min(offset, MAX_DAYS);
+		else return;
+		await this.load();
+	}
+	get canEarlier(): boolean {
+		return this.past < MAX_DAYS;
+	}
+	get canLater(): boolean {
+		return this.ahead < MAX_DAYS;
 	}
 
 	/** Save (create or update) a tip for a feed match and mirror it back

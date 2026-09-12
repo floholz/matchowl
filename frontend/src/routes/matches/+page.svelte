@@ -105,6 +105,37 @@
 		activeKey = key;
 		el.scrollIntoView({ block: 'start', behavior });
 	}
+	/** Strip tap: an unloaded day grows the window out to it first; a day
+	 *  without matches lands on the nearest day that has some. */
+	async function tapDay(d: { key: string; offset: number; loaded: boolean }) {
+		if (!d.loaded) {
+			await feedStore.extendTo(d.offset).catch(() => {});
+			await tick();
+		}
+		activeKey = d.key;
+		const keys = days.map((x) => x.key);
+		const target =
+			keys.find((k) => k === d.key) ??
+			(d.offset >= 0 ? keys.find((k) => k > d.key) : [...keys].reverse().find((k) => k < d.key));
+		if (target) goDay(target, d.loaded ? 'smooth' : 'instant');
+	}
+	// Infinite scroll forwards: the bottom loader fetches more as it comes
+	// into view, once the list has landed on today. Earlier results stay a
+	// tap (auto-loading upwards would fire on first paint and move the
+	// landing off today). The button stays as the visible state.
+	let bottomEl = $state<HTMLElement | null>(null);
+	$effect(() => {
+		const el = bottomEl;
+		if (!el || !scrolled) return;
+		const io = new IntersectionObserver((entries) => {
+			for (const e of entries) {
+				if (e.isIntersecting && !feedStore.loading && feedStore.canLater)
+					feedStore.later().catch(() => {});
+			}
+		});
+		io.observe(el);
+		return () => io.disconnect();
+	});
 	// Follow the scroll: the topmost day section below the sticky chrome.
 	$effect(() => {
 		if (!feedStore.loaded) return;
@@ -230,9 +261,10 @@
 				class="dayb"
 				class:on={d.key === activeKey}
 				class:today={d.isToday}
-				disabled={!d.has}
+				class:unloaded={!d.loaded}
+				class:none={d.loaded && !d.has}
 				data-key={d.key}
-				onclick={() => goDay(d.key)}
+				onclick={() => tapDay(d)}
 			>
 				<span>{d.isToday ? 'Today' : d.weekday}</span>
 				<b class="digits">{d.day}</b>
@@ -263,9 +295,11 @@
 			{/if}
 		</div>
 	{:else if feedStore.loaded}
-		<button class="btn ghost more" onclick={() => feedStore.earlier()}>
-			<ChevronUp size={16} /> Earlier results
-		</button>
+		{#if feedStore.canEarlier}
+			<button class="btn ghost more" onclick={() => feedStore.earlier()} disabled={feedStore.loading}>
+				<ChevronUp size={16} /> {feedStore.loading ? 'Loading…' : 'Earlier results'}
+			</button>
+		{/if}
 
 		{#each days as day (day.key)}
 			<section class="day" id={`day-${day.key}`} data-key={day.key}>
@@ -300,9 +334,11 @@
 			</section>
 		{/each}
 
-		<button class="btn ghost more" onclick={() => feedStore.later()}>
-			<ChevronDown size={16} /> Later fixtures
-		</button>
+		{#if feedStore.canLater}
+			<button class="btn ghost more" bind:this={bottomEl} onclick={() => feedStore.later()} disabled={feedStore.loading}>
+				<ChevronDown size={16} /> {feedStore.loading ? 'Loading…' : 'Later fixtures'}
+			</button>
+		{/if}
 	{:else}
 		<p class="muted">Loading…</p>
 	{/if}
@@ -580,9 +616,12 @@
 		font-size: 0.95rem;
 		color: var(--text);
 	}
-	.dayb:disabled {
-		cursor: default;
+	/* Loaded but empty: dim. Not loaded yet: dimmer, still a tap away. */
+	.dayb.none {
 		opacity: 0.55;
+	}
+	.dayb.unloaded {
+		opacity: 0.35;
 	}
 	.dayb.today {
 		color: var(--accent);
