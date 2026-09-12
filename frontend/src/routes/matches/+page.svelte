@@ -24,14 +24,14 @@
 	// Below the desktop rule the same link is the match page route.
 	let selected = $derived($page.url.searchParams.get('m') ?? '');
 	function select(id: string) {
-		if (media.desktop) goto(`/matches?m=${id}`, { noScroll: true, keepFocus: true });
+		if (media.panel) goto(`/matches?m=${id}`, { noScroll: true, keepFocus: true });
 		else goto(`/m/${id}`);
 	}
 	function closePanel() {
 		goto('/matches', { replaceState: true, noScroll: true, keepFocus: true });
 	}
 	$effect(() => {
-		if (selected && !media.desktop) goto(`/m/${selected}`, { replaceState: true });
+		if (selected && !media.panel) goto(`/m/${selected}`, { replaceState: true });
 	});
 	/** Rail: one competition only ('' = all in scope). */
 	let tid = $state('');
@@ -179,7 +179,7 @@
 	}
 </script>
 
-<div class="layout" class:withpanel={media.desktop && !!selected}>
+<div class="layout" class:withpanel={media.panel && !!selected}>
 <aside class="rail">
 	<div class="railh">Show</div>
 	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> My competitions</button>
@@ -308,7 +308,7 @@
 	{/if}
 </div>
 </div>
-{#if media.desktop && selected}
+{#if media.panel && selected}
 	<aside class="panel">
 		<MatchDetail id={selected} onClose={closePanel} onSaved={(t) => feedStore.applyTip(selected, t)} />
 	</aside>
@@ -316,7 +316,11 @@
 </div>
 
 <style>
-	/* ---- desktop: rail · list · panel ---- */
+	/* ---- desktop: rail · list · panel ----
+	   900–1099: nav only, a match opens as its route.
+	   1100–1359: list · panel (the chips row stays, no rail).
+	   ≥ 1360: rail · list (≤ 880px) · panel, centred as a set.
+	   ≥ 1984: rail + list stay put when the panel opens (room on the right). */
 	.rail,
 	.panel {
 		display: none;
@@ -325,22 +329,31 @@
 		min-width: 0;
 	}
 	@media (min-width: 900px) {
-		/* Rail · list (up to 900px) · panel, centred as a set: the list keeps
-		   its width when the panel opens as long as the viewport allows. */
 		.layout {
 			display: grid;
-			grid-template-columns: var(--rail-w) minmax(0, 900px);
+			grid-template-columns: minmax(0, 880px);
 			justify-content: center;
 			gap: 1.5rem;
 			align-items: start;
 		}
-		.layout.withpanel {
-			grid-template-columns: var(--rail-w) minmax(0, 900px) 400px;
+		.subbar {
+			margin-left: 0;
+			margin-right: 0;
+			padding-left: 0;
+			padding-right: 0;
+			margin-top: calc(-1 * var(--shell-gap, 2rem));
 		}
-		.rail {
-			display: block;
-			position: sticky;
-			top: calc(var(--topbar-h) + var(--shell-gap, 2rem));
+		.days {
+			margin: 0;
+			padding: 0;
+		}
+		.day {
+			scroll-margin-top: calc(var(--topbar-h) + 7.4rem);
+		}
+	}
+	@media (min-width: 1100px) {
+		.layout.withpanel {
+			grid-template-columns: minmax(0, 880px) 380px;
 		}
 		.panel {
 			display: block;
@@ -355,23 +368,36 @@
 			border: 1px solid var(--border);
 			border-radius: var(--radius);
 		}
+		.layout.withpanel .panel {
+			display: block;
+		}
+	}
+	@media (min-width: 1360px) {
+		.layout {
+			grid-template-columns: var(--rail-w) minmax(0, 880px);
+		}
+		.layout.withpanel {
+			grid-template-columns: var(--rail-w) minmax(0, 880px) 380px;
+		}
+		.rail {
+			display: block;
+			position: sticky;
+			top: calc(var(--topbar-h) + var(--shell-gap, 2rem));
+		}
 		/* The rail replaces the chips; the day strip stays above the list. */
 		.subbar .chips {
 			display: none;
 		}
-		.subbar {
-			margin-left: 0;
-			margin-right: 0;
-			padding-left: 0;
-			padding-right: 0;
-			margin-top: calc(-1 * var(--shell-gap, 2rem));
-		}
-		.days {
-			margin: 0;
-			padding: 0;
-		}
 		.day {
 			scroll-margin-top: calc(var(--topbar-h) + 4.6rem);
+		}
+	}
+	@media (min-width: 1984px) {
+		/* Closed set = 240 + 24 + 880 = 1144px, centred. Keep that left
+		   edge when the panel opens; it fits from 1984px up. */
+		.layout.withpanel {
+			justify-content: start;
+			padding-left: calc((100% - 1144px) / 2);
 		}
 	}
 	.railh {
