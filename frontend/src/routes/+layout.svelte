@@ -73,9 +73,12 @@
 	<!-- Top header. Mobile: contextual — the page's title (or back +
 	     title + context) left, avatar right; Home shows the wordmark.
 	     Desktop: wordmark + nav links, always. -->
-	<header class="topbar" class:titled={!!shell.title || !!shell.back}>
+	<header class="topbar" class:titled={!!shell.title || !!shell.back || !!shell.bar}>
 		<div class="topbar-brand"><Logo /></div>
-		<div class="topbar-ctx" class:withback={!!shell.back}>
+		{#if shell.bar}
+			<div class="topbar-custom">{@render shell.bar()}</div>
+		{/if}
+		<div class="topbar-ctx" class:withback={!!shell.back} class:hidden={!!shell.bar}>
 			{#if shell.back}
 				<a class="topbar-back" href={shell.back} aria-label="Back"><ChevronLeft size={22} /></a>
 			{/if}

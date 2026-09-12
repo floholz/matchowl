@@ -12,7 +12,13 @@
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { LocateFixed } from '@lucide/svelte';
 
-	let { compact = false }: { compact?: boolean } = $props();
+	let { compact = false, view: forced = undefined, limit = 0 }: {
+		compact?: boolean;
+		/** Pin one view (the hub's Table / Knockout tabs) and drop the toggle. */
+		view?: 'groups' | 'bracket';
+		/** Single-table snippet: show only the top N rows (0 = all). */
+		limit?: number;
+	} = $props();
 
 	let view = $state<'groups' | 'bracket'>('groups');
 
@@ -36,7 +42,9 @@
 		if (hasBracket && (groupsDone || !hasGroups)) view = 'bracket';
 	});
 	// Compact follows the season: no toggle, so keep tracking it.
-	let shown = $derived(compact ? (hasBracket && (groupsDone || !hasGroups) ? 'bracket' : 'groups') : view);
+	let shown = $derived(
+		forced ?? (compact ? (hasBracket && (groupsDone || !hasGroups) ? 'bracket' : 'groups') : view)
+	);
 
 	interface Standing {
 		id: string;
@@ -137,7 +145,7 @@
 	}
 </script>
 
-{#if !compact && hasBracket && hasGroups}
+{#if !compact && !forced && hasBracket && hasGroups}
 	<div class="seg sub">
 		<button class:on={view === 'groups'} onclick={() => (view = 'groups')}
 			>{tournamentStore.singleTable ? 'Table' : 'Group tables'}</button
@@ -166,7 +174,7 @@
 							<tr><th></th><th>Team</th><th>P</th><th>GD</th><th>Pts</th></tr>
 						</thead>
 						<tbody>
-							{#each g.rows as r, i (r.id)}
+							{#each limit > 0 && tournamentStore.singleTable ? g.rows.slice(0, limit) : g.rows as r, i (r.id)}
 								{@const zone = tournamentStore.zoneAt(i + 1)}
 								<tr
 									class:adv={i < tournamentStore.directQualifiers}
@@ -191,6 +199,9 @@
 							{/each}
 						</tbody>
 					</table>
+					{#if limit > 0 && tournamentStore.singleTable && g.rows.length > limit}
+						<p class="muted morerows">+{g.rows.length - limit} more in the full table</p>
+					{/if}
 					{#if tournamentStore.zones.length}
 						<ul class="zlegend">
 							{#each tournamentStore.zones as z, zi (z.key)}
@@ -239,6 +250,11 @@
 {/if}
 
 <style>
+	.morerows {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
+		text-align: center;
+	}
 	.seg.sub {
 		margin: 0.2rem 0 0.85rem;
 	}

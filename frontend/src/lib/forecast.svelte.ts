@@ -148,7 +148,9 @@ export class ForecastStore {
 		this.calls = f?.calls ?? {};
 	}
 
-	private loadedFor = '';
+	/** Tournament id the loaded forecast belongs to (readers check it
+	 *  against the current selection before trusting the state). */
+	loadedFor = $state('');
 
 	async load() {
 		await tournamentStore.ready();

@@ -291,6 +291,42 @@ h3 {
 	border-color: var(--live);
 }
 
+/* ---- Underline tabs (hub, league page) — live inside a .subbar ---- */
+.utabs {
+	display: flex;
+	gap: 0;
+	overflow-x: auto;
+	scrollbar-width: none;
+	margin: 0 calc(-1 * var(--shell-x, 1rem));
+	padding: 0 calc(var(--shell-x, 1rem) - 0.25rem);
+}
+.utabs::-webkit-scrollbar {
+	display: none;
+}
+.utab {
+	flex: none;
+	padding: 0.55rem 0.75rem 0.5rem;
+	border: none;
+	border-bottom: 2px solid transparent;
+	background: transparent;
+	color: var(--muted);
+	font: inherit;
+	font-weight: 700;
+	font-size: 0.86rem;
+	white-space: nowrap;
+	cursor: pointer;
+}
+.utab:hover {
+	color: var(--text);
+}
+.utab.on {
+	color: var(--text);
+	border-bottom-color: var(--accent);
+}
+.subbar.tabrow {
+	padding-bottom: 0;
+}
+
 /* ---- Segmented control (tabs) shared look ---- */
 .seg,
 .tabs {
@@ -443,6 +479,21 @@ body.kb-open .tabbar {
 	display: none;
 }
 
+/* A page-drawn top bar (mobile): the hub's back · crest · name · season. */
+.topbar-custom {
+	display: none;
+	align-items: center;
+	gap: 0.6rem;
+	flex: 1;
+	min-width: 0;
+}
+.topbar.titled .topbar-custom {
+	display: flex;
+}
+.topbar-ctx.hidden {
+	display: none !important;
+}
+
 /* Contextual title (mobile): replaces the wordmark when the page sets one. */
 .topbar-ctx {
 	display: none;
@@ -492,7 +543,8 @@ body.kb-open .tabbar {
 	display: flex;
 }
 .topbar.titled .topbar-brand,
-.topbar.titled .topbar-help {
+.topbar.titled .topbar-help,
+.topbar.titled > .spacer {
 	display: none;
 }
 
@@ -531,7 +583,8 @@ body.kb-open .tabbar {
 		display: none;
 	}
 	/* Desktop is never contextual: wordmark + links on every page. */
-	.topbar.titled .topbar-ctx {
+	.topbar.titled .topbar-ctx,
+	.topbar.titled .topbar-custom {
 		display: none;
 	}
 	.topbar.titled .topbar-brand {

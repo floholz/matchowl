@@ -304,6 +304,9 @@ add more):
 - **Admin follow-ups** (plan 05): scoring-config picker, team edits, flags.
 - **Polls** decision (plan 02) — see inventory §9.
 - **Screenshots / meta / docs sweep** (plan 03 phase 5).
+- **Sync cadence** (2026-09-12): fit result syncs to the known fixtures
+  (poll around kick-offs, idle otherwise) instead of a flat cron; the sync
+  now also follows kick-off changes, so the schedule is trustworthy.
 
 ## Decision log
 
