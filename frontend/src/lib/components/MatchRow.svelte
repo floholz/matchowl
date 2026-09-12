@@ -24,6 +24,7 @@
 	} from '$lib/tips.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
+	import { tieStrip } from '$lib/tie';
 	import Flag from './Flag.svelte';
 	import LedBoard from './LedBoard.svelte';
 	import TipCapsule from './TipCapsule.svelte';
@@ -42,7 +43,9 @@
 		onSave = undefined,
 		leg = undefined,
 		href = '',
-		sub = ''
+		sub = '',
+		onSelect = undefined,
+		selected = false
 	}: {
 		match: Match;
 		/** The editor drawer is open (the parent keeps one open at a time). */
@@ -61,6 +64,11 @@
 		/** Second line of the status column (e.g. the competition code on
 		 *  Home). Defaults to the countdown inside the last hours. */
 		sub?: string;
+		/** Desktop lists: open the match in the detail panel instead of
+		 *  following `href`. */
+		onSelect?: () => void;
+		/** The row whose match the panel shows. */
+		selected?: boolean;
 	} = $props();
 
 	const teamOf = (id: string) => (team ? team(id) : tipsStore.team(id));
@@ -99,34 +107,12 @@
 	let legView = $derived.by((): OtherLeg | null => {
 		if (leg !== undefined) return leg;
 		if (!isKO) return null;
-		const t = tournamentStore.current;
 		const found = findOtherLeg(tipsStore.matches, match);
-		if (!found || !t) return null;
-		return otherLegView(
-			match,
-			found.other,
-			found.first,
-			`/competitions/${t.competition.key}?s=${t.slug}&tab=matches&m=${found.other.id}`
-		);
+		if (!found) return null;
+		return otherLegView(match, found.other, found.first, `/m/${found.other.id}`);
 	});
 	// First legs are tipped like group matches (draws allowed, no advancer).
 	let phased = $derived(isKO && !(legView?.first ?? false));
-	let agg = $derived.by((): [number, number] | null => {
-		const l = legView;
-		if (!l || !l.played || (!played && !live)) return null;
-		const [h, a] = legScore(match);
-		return [h + l.forHome, a + l.forAway];
-	});
-	let legDay = $derived(
-		legView
-			? new Date(legView.kickoff).toLocaleDateString(undefined, {
-					weekday: 'short',
-					day: 'numeric',
-					month: 'short'
-				})
-			: ''
-	);
-
 	// ---- labels ----
 	function label(side: 'home' | 'away') {
 		const t = side === 'home' ? home : away;
@@ -253,59 +239,31 @@
 	const mark = () => (dirty = true);
 
 	// ---- tie strip ----
-	interface Part {
-		t: string;
-		b?: boolean;
-		n?: boolean;
+	let strip = $derived(
+		legView
+			? tieStrip({
+					match,
+					leg: legView,
+					played,
+					live,
+					homeName: H.name,
+					awayName: A.name,
+					teamName: (id) => teamOf(id)?.name ?? '—'
+				})
+			: null
+	);
+	function pick(e: MouseEvent) {
+		if (!onSelect) return;
+		e.preventDefault();
+		onSelect();
 	}
-	let strip = $derived.by((): Part[] | null => {
-		const l = legView;
-		if (!l) return null;
-		const otherOrd = l.first ? '2nd' : '1st';
-		const leadOf = (h: number, a: number): Part[] =>
-			h === a ? [{ t: 'level' }] : [{ t: h > a ? H.name : A.name, b: true }, { t: ' lead' }];
-		if (!l.played) {
-			const parts: Part[] = [{ t: `${otherOrd} leg ` }, { t: legDay, b: true }];
-			if (played) {
-				const [h, a] = legScore(match);
-				parts.push({ t: ' · ' }, ...leadOf(h, a), { t: ' ' }, { t: `${h}–${a}`, n: true });
-			}
-			return parts;
-		}
-		if (!played && !live) {
-			return [
-				{ t: `${otherOrd} leg ` },
-				{ t: `${l.forHome}–${l.forAway}`, n: true },
-				{ t: ' · ' },
-				...leadOf(l.forHome, l.forAway)
-			];
-		}
-		const a = agg!;
-		const parts: Part[] = [
-			{ t: 'Agg ' },
-			{ t: `${a[0]}–${a[1]}`, n: true },
-			{ t: ` · ${otherOrd} leg ` },
-			{ t: `${l.forHome}–${l.forAway}`, n: true }
-		];
-		if (played && match.advancer) {
-			const how =
-				match.penHome || match.penAway
-					? 'on penalties'
-					: match.etHome || match.etAway
-						? 'after extra time'
-						: 'on aggregate';
-			parts.push({ t: ' · ' }, { t: teamOf(match.advancer)?.name ?? '—', b: true }, { t: ` advance ${how}` });
-		} else if (played) {
-			parts.push({ t: ' · ' }, ...leadOf(a[0], a[1]));
-		} else if (match.etHome || match.etAway) {
-			parts.push({ t: ' · extra time' });
-		}
-		return parts;
-	});
 </script>
 
-<div class="mr" class:live class:played class:editing={open} id={`m-${match.id}`}>
-	<svelte:element this={href ? 'a' : 'div'} class="main" href={href || undefined}>
+<div class="mr" class:live class:played class:editing={open} class:selected id={`m-${match.id}`}>
+	<!-- An <a> when there is a link (the click handler only intercepts it
+	     for the desktop panel), a plain wrapper otherwise. -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<svelte:element this={href ? 'a' : 'div'} class="main" href={href || undefined} onclick={href ? pick : undefined}>
 		<span class="when" class:islive={live}>
 			{#if live}
 				<b>Live</b><span class="ldot"></span>
@@ -347,7 +305,7 @@
 				>{existing && pts !== undefined ? `${pts > 0 ? '+' : ''}${pts}` : existing ? '' : '0'}</span
 			>
 		{:else if href}
-			<a class="go" {href} aria-label="Match details"><ChevronRight size={16} /></a>
+			<a class="go" {href} aria-label="Match details" onclick={pick}><ChevronRight size={16} /></a>
 		{:else}
 			<span class="pts"></span>
 		{/if}
@@ -433,6 +391,10 @@
 	}
 	.mr.editing {
 		background: color-mix(in srgb, var(--accent) 5%, transparent);
+	}
+	.mr.selected {
+		background: color-mix(in srgb, var(--accent) 6%, transparent);
+		box-shadow: inset 3px 0 0 var(--accent);
 	}
 	.main {
 		display: contents;

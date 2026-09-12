@@ -7,17 +7,21 @@ export interface Chrome {
 	back?: string;
 	/** Small line under the title (detail pages). */
 	context?: string;
+	/** Desktop: let the content spread to --maxw-wide (Matches, Home). */
+	wide?: boolean;
 }
 
 class Shell {
 	title = $state('');
 	back = $state('');
 	context = $state('');
+	wide = $state(false);
 
 	set(c: Chrome) {
 		this.title = c.title ?? '';
 		this.back = c.back ?? '';
 		this.context = c.context ?? '';
+		this.wide = c.wide ?? false;
 	}
 	clear() {
 		this.set({});

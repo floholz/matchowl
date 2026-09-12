@@ -102,6 +102,16 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.Next()
 	})
 
+	// GET /api/scoring/default — the default match/forecast points, so the
+	// match page can explain a tip's points (mirrors scoreValues client-side).
+	se.Router.GET("/api/scoring/default", func(e *core.RequestEvent) error {
+		cfg, err := DefaultConfig(app)
+		if err != nil {
+			return e.JSON(404, map[string]string{"error": "no default scoring config"})
+		}
+		return e.JSON(200, cfg)
+	}).Bind(apis.RequireAuth())
+
 	se.Router.POST("/api/admin/recompute", func(e *core.RequestEvent) error {
 		if err := Recompute(app); err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})

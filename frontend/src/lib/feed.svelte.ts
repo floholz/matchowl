@@ -261,6 +261,24 @@ class FeedStore {
 		}
 	}
 
+	/** Mirror a tip saved elsewhere (the match page / detail panel) into
+	 *  the row so the list agrees without a refetch. */
+	applyTip(matchId: string, t: Omit<Tip, 'id' | 'match'>) {
+		const i = this.matches.findIndex((x) => x.id === matchId);
+		if (i < 0) return;
+		this.matches[i] = {
+			...this.matches[i],
+			myTip: {
+				ftHome: t.ftHome,
+				ftAway: t.ftAway,
+				etHome: t.etHome,
+				etAway: t.etAway,
+				penWinner: t.penWinner,
+				advancer: t.advancer
+			}
+		};
+	}
+
 	/** Play a tournament from a suggestion card, then refresh. */
 	async play(slug: string) {
 		await pb.send(`/api/tournaments/${slug}/play`, { method: 'POST' });

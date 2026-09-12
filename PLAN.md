@@ -175,7 +175,12 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
    follows the list. Feed points for finished matches were never sent
    (server compared a key the row never had) — fixed on the way. The Home
    first cut may still want a polish pass against the mockup.
-4. Match page route; desktop detail panel reusing it.
+4. ✅ 2026-09-12 — `MatchDetail` at `/m/{id}` and as the desktop panel on
+   Matches (rail · list · 400px panel, `?m=`). Hero, tie strip, big
+   steppers / capsule + breakdown (`GET /api/scoring/default`, rules
+   mirrored in `lib/scoring.ts`), friends' picks, bots, mini table.
+   Cross-leg links target `/m/{id}`. TipCard is now unused (delete with
+   step 5 once nothing else imports it).
 5. Competition hub header + tabs; Friends rework.
 
 ---

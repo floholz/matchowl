@@ -124,6 +124,9 @@ h3 {
 }
 
 @media (min-width: 900px) {
+	.app-shell.wide {
+		max-width: var(--maxw-wide);
+	}
 	.app-shell.with-chrome {
 		--shell-gap: 2rem;
 		--shell-x: 2rem;

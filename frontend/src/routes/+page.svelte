@@ -100,14 +100,7 @@
 		return s.length <= 5 ? s : '';
 	}
 	function legOf(m: FeedMatch) {
-		return m.leg
-			? otherLegView(
-					m,
-					m.leg,
-					m.leg.first,
-					`/competitions/${m.tournament.competition}?s=${m.tournament.slug}&tab=matches&m=${m.leg.id}`
-				)
-			: null;
+		return m.leg ? otherLegView(m, m.leg, m.leg.first, `/m/${m.leg.id}`) : null;
 	}
 	const time = (iso: string) =>
 		new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });

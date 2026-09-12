@@ -6,13 +6,16 @@
 		min = 0,
 		max = 99,
 		disabled = false,
-		onchange = undefined
+		onchange = undefined,
+		size = 'md'
 	}: {
 		value: number;
 		min?: number;
 		max?: number;
 		disabled?: boolean;
 		onchange?: (value: number) => void;
+		/** `lg` = the match page's big steppers. */
+		size?: 'md' | 'lg';
 	} = $props();
 
 	function bump(d: number) {
@@ -24,13 +27,13 @@
 	}
 </script>
 
-<div class="stepper" class:disabled>
+<div class="stepper {size}" class:disabled>
 	<button type="button" aria-label="decrease" onclick={() => bump(-1)} {disabled}>
-		<Minus size={16} />
+		<Minus size={size === 'lg' ? 20 : 16} />
 	</button>
-	<span class="val">{value}</span>
+	<span class="val digits">{value}</span>
 	<button type="button" aria-label="increase" onclick={() => bump(1)} {disabled}>
-		<Plus size={16} />
+		<Plus size={size === 'lg' ? 20 : 16} />
 	</button>
 </div>
 
@@ -62,5 +65,13 @@
 		text-align: center;
 		font-weight: 800;
 		font-size: 1.05rem;
+	}
+	.lg button {
+		width: 44px;
+		height: 44px;
+	}
+	.lg .val {
+		min-width: 2.4rem;
+		font-size: 1.9rem;
 	}
 </style>

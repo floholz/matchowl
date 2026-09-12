@@ -9,12 +9,32 @@
 	import { otherLegView } from '$lib/tips.svelte';
 	import { tournamentStore, competitionLogoUrl } from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
+	import { media } from '$lib/media.svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import MatchGroup from '$lib/components/MatchGroup.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
+	import MatchDetail from '$lib/components/MatchDetail.svelte';
 	import { tick } from 'svelte';
-	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check } from '@lucide/svelte';
+	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Globe, Radio } from '@lucide/svelte';
 
-	pageChrome(() => ({ title: 'Matches' }));
+	pageChrome(() => ({ title: 'Matches', wide: true }));
+
+	// Desktop: ?m= opens the match in the detail panel beside the list.
+	// Below the desktop rule the same link is the match page route.
+	let selected = $derived($page.url.searchParams.get('m') ?? '');
+	function select(id: string) {
+		if (media.desktop) goto(`/matches?m=${id}`, { noScroll: true, keepFocus: true });
+		else goto(`/m/${id}`);
+	}
+	function closePanel() {
+		goto('/matches', { replaceState: true, noScroll: true, keepFocus: true });
+	}
+	$effect(() => {
+		if (selected && !media.desktop) goto(`/m/${selected}`, { replaceState: true });
+	});
+	/** Rail: one competition only ('' = all in scope). */
+	let tid = $state('');
 
 	let openId = $state('');
 	let scrolled = $state(false);
@@ -37,16 +57,28 @@
 		if (liveCount === 0) liveOnly = false;
 	});
 	let days = $derived.by((): FeedDay[] => {
-		if (!liveOnly) return feedStore.days;
+		if (!liveOnly && !tid) return feedStore.days;
+		const keep = (m: FeedMatch) => (!liveOnly || m.status === 'live') && (!tid || m.tournament.id === tid);
 		return feedStore.days
-			.map((d) => {
-				const matches = d.matches.filter((m) => m.status === 'live');
-				return { ...d, matches, groups: d.groups
-					.map((g) => ({ ...g, matches: g.matches.filter((m) => m.status === 'live') }))
-					.filter((g) => g.matches.length) };
-			})
+			.map((d) => ({
+				...d,
+				matches: d.matches.filter(keep),
+				groups: d.groups
+					.map((g) => ({ ...g, matches: g.matches.filter(keep) }))
+					.filter((g) => g.matches.length)
+			}))
 			.filter((d) => d.matches.length);
 	});
+	/** Rail lists: what you play, and the rest (opens the "all" scope). */
+	let notPlaying = $derived(
+		tournamentStore.list.filter(
+			(t) => t.status !== 'draft' && !feedStore.playing.some((p) => p.id === t.id)
+		)
+	);
+	async function pickTournament(id: string, playing: boolean) {
+		tid = tid === id ? '' : id;
+		if (tid && !playing && feedStore.scope !== 'all') await setScope('all');
+	}
 	let strip = $derived.by(() => {
 		const has = new Set(days.map((d) => d.key));
 		return feedStore.strip.map((d) => ({ ...d, has: has.has(d.key) }));
@@ -147,6 +179,28 @@
 	}
 </script>
 
+<div class="layout" class:withpanel={media.desktop && !!selected}>
+<aside class="rail">
+	<div class="railh">Show</div>
+	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> My competitions</button>
+	<button class="raillink" class:on={feedStore.scope === 'all' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('all'); }}><Globe size={16} /> Everything</button>
+	{#if liveCount > 0}
+		<button class="raillink live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}><Radio size={16} /> Live · {liveCount}</button>
+	{/if}
+	{#if feedStore.playing.length}
+		<div class="railh">Playing</div>
+		{#each feedStore.playing as t (t.id)}
+			<button class="raillink" class:on={tid === t.id} onclick={() => pickTournament(t.id, true)}>{t.shortName || t.name}</button>
+		{/each}
+	{/if}
+	{#if notPlaying.length}
+		<div class="railh">Not playing</div>
+		{#each notPlaying as t (t.id)}
+			<button class="raillink dim" class:on={tid === t.id} onclick={() => pickTournament(t.id, false)}>{t.shortName || t.name}</button>
+		{/each}
+	{/if}
+</aside>
+<div class="col">
 <div class="subbar">
 	<div class="chips">
 		<button class="chip" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}>
@@ -236,14 +290,9 @@
 								open={openId === m.id}
 								onToggle={() => (openId = openId === m.id ? '' : m.id)}
 								href={`/m/${m.id}`}
-								leg={m.leg
-									? otherLegView(
-											m,
-											m.leg,
-											m.leg.first,
-											`/competitions/${m.tournament.competition}?s=${m.tournament.slug}&tab=matches&m=${m.leg.id}`
-										)
-									: null}
+								onSelect={() => select(m.id)}
+								selected={selected === m.id}
+								leg={m.leg ? otherLegView(m, m.leg, m.leg.first, `/m/${m.leg.id}`) : null}
 							/>
 						{/each}
 					</MatchGroup>
@@ -258,8 +307,112 @@
 		<p class="muted">Loading…</p>
 	{/if}
 </div>
+</div>
+{#if media.desktop && selected}
+	<aside class="panel">
+		<MatchDetail id={selected} onClose={closePanel} onSaved={(t) => feedStore.applyTip(selected, t)} />
+	</aside>
+{/if}
+</div>
 
 <style>
+	/* ---- desktop: rail · list · panel ---- */
+	.rail,
+	.panel {
+		display: none;
+	}
+	.col {
+		min-width: 0;
+	}
+	@media (min-width: 900px) {
+		.layout {
+			display: grid;
+			grid-template-columns: var(--rail-w) minmax(0, 1fr);
+			gap: 1.5rem;
+			align-items: start;
+		}
+		.layout.withpanel {
+			grid-template-columns: var(--rail-w) minmax(0, 1fr) 400px;
+		}
+		.rail {
+			display: block;
+			position: sticky;
+			top: calc(var(--topbar-h) + var(--shell-gap, 2rem));
+		}
+		.panel {
+			display: block;
+			position: sticky;
+			top: calc(var(--topbar-h) + var(--shell-gap, 2rem));
+			max-height: calc(100vh - var(--topbar-h) - 2 * var(--shell-gap, 2rem));
+			overflow-y: auto;
+			padding: 0.9rem 1rem 1.2rem;
+			background:
+				linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
+				var(--surface);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+		}
+		/* The rail replaces the chips; the day strip stays above the list. */
+		.subbar .chips {
+			display: none;
+		}
+		.subbar {
+			margin-left: 0;
+			margin-right: 0;
+			padding-left: 0;
+			padding-right: 0;
+			margin-top: calc(-1 * var(--shell-gap, 2rem));
+		}
+		.days {
+			margin: 0;
+			padding: 0;
+		}
+		.day {
+			scroll-margin-top: calc(var(--topbar-h) + 4.6rem);
+		}
+	}
+	.railh {
+		font-size: 0.66rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: var(--muted);
+		margin: 1.1rem 0.75rem 0.35rem;
+	}
+	.railh:first-child {
+		margin-top: 0.2rem;
+	}
+	.raillink {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		width: 100%;
+		padding: 0.55rem 0.75rem;
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-weight: 600;
+		font-size: 0.86rem;
+		text-align: left;
+		cursor: pointer;
+	}
+	.raillink:hover {
+		color: var(--text);
+		background: var(--surface-2);
+	}
+	.raillink.on {
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+	}
+	.raillink.live {
+		color: var(--live);
+	}
+	.raillink.dim {
+		opacity: 0.75;
+	}
+
 	.subbar {
 		display: flex;
 		flex-direction: column;

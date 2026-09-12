@@ -97,7 +97,7 @@
 	<nav class="tabbar"><NavLinks variant="tab" /></nav>
 {/if}
 
-<div class="app-shell" class:with-chrome={chrome}>
+<div class="app-shell" class:with-chrome={chrome} class:wide={shell.wide}>
 	{#if chrome}
 		<PwaInstallBanner />
 		<VerifyEmailAnnounce />
