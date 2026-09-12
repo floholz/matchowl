@@ -76,8 +76,59 @@
 	);
 	let nowDayIndex = $derived(days.findIndex(([, ms]) => ms.some((m) => m.id === nowId)));
 	function goNow() {
-		document.getElementById(`day-${nowDayIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		goDay(nowDayIndex);
 	}
+	/** Day strip: the competition's match days within the current filter
+	 *  (a season has long gaps, so only days with fixtures are shown). */
+	let strip = $derived(
+		days.map(([, ms], i) => {
+			const d = new Date(ms[0].kickoff);
+			return {
+				i,
+				weekday: d.toLocaleDateString(undefined, { weekday: 'short' }),
+				day: d.getDate(),
+				month: d.toLocaleDateString(undefined, { month: 'short' }),
+				isToday: d.toDateString() === new Date(serverClock.now()).toDateString(),
+				isNow: i === nowDayIndex
+			};
+		})
+	);
+	let activeDay = $state(-1);
+	let stripEl = $state<HTMLElement | null>(null);
+	function goDay(i: number) {
+		if (i < 0) return;
+		activeDay = i;
+		document.getElementById(`day-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	}
+	// Follow the list: the topmost day section below the sticky chrome.
+	$effect(() => {
+		if (!tipsStore.loaded) return;
+		const onScroll = () => {
+			const sections = Array.from(document.querySelectorAll<HTMLElement>('h3.day'));
+			const top = (document.querySelector('.pills')?.getBoundingClientRect().bottom ?? 160) + 8;
+			let cur = -1;
+			sections.forEach((sec, i) => {
+				if (sec.getBoundingClientRect().top <= top) cur = i;
+			});
+			if (cur >= 0 && cur !== activeDay) activeDay = cur;
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		onScroll();
+		return () => window.removeEventListener('scroll', onScroll);
+	});
+	$effect(() => {
+		const i = activeDay;
+		stripEl
+			?.querySelector<HTMLElement>(`[data-i="${i}"]`)
+			?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+	});
+	// A fresh filter lands on its current day.
+	$effect(() => {
+		void roundKey;
+		void team;
+		if (!tipsStore.loaded) return;
+		tick().then(() => goDay(nowDayIndex));
+	});
 
 	/** Card sub-line for a day: the stage, plus the round when shared. */
 	function roundOf(ms: Match[]): string {
@@ -135,10 +186,21 @@
 			{#if team}<X size={14} />{:else}<ChevronDown size={14} />{/if}
 		</label>
 		<span class="spacer"></span>
-		{#if !roundKey && !team && nowId}
+		{#if nowId && activeDay !== nowDayIndex}
 			<button class="chip" onclick={goNow}><LocateFixed size={14} /> Now</button>
 		{/if}
 	</div>
+	{#if strip.length > 1}
+		<div class="days" bind:this={stripEl}>
+			{#each strip as d (d.i)}
+				<button class="dayb" class:on={d.i === activeDay} class:today={d.isToday} class:now={d.isNow} data-i={d.i} onclick={() => goDay(d.i)}>
+					<span>{d.isToday ? 'Today' : d.weekday}</span>
+					<b class="digits">{d.day}</b>
+					<small>{d.month}</small>
+				</button>
+			{/each}
+		</div>
+	{/if}
 </div>
 
 {#if !tipsStore.loaded}
@@ -165,6 +227,60 @@
 	.pills {
 		top: calc(var(--topbar-h) + 2.6rem);
 		z-index: 19;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.days {
+		display: flex;
+		gap: 6px;
+		overflow-x: auto;
+		scrollbar-width: none;
+		margin: 0 calc(-1 * var(--shell-x, 1rem));
+		padding: 0 var(--shell-x, 1rem);
+	}
+	.days::-webkit-scrollbar {
+		display: none;
+	}
+	.dayb {
+		flex: none;
+		width: 54px;
+		height: 54px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1px;
+		border: none;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.68rem;
+		font-weight: 600;
+		cursor: pointer;
+		padding: 0;
+		line-height: 1.1;
+	}
+	.dayb b {
+		font-size: 0.95rem;
+		color: var(--text);
+	}
+	.dayb small {
+		font-size: 0.6rem;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.dayb.today,
+	.dayb.now {
+		color: var(--accent);
+	}
+	.dayb.on {
+		background: var(--accent);
+		color: var(--accent-fg);
+	}
+	.dayb.on b {
+		color: var(--accent-fg);
 	}
 	.chips {
 		display: flex;
@@ -219,7 +335,7 @@
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--muted);
-		/* Land below the fixed top bar + the hub's sticky tab strip + pills. */
-		scroll-margin-top: calc(var(--topbar-h) + 6.2rem);
+		/* Land below the fixed top bar + the hub's sticky tab strip + pills + strip. */
+		scroll-margin-top: calc(var(--topbar-h) + 10.4rem);
 	}
 </style>
