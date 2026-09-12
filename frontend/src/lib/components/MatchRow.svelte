@@ -220,8 +220,11 @@
 			busy = false;
 		}
 	}
+	/** Untipped: the button always saves what is shown (0:0 included).
+	 *  Tipped: only a change needs a request; otherwise it just closes. */
+	let needsSave = $derived(dirty || !existing);
 	async function done() {
-		if (dirty && !incomplete) {
+		if (needsSave && !incomplete) {
 			if (!(await save())) return;
 		}
 		onToggle?.();
@@ -360,7 +363,7 @@
 				<span class="spacer"></span>
 				<button type="button" class="btn slim" onclick={done} disabled={busy || incomplete}>
 					<Check size={15} />
-					{busy ? 'Saving…' : dirty ? 'Save' : 'Done'}
+					{busy ? 'Saving…' : needsSave ? 'Save' : 'Done'}
 				</button>
 			</div>
 		</div>
