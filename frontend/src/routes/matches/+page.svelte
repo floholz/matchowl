@@ -325,14 +325,17 @@
 		min-width: 0;
 	}
 	@media (min-width: 900px) {
+		/* Rail · list (up to 900px) · panel, centred as a set: the list keeps
+		   its width when the panel opens as long as the viewport allows. */
 		.layout {
 			display: grid;
-			grid-template-columns: var(--rail-w) minmax(0, 1fr);
+			grid-template-columns: var(--rail-w) minmax(0, 900px);
+			justify-content: center;
 			gap: 1.5rem;
 			align-items: start;
 		}
 		.layout.withpanel {
-			grid-template-columns: var(--rail-w) minmax(0, 1fr) 400px;
+			grid-template-columns: var(--rail-w) minmax(0, 900px) 400px;
 		}
 		.rail {
 			display: block;

@@ -86,11 +86,13 @@
 		</div>
 		<nav class="topbar-links"><NavLinks variant="top" /></nav>
 		<div class="spacer"></div>
-		<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">
-			<CircleHelp size={20} />
-		</a>
-		<PwaInstallButton />
-		<UserMenu align="right" />
+		<div class="topbar-right">
+			<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">
+				<CircleHelp size={20} />
+			</a>
+			<PwaInstallButton />
+			<UserMenu align="right" />
+		</div>
 	</header>
 
 	<!-- Mobile: bottom tab bar -->
