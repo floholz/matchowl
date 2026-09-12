@@ -255,11 +255,23 @@ work pending · ⏭ deliberately deferred
 - ⬜ Forecast scoring (progressive resolution, calls evaluation)
 - ⬜ What forecast shape should UCL get? (calls linking to zones exists; confirm)
 
-#### 7. Friends (leagues)
-- ⬜ `/friends` list, create/join with invite codes, Global league semantics
-- ⬜ League page `/friends/{id}`: leaderboard (tournament selector), members, roles
-- ⬜ League chat (+ GIFs), notifications from chat
-- ⬜ Leaderboard tabs (overall / tips / forecast), tiebreakers
+#### 7. Friends (leagues) — 🔨 verdict 2026-09-13: split into Friends + Pools
+- 🔨 **Friends** = a mutual social graph: one side requests, the other
+  accepts. The Friends board is "me and my friends" per competition and
+  season (the chips the league page has today), Global is the same board
+  with everyone. No chat, no invites, no owner.
+- 🔨 **Pools** = the former leagues, renamed: members, invite code, chat,
+  owner tools, scoring config, **bound to a set of seasons** (one is the
+  common case; several allowed). The board sums the bound seasons and keeps
+  the competition/season chips as a filter ("in this pool I'd be first if
+  only Serie A counted"). No auto-repeat: a manual "Set up next season"
+  clones members + settings into a new pool for the next season and
+  re-invites; the old pool stays as history.
+- 🔨 Migration: existing leagues become pools bound to WC 2026; Global
+  becomes the everyone board on Friends. (Launch itself is a clean start
+  with imported data — see the backlog.)
+- ⬜ Pool chat (+ GIFs), notifications from chat — keep as is
+- ⬜ Leaderboard tabs (total / tips / forecast), tiebreakers — keep as is
 
 #### 8. Profile & settings
 - ⬜ Settings: account, avatar, email/password change, delete account
@@ -313,6 +325,14 @@ add more):
 - **Admin follow-ups** (plan 05): scoring-config picker, team edits, flags.
 - **Polls** decision (plan 02) — see inventory §9.
 - **Screenshots / meta / docs sweep** (plan 03 phase 5).
+- **Friends + Pools** (2026-09-13, §7 verdict): friend requests/accept +
+  friends board; pools bound to seasons with the season/competition chips,
+  "Set up next season"; rename leagues → pools everywhere (nav, Home,
+  feed suggestions, notifications, docs); migrate existing leagues to
+  WC 2026 pools.
+- **Launch data plan** (2026-09-13, to discuss): the app launches clean
+  with imported data; the old WC app and its data stay as they are. Decide
+  what gets imported (users? competitions only?) and how.
 - **Sync cadence** (2026-09-12): fit result syncs to the known fixtures
   (poll around kick-offs, idle otherwise) instead of a flat cron; the sync
   now also follows kick-off changes, so the schedule is trustworthy.
@@ -322,6 +342,10 @@ add more):
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
 
+- 2026-09-13 — §7 Friends: split into mutual Friends (request + accept,
+  per-competition board, Global) and Pools (former leagues, bound to
+  seasons, manual next-season setup, filters kept). Existing leagues → WC
+  2026 pools. Launch will be a clean start with imported data (to plan).
 - 2026-09-12 — Open layout items drawn and proposed (hub Overview/Table/
   Knockout/Forecast tabs, league page tabs, tablet = wide phone); see
   "Proposed 2026-09-12". Implementation started with the match row
