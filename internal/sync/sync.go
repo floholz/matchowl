@@ -519,11 +519,16 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 		if status == "live" && ftH == nil && ftA == nil {
 			ftH, ftA = f.HomeGoals, f.AwayGoals
 		}
+		// Schedule changes: leagues confirm exact kick-off times round by
+		// round (the provider first lists a whole round on one placeholder
+		// day), and fixtures get postponed. Follow the provider for anything
+		// not yet played so tips lock at the real time.
+		sched := applySchedule(rec, f, status)
 		// Skip if nothing changed (avoids needless recompute storms: every
 		// save of a finished or knockout match triggers a full score rebuild).
 		// A finished match without finalizedAt (e.g. hand-edited in the admin
 		// UI) still saves, so it gets finalized and scored.
-		if rec.GetString("status") == status &&
+		if !sched && rec.GetString("status") == status &&
 			(status != "finished" || rec.GetString("finalizedAt") != "") &&
 			(ftH == nil || rec.GetInt("ftHome") == *ftH) &&
 			(ftA == nil || rec.GetInt("ftAway") == *ftA) &&
@@ -725,6 +730,26 @@ func APICheck(ctx context.Context, app core.App, client *football.Client, yr int
 		"withPenalties":    penCount,
 		"sample":           sample,
 	}, nil
+}
+
+// applySchedule moves a not-yet-finished match to the provider's kick-off
+// time and round label, reporting whether anything changed. Finished
+// matches keep their recorded kick-off.
+func applySchedule(rec *core.Record, f football.Fixture, status string) bool {
+	if status == "finished" || f.Date.IsZero() {
+		return false
+	}
+	changed := false
+	want := f.Date.UTC().Truncate(time.Second)
+	if have := rec.GetDateTime("kickoff").Time().UTC().Truncate(time.Second); !have.Equal(want) {
+		rec.Set("kickoff", want)
+		changed = true
+	}
+	if f.Round != "" && rec.GetString("roundLabel") != f.Round {
+		rec.Set("roundLabel", f.Round)
+		changed = true
+	}
+	return changed
 }
 
 func ip(v *int) int {
