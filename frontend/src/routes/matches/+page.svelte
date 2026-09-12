@@ -1,4 +1,4 @@
-<!-- Matches: every match of the competitions you play ("Mine", default)
+<!-- Matches: every match of the competitions you play ("Playing", default)
      or of every competition ("All"), day by day, one card per competition
      per day, today anchored. A Live chip appears only while something is
      live; the sticky day strip scrolls the list and follows it. Only lists
@@ -216,7 +216,7 @@
 <div class="layout" class:withpanel={media.panel && !!selected}>
 <aside class="rail">
 	<div class="railh">Show</div>
-	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> My competitions</button>
+	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> Playing</button>
 	<button class="raillink" class:on={feedStore.scope === 'all' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('all'); }}><Globe size={16} /> Everything</button>
 	{#if liveCount > 0}
 		<button class="raillink live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}><Radio size={16} /> Live · {liveCount}</button>
@@ -238,7 +238,7 @@
 <div class="subbar">
 	<div class="chips">
 		<button class="chip" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}>
-			{#if feedStore.scope === 'mine'}<Check size={14} />{/if} Mine
+			{#if feedStore.scope === 'mine'}<Check size={14} />{/if} Playing
 		</button>
 		<button class="chip" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}>
 			{#if feedStore.scope === 'all'}<Check size={14} />{/if} All
