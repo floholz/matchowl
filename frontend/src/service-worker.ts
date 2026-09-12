@@ -7,6 +7,10 @@ import { build, files, version } from '$service-worker';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 const CACHE = `matchowl-${version}`;
+// In `vite dev` the worker still gets registered; caching Vite's module
+// URLs cache-first there serves stale code after every edit (and a stale
+// app shell after a rebuild). Dev = network only, no precache.
+const DEV = import.meta.env.DEV;
 
 // Precache the app shell + light static assets. Skip the heavy stuff
 // (flags / screenshots) — those are cached on demand instead.
@@ -18,6 +22,10 @@ const PRECACHE = [
 ];
 
 sw.addEventListener('install', (e) => {
+	if (DEV) {
+		e.waitUntil(sw.skipWaiting());
+		return;
+	}
 	e.waitUntil(
 		caches
 			.open(CACHE)
@@ -47,6 +55,7 @@ sw.addEventListener('fetch', (e) => {
 
 	// Only handle same-origin GETs; never the API / PocketBase routes.
 	if (
+		DEV ||
 		req.method !== 'GET' ||
 		url.origin !== location.origin ||
 		url.pathname.startsWith('/api/') ||
