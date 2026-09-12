@@ -1,0 +1,210 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Screens"
+    },
+    {
+      "id": "page-2",
+      "name": "Score vs tip"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Home.dc.html",
+      "title": "Home",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "Main.dc.html",
+      "title": "Matches",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "Competition.dc.html",
+      "title": "Competition hub",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "Match.dc.html",
+      "title": "Match page",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "Friends.dc.html",
+      "title": "Friends",
+      "x": 1920,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    },
+    {
+      "file": "RowStates.dc.html",
+      "title": "Match row states",
+      "x": 2400,
+      "y": 0,
+      "w": 390,
+      "h": 1080,
+      "page": "page-1"
+    },
+    {
+      "file": "DesktopMatches.dc.html",
+      "title": "Desktop · Matches",
+      "x": 0,
+      "y": 1260,
+      "w": 1440,
+      "h": 900,
+      "page": "page-1"
+    },
+    {
+      "file": "DesktopHome.dc.html",
+      "title": "Desktop · Home",
+      "x": 1520,
+      "y": 1260,
+      "w": 1440,
+      "h": 900,
+      "page": "page-1"
+    },
+    {
+      "file": "OptionA.dc.html",
+      "title": "A · Stadium board · chosen",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 640,
+      "page": "page-2"
+    },
+    {
+      "file": "OptionB.dc.html",
+      "title": "B · Broadcast digits",
+      "x": 480,
+      "y": 0,
+      "w": 390,
+      "h": 640,
+      "page": "page-2"
+    },
+    {
+      "file": "OptionC.dc.html",
+      "title": "C · Board tile",
+      "x": 960,
+      "y": 0,
+      "w": 390,
+      "h": 640,
+      "page": "page-2"
+    },
+    {
+      "file": "OptionD.dc.html",
+      "title": "D · Labelled capsule",
+      "x": 1440,
+      "y": 0,
+      "w": 390,
+      "h": 640,
+      "page": "page-2"
+    },
+    {
+      "file": "KOStates.dc.html",
+      "title": "Knockout row states",
+      "x": 2880,
+      "y": 0,
+      "w": 390,
+      "h": 1180,
+      "page": "page-1"
+    },
+    {
+      "file": "MatchFT.dc.html",
+      "title": "Match page · after FT",
+      "x": 3360,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "shell",
+      "page": "page-1",
+      "x": 0,
+      "y": -260,
+      "w": 440,
+      "text": "Shell\n4 tabs: Home · Matches · Competitions · Friends. Mobile top bar is contextual (page title or back + context), page-owned second row under it (filters, date strip, tabs). No more kicker + h1 slabs on list pages; the owl lives in the wordmark and the accent."
+    },
+    {
+      "id": "row",
+      "page": "page-1",
+      "x": 480,
+      "y": -260,
+      "w": 440,
+      "text": "The match row\nScore = the LED stadium board (option A, chosen): amber on black, red while live, unlit before kickoff. Tip = orange capsule in the app’s mono, same column on every screen, tap to edit in place. Stacked home over away, so a matchday is one column of tips to fill. Points sit right of the capsule after FT. See the states sheet →"
+    },
+    {
+      "id": "matches-note",
+      "page": "page-1",
+      "x": 960,
+      "y": -260,
+      "w": 440,
+      "text": "Matches\nOnly lists matches. \"Mine\" is on by default (competitions you play); \"All\" is one tap away. Day strip scrolls the list; dots mark days with matches. Live chip appears only when something is live."
+    },
+    {
+      "id": "match-note",
+      "page": "page-1",
+      "x": 1440,
+      "y": -260,
+      "w": 440,
+      "text": "Match page /m/{id}\nHero + big steppers replace the growing inline card. Friends’ picks, bots and the mini table move here. Two-legged ties add an \"Other leg · aggregate\" row directly under the hero. After FT the hero shows the LED board large."
+    },
+    {
+      "id": "friends-note",
+      "page": "page-1",
+      "x": 1920,
+      "y": -260,
+      "w": 440,
+      "text": "Friends\nEach league card answers: where am I, who leads, how far, what happened this matchday. Activity feed kept as a secondary section."
+    },
+    {
+      "id": "desktop-note",
+      "page": "page-1",
+      "x": 0,
+      "y": 2240,
+      "w": 640,
+      "text": "Desktop rule\n≥ 900px: the tab bar becomes top-bar links. Matches = rail (240) · list · detail panel (400). The detail panel IS the match page, so nothing is designed twice. Home = content column + 380px side rail. Everything caps at 1260px and centres; between 600 and 900 the rail collapses and the detail panel becomes the match page route."
+    },
+    {
+      "id": "opts-note",
+      "page": "page-2",
+      "x": 0,
+      "y": -230,
+      "w": 900,
+      "text": "Score vs tip\nProblem: two stacked digit pairs in the same face read like HT / FT. Each option changes only the SCORE column; the tip capsule is the constant across the whole app (A–C) so your input never moves or changes shape. Rows: open, tipped, live, exact hit, miss, tendency hit.\n\nChosen: A, rolled through every screen on the Screens page. The LED board is unmistakably “the stadium’s number”, the unlit segments give upcoming rows a natural empty state, and live red on a black panel is exactly the ticker feeling. Cost: one extra 5 KB font, digits only."
+    },
+    {
+      "id": "ko-note",
+      "page": "page-1",
+      "x": 2880,
+      "y": -260,
+      "w": 860,
+      "text": "Knockout rules\n• The board always shows the FINAL score; the status column says how it ended: FT, AET or PEN. The 90’ / 120’ timeline lives on the match page, never in the row.\n• A small LED dot marks the advancer: real one on the board, your pick on the capsule. A drawn KO tip + dot = your penalty pick, so the capsule alone is the full tip.\n• Two legs: a “1st / leg” tab docked to the front of the scoreboard (one black block with the board), and a strip under the row: next leg date, or aggregate · first-leg score · who advances and how. The strip links to the other leg.\n• Match page after FT: the board goes big in the hero, AET/PEN pills, aggregate strip, your tip card turns into the points breakdown, and friends’ picks become visible with the same capsules."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

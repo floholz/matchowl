@@ -41,6 +41,96 @@ backfill after the real draws (late January 2027).
 
 ---
 
+## Now: app layout rework (decided 2026-09-12)
+
+Before continuing the walkthrough below, the general layout and structure get
+fixed. Reference: Sofascore (ticker density, compact chrome). Mobile must be
+perfect, desktop good enough. Mockups of every screen, with the real theme
+tokens: **[design canvas](https://claude.ai/code/artifact/86f644c6-5d76-4790-b02a-ac30e4892c17)**
+(sources + PNGs in [`docs/design/app-layout-2026-09/`](docs/design/app-layout-2026-09/README.md)).
+
+### Decisions
+
+**Shell**
+- Four tabs: **Home · Matches · Competitions · Friends**. Desktop (≥ 900px)
+  moves them into the top bar as links.
+- Mobile top bar is contextual: page title (or back + context) left, avatar
+  right; each page owns a second sticky row under it (filter chips, day
+  strip, or tabs). The kicker + h1 slabs on list pages go away; identity
+  lives in the wordmark and the accent.
+- Desktop rule: Matches = 240px rail (Mine / Everything / Live, then the
+  competitions you play) · list · 400px detail panel, and **the panel is the
+  match page** so nothing is designed twice. Home = content column + 380px
+  side rail. Content caps at 1260px, centred. Between 600 and 900px the rail
+  collapses and the panel becomes the match route.
+
+**Match row** (the core unit, replaces the TipCard header in every list)
+- Stacked: home over away, crest + name; status column on the left
+  (kick-off time, or FT / AET / PEN, or the live minute in red).
+- **Score = the stadium board**: seven-segment LED digits (DSEG7, SIL OFL,
+  ~5 KB) in amber on a black inset tile; red while live; unlit segments
+  before kick-off. The board always shows the *final* score; 90'/120'
+  detail lives on the match page only.
+- **Tip = the orange capsule**: Red Hat Mono digits in an outlined capsule,
+  same column on every screen. Dashed + plus = open and untipped (tap opens
+  an inline stepper drawer); solid = tipped; after FT it stays orange on a
+  hit and turns grey on a miss; points sit to its right.
+- **Knockout**: a small LED dot marks the advancer — the real one on the
+  board, your pick on the capsule (a drawn tip + dot = your penalty pick, so
+  the capsule alone is the full tip).
+- **Two legs**: a small "1st / leg" lug docked to the front of the board
+  (board keeps its full rounding; lug is black, rounded left, amber ordinal,
+  red when live). A strip under the row carries the next leg's date, or the
+  aggregate · first-leg score · who advances and how, and links to the other
+  leg. First legs are tipped like group matches.
+- One card per competition per day: crest + name + round in the card header
+  with tiny "Score / Tip" column captions; rows inside.
+
+**Home** — time-based hub: Tip now (matches locking soonest), forecast
+deadline card, Live, Your leagues (rank, movement, leader), Yesterday's
+points. Nothing else.
+
+**Matches** — only lists matches. "Mine" chip on by default (competitions you
+play), "All" one tap away, Live chip only when something is live, sticky day
+strip with dots on days that have matches; earlier/later loaders stay.
+
+**Competition hub** — compact sticky header (back, crest, name, season
+dropdown, *Playing* toggle where Sofascore has the star), underline tabs
+Overview · Matches · Table · Knockout · Forecast (only those that apply),
+Matches tab with "Matchday ▾ / By team" pills. Description and dates move to
+Overview.
+
+**Match page** (new route, e.g. `/m/{id}`) — hero (crests, kick-off or the
+board large, status pills, 90'/120' timeline), big steppers, Friends' picks
+(teaser before kick-off, list after), bots, mini table for the group. After
+FT the tip section is one card: capsule + one line + points breakdown as
+text. Two-legged ties get an aggregate strip under the hero. Inline expand in
+rows stays as the quick path; push notifications and cross-leg links target
+this page.
+
+**Friends** — each league card answers: where am I, who leads, how far
+behind, what happened this matchday, unread chat. Global row. Activity feed
+kept as a secondary section.
+
+### Still open (draw or decide before implementing)
+- Competition hub: Overview tab content, Table (UCL zones), Knockout bracket,
+  Forecast tab.
+- Friends league page internals (leaderboard with highlighted own row,
+  Members, Chat as tabs instead of the FAB).
+- Tablet range 600–900px (rule stated above; no board yet).
+
+### Implementation order (proposed)
+1. `MatchRow` + `LedBoard` + `TipCapsule` components (all row states incl.
+   knockout/legs), fed by the existing tips/feed stores.
+2. Shell: 4-tab nav, contextual top bar, desktop top-bar links, page-owned
+   sub-rows.
+3. Matches page (rename of the feed, Mine/All filter, day strip) and the new
+   Home.
+4. Match page route; desktop detail panel reusing it.
+5. Competition hub header + tabs; Friends rework.
+
+---
+
 ## Next: full app validation walkthrough
 
 The app accreted from the WC26-only base through three reworks. Before
@@ -165,6 +255,11 @@ add more):
 
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
+
+- 2026-09-12 — Layout rework decided (see "Now: app layout rework"): 4 tabs,
+  stacked match row with LED score board vs. orange tip capsule, knockout
+  dot + leg lug + tie strip, match page route, desktop rail/panel rule.
+  Walkthrough paused until the rework lands.
 
 - 2026-08-31 — Plans consolidated: historical PLAN-*.md files archived to
   `docs/plans/`; this file becomes the single living plan.
