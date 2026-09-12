@@ -7,12 +7,13 @@
 	import { api, type ChatMessage, type ChatMember, type GifResult } from '$lib/api';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ChatGif from '$lib/components/ChatGif.svelte';
-	import { ArrowLeft, SendHorizontal, Trash2, Search, X } from '@lucide/svelte';
+	import { SendHorizontal, Trash2, Search, X } from '@lucide/svelte';
+	import { pageChrome } from '$lib/shell.svelte';
 
 	let id = $derived($page.params.id ?? '');
 
-	let leagueName = $state('');
-	let owner = $state(false); // league owner → may delete any message
+	let poolName = $state('');
+	let owner = $state(false); // pool owner → may delete any message
 	let ready = $state(false);
 	let error = $state('');
 	let messages = $state<ChatMessage[]>([]);
@@ -36,6 +37,9 @@
 	}
 
 	const me = $derived(auth.user?.id ?? '');
+	// Mobile: back · pool name · "Pool chat" in the top bar; desktop keeps the
+	// in-page header below.
+	pageChrome(() => ({ back: `/pools/${id}`, title: poolName || 'Pool chat', context: poolName ? 'Pool chat' : '' }));
 
 	// Touch devices: Enter inserts a newline (sending is via the button only).
 	// Desktop (fine pointer): Enter sends, Shift+Enter is a newline.
@@ -75,7 +79,7 @@
 				goto(`/pools/${id}`);
 				return;
 			}
-			leagueName = lg.name;
+			poolName = lg.name;
 			owner = lg.role === 'owner';
 		} catch {
 			error = 'Could not open this chat.';
@@ -321,13 +325,8 @@
 
 <div class="chat">
 	<header class="chead">
-		<a class="back" href={`/pools/${id}`} aria-label="Back to pool">
-			<ArrowLeft size={18} />
-		</a>
-		<div class="ctitle">
-			<span class="ckicker">Pool chat</span>
-			<h1>{leagueName || '…'}</h1>
-		</div>
+		<a class="back" href={`/pools/${id}`}>{poolName || '…'}</a>
+		<span class="ckicker">Pool chat</span>
 	</header>
 
 	{#if error && !messages.length}
@@ -457,7 +456,7 @@
 					oninput={autosize}
 					onkeydown={onKeydown}
 					onfocus={scrollToBottom}
-					placeholder="Message {clipName(leagueName)}…"
+					placeholder="Message {clipName(poolName)}…"
 					rows="1"
 					maxlength="2000"
 				></textarea>
@@ -510,27 +509,31 @@
 			height: calc(100dvh - 4rem);
 		}
 	}
+	/* Desktop only: the mobile top bar carries back · name · Pool chat. */
 	.chead {
-		display: flex;
-		align-items: center;
+		display: none;
+		align-items: baseline;
 		gap: 0.7rem;
 		padding-bottom: 0.8rem;
 		border-bottom: 1px solid var(--border);
 		flex: none;
 	}
-	.back {
-		display: inline-grid;
-		place-items: center;
-		width: 36px;
-		height: 36px;
-		border-radius: var(--radius-sm);
-		background: var(--surface-2);
-		border: 1px solid var(--border);
-		color: var(--text);
-		flex: none;
+	@media (min-width: 900px) {
+		.chead {
+			display: flex;
+		}
 	}
-	.ctitle {
-		min-width: 0;
+	.back {
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 1.3rem;
+		color: var(--text);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.back:hover {
+		color: var(--accent);
 	}
 	.ckicker {
 		font-size: 0.72rem;
@@ -538,13 +541,6 @@
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--accent);
-	}
-	.chead h1 {
-		margin: 0;
-		font-size: 1.3rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	.pad {
 		padding: 1rem 0;
