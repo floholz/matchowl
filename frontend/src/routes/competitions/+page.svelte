@@ -105,7 +105,7 @@
 			<span class="stxt">
 				<b>{s.name}</b>
 				<span class="muted"
-					>{s.leagueMates} {s.leagueMates === 1 ? 'league mate plays' : 'league mates play'} this</span
+					>{s.leagueMates} {s.leagueMates === 1 ? 'pool mate plays' : 'pool mates play'} this</span
 				>
 			</span>
 			<span class="spacer"></span>

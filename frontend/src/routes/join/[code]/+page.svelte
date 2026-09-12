@@ -27,7 +27,7 @@
 				if (auth.isAuthed) {
 					phase = 'joining';
 					const r = await api.joinLeague(c);
-					if (!cancelled) goto(`/friends/${r.id}`);
+					if (!cancelled) goto(`/pools/${r.id}`);
 				} else {
 					phase = 'invite';
 				}
@@ -54,7 +54,7 @@
 			<p class="kicker">You've been invited</p>
 			<h2 class="lname">{leagueName}</h2>
 			<p class="muted">
-				Sign in or create an account to join this league.
+				Sign in or create an account to join this pool.
 			</p>
 			<a class="btn" href={`/register?invite=${encodeURIComponent(code)}`}>
 				Create account
@@ -66,7 +66,7 @@
 				Sign in
 			</a>
 		{:else if phase === 'error'}
-			<p class="error">Couldn't join the league. Please try again.</p>
+			<p class="error">Couldn't join the pool. Please try again.</p>
 			<a class="btn secondary" href="/friends">Go to Friends</a>
 		{:else}
 			<p class="error">This invite link is invalid or has expired.</p>

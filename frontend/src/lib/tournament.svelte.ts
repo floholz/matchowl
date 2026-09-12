@@ -56,7 +56,11 @@ export function competitionLogoUrl(c: Pick<Competition, 'id' | 'logo'> | null | 
 
 /** "UEFA Champions League 2025/26" → "2025/26": the season without the
  *  competition's name in front (the import names seasons that way). */
-export function seasonLabel(t: Pick<Tournament, 'name' | 'shortName' | 'competition'>): string {
+export function seasonLabel(t: {
+	name: string;
+	shortName?: string;
+	competition?: { name: string } | null;
+}): string {
 	const n = t.name.trim();
 	const c = t.competition?.name?.trim() ?? '';
 	if (c && n.toLowerCase().startsWith(c.toLowerCase())) {

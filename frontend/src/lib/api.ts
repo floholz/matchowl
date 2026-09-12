@@ -15,6 +15,17 @@ async function del<T>(path: string): Promise<T> {
 	return pb.send(path, { method: 'DELETE' });
 }
 
+/** A pool's bound season, as the leagues API lists it. */
+export interface PoolSeason {
+	id: string;
+	slug: string;
+	name: string;
+	shortName: string;
+	status: string;
+	competition?: { key: string; name: string; shortName: string };
+}
+
+/** A pool (the API still calls them leagues). */
 export interface LeagueSummary {
 	id: string;
 	name: string;
@@ -22,6 +33,16 @@ export interface LeagueSummary {
 	role: string;
 	private: boolean;
 	members: number;
+	/** Seasons the pool counts; empty for Global. */
+	tournaments: PoolSeason[];
+}
+
+export interface Person {
+	userId: string;
+	name: string;
+	avatar?: string;
+	/** Search results: '' | 'pending' (you asked) | 'incoming' (they asked) | 'accepted'. */
+	state?: string;
 }
 
 export interface LeaderboardRow {
@@ -293,11 +314,6 @@ export interface ImportProposal {
 }
 
 export const api = {
-	createLeague: (name: string) =>
-		post<{ id: string; name: string; inviteCode: string }>(
-			'/api/leagues/create',
-			{ name }
-		),
 	joinLeague: (code: string) =>
 		post<{ id: string; name: string; already?: boolean }>(
 			'/api/leagues/join',
@@ -315,9 +331,27 @@ export const api = {
 		get<{
 			league: { id: string; name: string };
 			rows: LeaderboardRow[];
+			/** Season the board was scored for; '' = the pool's seasons summed. */
 			tournament?: string;
+			tournaments?: PoolSeason[];
 			scoring?: Record<string, unknown>;
 		}>(`/api/leagues/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
+	createLeague: (name: string, tournaments: string[] = []) =>
+		post<{ id: string; name: string; inviteCode: string }>('/api/leagues/create', { name, tournaments }),
+	setLeagueSeasons: (id: string, tournaments: string[]) =>
+		post<{ tournaments: PoolSeason[] }>(`/api/leagues/${id}/tournaments`, { tournaments }),
+	cloneLeague: (id: string, name: string, tournaments: string[]) =>
+		post<{ id: string; name: string; inviteCode: string }>(`/api/leagues/${id}/clone`, { name, tournaments }),
+	// ---- friends: a mutual graph ----
+	friends: () => get<{ friends: Person[]; incoming: Person[]; outgoing: Person[] }>('/api/friends'),
+	searchPeople: (q: string) => get<{ users: Person[] }>(`/api/friends/search?q=${encodeURIComponent(q)}`),
+	requestFriend: (userId: string) => post<{ state: string }>('/api/friends/request', { userId }),
+	acceptFriend: (userId: string) => post<{ state: string }>('/api/friends/accept', { userId }),
+	removeFriend: (userId: string) => post<{ state: string }>('/api/friends/remove', { userId }),
+	friendsBoard: (tournament = '') =>
+		get<{ tournament: string; rows: LeaderboardRow[] }>(
+			`/api/friends/board${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`
+		),
 	// Owner-only league management.
 	renameLeague: (id: string, name: string) =>
 		post<{ id: string; name: string }>(`/api/leagues/${id}/rename`, { name }),

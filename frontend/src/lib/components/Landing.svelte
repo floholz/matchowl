@@ -19,7 +19,7 @@
 		},
 		{
 			title: 'Friends',
-			body: 'Private leaderboards with the people you actually know. Join with an invite code or link — and your league carries over to the next season.'
+			body: 'Private pools with the people you actually know. Join with an invite code or link — and set the pool up again for the next season in one tap.'
 		}
 	];
 
@@ -37,7 +37,7 @@
 		{ pos: 4, code: 'CIV', pts: 1, adv: false }
 	];
 
-	// The bot bench — AI opponents that play leagues under the same rules.
+	// The bot bench — AI opponents that play pools under the same rules.
 	const bots = [
 		{ name: 'Claude', icon: 'claude-icon.png' },
 		{ name: 'ChatGPT', icon: 'gpt-icon.png' },
@@ -169,7 +169,7 @@
 		<p class="kicker">AI opponents</p>
 		<h2>Short a rival? Add a bot.</h2>
 		<p class="muted bots-sub">
-			Invite AI players into your league — they tip and forecast under exactly the same rules,
+			Invite AI players into your pool — they tip and forecast under exactly the same rules,
 			and they lose just like everyone else.
 		</p>
 		<ul class="bot-row">

@@ -21,5 +21,6 @@ export function isActive(href: string, path: string): boolean {
 	// The forecast page is a per-season view; it belongs to Competitions.
 	if (href === '/competitions')
 		return path.startsWith('/competitions') || path.startsWith('/forecast');
+	if (href === '/friends') return path.startsWith('/friends') || path.startsWith('/pools');
 	return path.startsWith(href);
 }

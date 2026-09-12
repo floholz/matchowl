@@ -40,6 +40,41 @@ func bad(e *core.RequestEvent, code int, msg string) error {
 	return e.JSON(code, map[string]string{"error": msg})
 }
 
+// tournamentIDs resolves season slugs to ids (drafts are not bindable).
+func tournamentIDs(app core.App, slugs []string) ([]string, error) {
+	out := make([]string, 0, len(slugs))
+	for _, slug := range slugs {
+		t, err := tournaments.BySlug(app, slug)
+		if err != nil || t.GetString("status") == tournaments.StatusDraft {
+			return nil, fmt.Errorf("unknown season %q", slug)
+		}
+		out = append(out, t.Id)
+	}
+	return out, nil
+}
+
+// seasonViews lists a pool's bound seasons for the client.
+func seasonViews(app core.App, lg *core.Record) []map[string]any {
+	out := make([]map[string]any, 0)
+	for _, id := range lg.GetStringSlice("tournaments") {
+		t, err := app.FindRecordById("tournaments", id)
+		if err != nil {
+			continue
+		}
+		v := map[string]any{
+			"id": t.Id, "slug": t.GetString("slug"), "name": t.GetString("name"),
+			"shortName": t.GetString("shortName"), "status": t.GetString("status"),
+		}
+		if c, err := app.FindRecordById("competitions", t.GetString("competition")); err == nil {
+			v["competition"] = map[string]any{
+				"key": c.GetString("key"), "name": c.GetString("name"), "shortName": c.GetString("shortName"),
+			}
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
 // extraCodes are non-qualifier team codes we still allow in invite codes purely
 // for fun — e.g. Italy, who didn't make WC2026. They are NOT real tournament
 // teams (no group/fixtures), only flavour in the scoreline-style codes.
@@ -165,7 +200,8 @@ func Register(app core.App, se *core.ServeEvent) {
 	// POST /api/leagues/create  { "name": "..." }
 	g.POST("/create", func(e *core.RequestEvent) error {
 		var body struct {
-			Name string `json:"name"`
+			Name        string   `json:"name"`
+			Tournaments []string `json:"tournaments"` // season slugs the pool counts
 		}
 		if err := e.BindBody(&body); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
@@ -173,6 +209,10 @@ func Register(app core.App, se *core.ServeEvent) {
 		name := strings.TrimSpace(body.Name)
 		if name == "" {
 			return bad(e, http.StatusBadRequest, "name required")
+		}
+		tids, err := tournamentIDs(app, body.Tournaments)
+		if err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
 		}
 
 		col, err := app.FindCollectionByNameOrId("leagues")
@@ -191,6 +231,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		if def != nil {
 			league.Set("scoringConfig", def.Id)
 		}
+		league.Set("tournaments", tids)
 		if err := app.Save(league); err != nil {
 			return err
 		}
@@ -249,12 +290,13 @@ func Register(app core.App, se *core.ServeEvent) {
 				code = ""
 			}
 			out = append(out, map[string]any{
-				"id":         lg.Id,
-				"name":       lg.GetString("name"),
-				"inviteCode": code,
-				"role":       role,
-				"private":    private,
-				"members":    cnt,
+				"id":          lg.Id,
+				"name":        lg.GetString("name"),
+				"inviteCode":  code,
+				"role":        role,
+				"private":     private,
+				"members":     cnt,
+				"tournaments": seasonViews(app, lg),
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"leagues": out})
@@ -269,21 +311,36 @@ func Register(app core.App, se *core.ServeEvent) {
 			map[string]any{"l": id, "u": e.Auth.Id}); err != nil {
 			return bad(e, http.StatusForbidden, "not a member of this league")
 		}
-		var trec *core.Record
-		var terr error
-		if slug := e.Request.URL.Query().Get("tournament"); slug != "" {
-			trec, terr = tournaments.BySlug(app, slug)
-		} else {
-			trec, terr = tournaments.Current(app)
-		}
-		if terr != nil {
-			return bad(e, http.StatusNotFound, "no such tournament")
-		}
-		lb, err := scoring.Leaderboard(app, id, trec.Id)
+		lg, err := app.FindRecordById("leagues", id)
 		if err != nil {
 			return bad(e, http.StatusNotFound, "league not found")
 		}
-		lb["tournament"] = trec.GetString("slug")
+		bound := lg.GetStringSlice("tournaments")
+		// ?tournament=<slug> narrows to one season; a pool without it sums
+		// its bound seasons; Global (unbound) falls back to the current one.
+		var tids []string
+		used := ""
+		if slug := e.Request.URL.Query().Get("tournament"); slug != "" {
+			trec, terr := tournaments.BySlug(app, slug)
+			if terr != nil {
+				return bad(e, http.StatusNotFound, "no such tournament")
+			}
+			tids, used = []string{trec.Id}, trec.GetString("slug")
+		} else if len(bound) > 0 {
+			tids = bound
+		} else {
+			trec, terr := tournaments.Current(app)
+			if terr != nil {
+				return bad(e, http.StatusNotFound, "no such tournament")
+			}
+			tids, used = []string{trec.Id}, trec.GetString("slug")
+		}
+		lb, err := scoring.Leaderboard(app, id, tids)
+		if err != nil {
+			return bad(e, http.StatusNotFound, "league not found")
+		}
+		lb["tournament"] = used
+		lb["tournaments"] = seasonViews(app, lg)
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
 		if lg, err := app.FindRecordById("leagues", id); err == nil {
@@ -306,6 +363,83 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 
 	// ---- Owner-only management (rename, regenerate code, privacy, remove) ----
+
+	// POST /api/leagues/{id}/tournaments { "tournaments": ["slug", …] } —
+	// the seasons the pool counts (owner only).
+	g.POST("/{id}/tournaments", func(e *core.RequestEvent) error {
+		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		var body struct {
+			Tournaments []string `json:"tournaments"`
+		}
+		if err := e.BindBody(&body); err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		tids, err := tournamentIDs(app, body.Tournaments)
+		if err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		lg.Set("tournaments", tids)
+		if err := app.Save(lg); err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{"tournaments": seasonViews(app, lg)})
+	})
+
+	// POST /api/leagues/{id}/clone { "name": "...", "tournaments": [...] } —
+	// "Set up next season": a new pool with the same members (the caller
+	// as owner), settings and a fresh invite code; the old one stays.
+	g.POST("/{id}/clone", func(e *core.RequestEvent) error {
+		src, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		var body struct {
+			Name        string   `json:"name"`
+			Tournaments []string `json:"tournaments"`
+		}
+		if err := e.BindBody(&body); err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		name := strings.TrimSpace(body.Name)
+		if name == "" {
+			return bad(e, http.StatusBadRequest, "name required")
+		}
+		tids, err := tournamentIDs(app, body.Tournaments)
+		if err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		col, err := app.FindCollectionByNameOrId("leagues")
+		if err != nil {
+			return err
+		}
+		next := core.NewRecord(col)
+		next.Set("name", name)
+		next.Set("inviteCode", uniqueCode(app))
+		next.Set("owner", e.Auth.Id)
+		next.Set("scoringConfig", src.GetString("scoringConfig"))
+		next.Set("privateCode", src.GetBool("privateCode"))
+		next.Set("tournaments", tids)
+		if err := app.Save(next); err != nil {
+			return err
+		}
+		members, _ := app.FindRecordsByFilter("league_members",
+			"league = {:l}", "", 0, 0, map[string]any{"l": src.Id})
+		for _, m := range members {
+			role := "member"
+			if m.GetString("user") == e.Auth.Id {
+				role = "owner"
+			}
+			if err := addMember(app, next.Id, m.GetString("user"), role); err != nil {
+				return err
+			}
+		}
+		return e.JSON(http.StatusOK, map[string]any{
+			"id": next.Id, "name": name, "inviteCode": next.GetString("inviteCode"),
+		})
+	})
 
 	// POST /api/leagues/{id}/rename  { "name": "..." }
 	g.POST("/{id}/rename", func(e *core.RequestEvent) error {

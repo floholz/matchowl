@@ -270,7 +270,7 @@ func (r *Runner) userRanks(userID string, cache map[string][]scoring.Row) []rank
 		rows, ok := cache[lid]
 		name := ""
 		if !ok {
-			lb, err := scoring.Leaderboard(r.app, lid, cur.Id)
+			lb, err := scoring.Leaderboard(r.app, lid, scoring.PoolTournaments(r.app, lid, cur.Id))
 			if err != nil {
 				continue
 			}

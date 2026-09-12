@@ -1,5 +1,5 @@
 <!-- Home: the time-based hub. Tip now (matches locking soonest), the
-     forecast deadline, Live, your leagues, yesterday's points. Nothing
+     forecast deadline, Live, your pools, yesterday's points. Nothing
      else. Signed-out visitors get the landing page. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
@@ -186,13 +186,13 @@
 			{/if}
 
 			<div class="sec">
-				<h2>Your leagues</h2>
+				<h2>Your pools</h2>
 				<a class="more" href="/friends">Friends <ChevronRight size={14} /></a>
 			</div>
 			{#if leagues.length}
 				<div class="card rows">
 					{#each leagues as l (l.league.id)}
-						<a class="lrow" href={`/friends/${l.league.id}`}>
+						<a class="lrow" href={`/pools/${l.league.id}`}>
 							<span class="rank digits"
 								>{l.rank > 0 ? `#${l.rank}` : '–'}<small>/{l.total}</small></span
 							>
@@ -219,7 +219,7 @@
 				</div>
 			{:else if leaguesLoaded}
 				<div class="card quiet muted">
-					No leagues yet. <a href="/friends">Create one</a> and invite your friends.
+					No pools yet. <a href="/friends">Start one</a> and invite your friends.
 				</div>
 			{/if}
 

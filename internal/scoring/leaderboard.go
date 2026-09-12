@@ -37,92 +37,125 @@ type Row struct {
 // list is consumed only by the frontend legend for display. Keep the two in
 // sync when changing tiebreakers (update this function, the seeded default
 // in internal/seed, and add a migration for existing DBs).
-func Leaderboard(app core.App, leagueID, tournamentID string) (map[string]any, error) {
+func Leaderboard(app core.App, leagueID string, tournamentIDs []string) (map[string]any, error) {
 	league, err := app.FindRecordById("leagues", leagueID)
 	if err != nil {
 		return nil, err
 	}
 	cfgID := league.GetString("scoringConfig")
-	if cfgID == "" {
-		if def, err := app.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {
-			cfgID = def.Id
-		}
-	}
-
 	members, err := app.FindRecordsByFilter("league_members",
 		"league = {:l}", "", 0, 0, map[string]any{"l": leagueID})
 	if err != nil {
 		return nil, err
 	}
-
-	rows := make([]Row, 0, len(members))
+	userIDs := make([]string, 0, len(members))
 	for _, m := range members {
-		uid := m.GetString("user")
+		userIDs = append(userIDs, m.GetString("user"))
+	}
+	rows := Board(app, userIDs, cfgID, tournamentIDs)
+	return map[string]any{
+		"league": map[string]any{"id": league.Id, "name": league.GetString("name")},
+		"rows":   rows,
+	}, nil
+}
+
+// PoolTournaments returns the seasons a pool's board counts: its bound
+// seasons, else the fallback (the current tournament — Global has none).
+func PoolTournaments(app core.App, leagueID, fallback string) []string {
+	if lg, err := app.FindRecordById("leagues", leagueID); err == nil {
+		if b := lg.GetStringSlice("tournaments"); len(b) > 0 {
+			return b
+		}
+	}
+	return []string{fallback}
+}
+
+// Board ranks a set of users over one or more tournaments (a pool's bound
+// seasons summed, or a single one) under a scoring config ("" = default).
+// Shared by pool leaderboards and the friends board.
+func Board(app core.App, userIDs []string, cfgID string, tournamentIDs []string) []Row {
+	if cfgID == "" {
+		if def, err := app.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {
+			cfgID = def.Id
+		}
+	}
+	rows := make([]Row, 0, len(userIDs))
+	for _, uid := range userIDs {
 		u, err := app.FindRecordById("users", uid)
 		if err != nil {
 			continue
 		}
 		row := Row{UserID: uid, Name: u.GetString("name"), Avatar: u.GetString("avatar"), Role: u.GetString("role")}
-
-		ms, _ := app.FindRecordsByFilter("match_scores",
-			"user = {:u} && config = {:c} && match.tournament = {:t}", "", 0, 0,
-			map[string]any{"u": uid, "c": cfgID, "t": tournamentID})
-		for _, s := range ms {
-			row.TipsPoints += s.GetInt("points")
-			var comp tipComponents
-			_ = json.Unmarshal([]byte(s.GetString("components")), &comp)
-			if comp.Exact > 0 {
-				row.ExactScores++
-			}
-			if comp.Tendency > 0 {
-				row.CorrectWinners++
-			}
-			row.GdDeviation += comp.GdDev
+		for _, tournamentID := range tournamentIDs {
+			addTournament(app, &row, uid, cfgID, tournamentID)
 		}
-
-		if fs, err := app.FindFirstRecordByFilter("forecast_scores",
-			"user = {:u} && config = {:c} && tournament = {:t}",
-			map[string]any{"u": uid, "c": cfgID, "t": tournamentID}); err == nil {
-			row.ForecastPoints = fs.GetInt("points")
-			var bd struct {
-				GroupsCorrect   int            `json:"groupsCorrect"`
-				AdvanceCorrect  int            `json:"advanceCorrect"`
-				RoundCorrect    map[string]int `json:"roundCorrect"`
-				ChampionCorrect int            `json:"championCorrect"`
-				CallCorrect     map[string]int `json:"callCorrect"`
-			}
-			if json.Unmarshal([]byte(fs.GetString("breakdown")), &bd) == nil {
-				f := map[string]int{
-					"groups":   bd.GroupsCorrect,
-					"advance":  bd.AdvanceCorrect,
-					"champion": bd.ChampionCorrect,
-				}
-				for k, v := range bd.RoundCorrect {
-					f[k] = v
-				}
-				for k, v := range bd.CallCorrect {
-					f["call:"+k] = v
-				}
-				row.Forecast = f
-			}
-		}
-
 		row.Total = row.TipsPoints + row.ForecastPoints
-
-		if tps, _ := app.FindRecordsByFilter("tips",
-			"user = {:u} && match.tournament = {:t}", "", 0, 0,
-			map[string]any{"u": uid, "t": tournamentID}); len(tps) > 0 {
-			row.Predicted = len(tps)
-			// Earliest last-edit across this user's tips (earlier = better).
-			for _, t := range tps {
-				if u := t.GetString("updated"); row.lastEdit == "" || u > row.lastEdit {
-					row.lastEdit = u
-				}
-			}
-		}
 		rows = append(rows, row)
 	}
+	sortRows(rows)
+	return rows
+}
 
+// addTournament accumulates one tournament's tips, forecast and tiebreak
+// counters onto the row. Forecast breakdown counters sum across seasons.
+func addTournament(app core.App, row *Row, uid, cfgID, tournamentID string) {
+	ms, _ := app.FindRecordsByFilter("match_scores",
+		"user = {:u} && config = {:c} && match.tournament = {:t}", "", 0, 0,
+		map[string]any{"u": uid, "c": cfgID, "t": tournamentID})
+	for _, s := range ms {
+		row.TipsPoints += s.GetInt("points")
+		var comp tipComponents
+		_ = json.Unmarshal([]byte(s.GetString("components")), &comp)
+		if comp.Exact > 0 {
+			row.ExactScores++
+		}
+		if comp.Tendency > 0 {
+			row.CorrectWinners++
+		}
+		row.GdDeviation += comp.GdDev
+	}
+
+	if fs, err := app.FindFirstRecordByFilter("forecast_scores",
+		"user = {:u} && config = {:c} && tournament = {:t}",
+		map[string]any{"u": uid, "c": cfgID, "t": tournamentID}); err == nil {
+		row.ForecastPoints += fs.GetInt("points")
+		var bd struct {
+			GroupsCorrect   int            `json:"groupsCorrect"`
+			AdvanceCorrect  int            `json:"advanceCorrect"`
+			RoundCorrect    map[string]int `json:"roundCorrect"`
+			ChampionCorrect int            `json:"championCorrect"`
+			CallCorrect     map[string]int `json:"callCorrect"`
+		}
+		if json.Unmarshal([]byte(fs.GetString("breakdown")), &bd) == nil {
+			if row.Forecast == nil {
+				row.Forecast = map[string]int{}
+			}
+			row.Forecast["groups"] += bd.GroupsCorrect
+			row.Forecast["advance"] += bd.AdvanceCorrect
+			row.Forecast["champion"] += bd.ChampionCorrect
+			for k, v := range bd.RoundCorrect {
+				row.Forecast[k] += v
+			}
+			for k, v := range bd.CallCorrect {
+				row.Forecast["call:"+k] += v
+			}
+		}
+	}
+
+	if tps, _ := app.FindRecordsByFilter("tips",
+		"user = {:u} && match.tournament = {:t}", "", 0, 0,
+		map[string]any{"u": uid, "t": tournamentID}); len(tps) > 0 {
+		row.Predicted += len(tps)
+		// Earliest last-edit across this user's tips (earlier = better).
+		for _, t := range tps {
+			if u := t.GetString("updated"); row.lastEdit == "" || u > row.lastEdit {
+				row.lastEdit = u
+			}
+		}
+	}
+}
+
+func sortRows(rows []Row) {
 	sort.SliceStable(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
 		aNone, bNone := a.Predicted == 0, b.Predicted == 0
@@ -146,10 +179,4 @@ func Leaderboard(app core.App, leagueID, tournamentID string) (map[string]any, e
 		}
 		return a.lastEdit < b.lastEdit
 	})
-
-	return map[string]any{
-		"league":     map[string]any{"id": league.Id, "name": league.GetString("name")},
-		"tournament": tournamentID,
-		"rows":       rows,
-	}, nil
 }

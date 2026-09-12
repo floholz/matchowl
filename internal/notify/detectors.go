@@ -360,7 +360,7 @@ func (r *Runner) detectLeagueLead(ctx context.Context, res *Result,
 		return nil
 	}
 	for _, lg := range leagues {
-		lb, err := scoring.Leaderboard(r.app, lg.Id, cur.Id)
+		lb, err := scoring.Leaderboard(r.app, lg.Id, scoring.PoolTournaments(r.app, lg.Id, cur.Id))
 		if err != nil {
 			continue
 		}

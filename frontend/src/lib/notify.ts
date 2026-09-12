@@ -37,11 +37,11 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 	{
 		key: 'league_lead',
 		label: 'Took the lead',
-		hint: 'When you climb to #1 in one of your leagues.'
+		hint: 'When you climb to #1 in one of your pools.'
 	},
 	{
 		key: 'league_chat',
-		label: 'League chat',
-		hint: 'New messages in your league chats — push is prompt; email is a periodic digest.'
+		label: 'Pool chat',
+		hint: 'New messages in your pool chats — push is prompt; email is a periodic digest.'
 	}
 ];

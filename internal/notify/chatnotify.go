@@ -118,7 +118,7 @@ func (r *Runner) chatPass(ctx context.Context) int {
 			n := push.Notification{
 				Title: title,
 				Body:  senderName + ": " + preview,
-				URL:   toPath(base.url + "/leagues/" + lid + "/chat"),
+				URL:   toPath(base.url + "/pools/" + lid + "/chat"),
 				Tag:   "chat:" + lid,
 				Icon:  "/icons/notif/push-icon-chat.png",
 			}
@@ -223,7 +223,7 @@ func (r *Runner) chatDigestPass(ctx context.Context) int {
 			BaseURL:     base.url,
 			SettingsUrl: base.url + "/settings",
 			CTAText:     "Open your chats",
-			CTAUrl:      base.url + "/leagues",
+			CTAUrl:      base.url + "/friends",
 			ChatTotal:   total,
 			ChatLeagues: lines,
 		}
