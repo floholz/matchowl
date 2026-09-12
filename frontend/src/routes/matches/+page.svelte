@@ -112,12 +112,15 @@
 			await feedStore.extendTo(d.offset).catch(() => {});
 			await tick();
 		}
-		activeKey = d.key;
 		const keys = days.map((x) => x.key);
-		const target =
-			keys.find((k) => k === d.key) ??
-			(d.offset >= 0 ? keys.find((k) => k > d.key) : [...keys].reverse().find((k) => k < d.key));
-		if (target) goDay(target, d.loaded ? 'smooth' : 'instant');
+		const after = keys.find((k) => k >= d.key);
+		const before = [...keys].reverse().find((k) => k <= d.key);
+		// Prefer the direction of the tap, else whatever is nearest.
+		const target = (d.offset >= 0 ? after ?? before : before ?? after) ?? '';
+		if (!target) return;
+		goDay(target, d.loaded ? 'smooth' : 'instant');
+		// Freshly loaded rows settle (crests, cards) after the first jump.
+		if (!d.loaded) setTimeout(() => goDay(target, 'instant'), 300);
 	}
 	// Infinite scroll forwards: the bottom loader fetches more as it comes
 	// into view, once the list has landed on today. Earlier results stay a
