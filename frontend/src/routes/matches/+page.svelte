@@ -12,7 +12,7 @@
 	import MatchGroup from '$lib/components/MatchGroup.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import { tick } from 'svelte';
-	import { ChevronUp, ChevronDown, Check } from '@lucide/svelte';
+	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Matches' }));
 
@@ -22,6 +22,8 @@
 	/** Day strip highlight: the day section currently at the top. */
 	let activeKey = $state('');
 	let stripEl = $state<HTMLElement | null>(null);
+	/** Which edge today's button has scrolled past in the strip ('' = visible). */
+	let todayOff = $state<'' | 'left' | 'right'>('');
 
 	$effect(() => {
 		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error) {
@@ -92,6 +94,36 @@
 		const el = stripEl?.querySelector<HTMLElement>(`[data-key="${key}"]`);
 		el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
 	});
+	// Today is the strip's anchor: once its button scrolls out of the strip,
+	// a "Today" chip pins to that edge so it is always one tap away.
+	$effect(() => {
+		const strip = stripEl;
+		if (!strip) return;
+		const check = () => {
+			const today = strip.querySelector<HTMLElement>('.dayb.today');
+			if (!today) return (todayOff = '');
+			const s = strip.getBoundingClientRect();
+			const t = today.getBoundingClientRect();
+			todayOff = t.right < s.left + 8 ? 'left' : t.left > s.right - 8 ? 'right' : '';
+		};
+		strip.addEventListener('scroll', check, { passive: true });
+		const ro = new ResizeObserver(check);
+		ro.observe(strip);
+		check();
+		return () => {
+			strip.removeEventListener('scroll', check);
+			ro.disconnect();
+		};
+	});
+	function goToday() {
+		if (days.some((d) => d.key === feedStore.todayKey)) goDay(feedStore.todayKey);
+		else {
+			goDay(anchorKey);
+			stripEl
+				?.querySelector<HTMLElement>('.dayb.today')
+				?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+		}
+	}
 
 	function tipFor(m: FeedMatch) {
 		return m.myTip ? { match: m.id, ...m.myTip } : null;
@@ -130,6 +162,14 @@
 			</button>
 		{/if}
 	</div>
+	<div class="dayswrap" class:offl={todayOff === 'left'} class:offr={todayOff === 'right'}>
+	{#if todayOff}
+		<button class="todaypin {todayOff}" onclick={goToday} aria-label="Back to today">
+			{#if todayOff === 'left'}<ChevronLeft size={14} />{/if}
+			Today
+			{#if todayOff === 'right'}<ChevronRight size={14} />{/if}
+		</button>
+	{/if}
 	<div class="days" bind:this={stripEl}>
 		{#each strip as d (d.key)}
 			<button
@@ -145,6 +185,7 @@
 				{#if d.has}<i class="mark"></i>{/if}
 			</button>
 		{/each}
+	</div>
 	</div>
 </div>
 
@@ -264,6 +305,62 @@
 		border-radius: 50%;
 		background: currentColor;
 		box-shadow: 0 0 8px currentColor;
+	}
+	.dayswrap {
+		position: relative;
+	}
+	/* Fade the strip under the pinned chip so it reads as an overlay. */
+	.dayswrap::before,
+	.dayswrap::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 84px;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.15s ease;
+		z-index: 1;
+	}
+	.dayswrap::before {
+		left: calc(-1 * var(--shell-x, 1rem));
+		background: linear-gradient(90deg, var(--bg) 40%, transparent);
+	}
+	.dayswrap::after {
+		right: calc(-1 * var(--shell-x, 1rem));
+		background: linear-gradient(270deg, var(--bg) 40%, transparent);
+	}
+	.dayswrap.offl::before,
+	.dayswrap.offr::after {
+		opacity: 0.9;
+	}
+	.todaypin {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 2;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		height: 30px;
+		padding: 0 0.6rem;
+		border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+		border-radius: var(--radius-pill);
+		background: var(--surface);
+		color: var(--accent);
+		font: inherit;
+		font-size: 0.72rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		cursor: pointer;
+		box-shadow: var(--shadow-pop);
+	}
+	.todaypin.left {
+		left: 0;
+	}
+	.todaypin.right {
+		right: 0;
 	}
 	.days {
 		display: flex;
