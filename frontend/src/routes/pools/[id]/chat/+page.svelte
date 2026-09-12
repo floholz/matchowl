@@ -14,6 +14,9 @@
 
 	let poolName = $state('');
 	let finished = $state(false);
+	let chatUntil = $state('');
+	const untilText = (iso: string) =>
+		iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
 	let owner = $state(false); // pool owner → may delete any message
 	let ready = $state(false);
 	let error = $state('');
@@ -81,7 +84,8 @@
 				return;
 			}
 			poolName = lg.name;
-			finished = lg.status === 'finished';
+			finished = !lg.chatOpen;
+			chatUntil = lg.chatUntil ?? '';
 			owner = lg.role === 'owner';
 		} catch {
 			error = 'Could not open this chat.';
@@ -451,8 +455,11 @@
 		{/if}
 
 		{#if finished}
-			<p class="muted small closed">This pool is finished — the chat stays as it is.</p>
+			<p class="muted small closed">This pool's chat has closed — everything stays as it is.</p>
 		{:else}
+		{#if chatUntil}
+			<p class="muted small closed">Season over — the chat stays open until {untilText(chatUntil)}.</p>
+		{/if}
 		<form class="composer" onsubmit={(e) => (e.preventDefault(), send())}>
 			<div class="ta-wrap">
 				<textarea

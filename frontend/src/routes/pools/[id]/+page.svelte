@@ -65,6 +65,10 @@
 	/** The pool's bound seasons (from the leaderboard response); Global has none. */
 	let bound = $state<PoolSeason[]>([]);
 	let poolStatus = $state<PoolSummary['status']>('open');
+	let chatOpen = $state(true);
+	let chatUntil = $state('');
+	const untilText = (iso: string) =>
+		iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
 	let isPool = $derived(bound.length > 0);
 	/** Seasons the board can be filtered to: the bound ones, or (Global) every visible one. */
 	let tournamentOptions = $derived(
@@ -144,6 +148,10 @@
 				boardSlug = lb.tournament ?? '';
 				bound = lb.tournaments ?? [];
 				poolStatus = lb.status ?? 'open';
+			chatOpen = lb.chatOpen ?? true;
+			chatUntil = lb.chatUntil ?? '';
+				chatOpen = lb.chatOpen ?? true;
+				chatUntil = lb.chatUntil ?? '';
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
 				const me = mine.pools.find((l) => l.id === lid);
 				invite = me?.inviteCode ?? '';
@@ -480,7 +488,7 @@
 	{#if finished}
 		<section class="card vis">
 			<div class="muted small">This pool is finished</div>
-			<p class="muted small hint">Every season it counted is over: the standings, members and chat stay as they are.</p>
+			<p class="muted small hint">Every season it counted is over: the standings and members stay as they are{#if chatOpen && chatUntil}; the chat stays open until {untilText(chatUntil)}{:else}, and the chat has closed{/if}.</p>
 			{#if isOwner}
 				{#if cloning}
 					<input class="input" bind:value={cloneName} maxlength="64" aria-label="New pool name" />

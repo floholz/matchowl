@@ -37,6 +37,10 @@ export interface PoolSummary {
 	tournaments: PoolSeason[];
 	/** live · upcoming · finished (all seasons over) · open (nothing bound). */
 	status: 'live' | 'upcoming' | 'finished' | 'open';
+	/** The chat still takes messages (a finished pool's chat stays open a while). */
+	chatOpen: boolean;
+	/** When the chat closes (RFC3339), '' while any season is on. */
+	chatUntil: string;
 }
 
 export interface Person {
@@ -337,6 +341,8 @@ export const api = {
 			tournament?: string;
 			tournaments?: PoolSeason[];
 			status?: PoolSummary['status'];
+			chatOpen?: boolean;
+			chatUntil?: string;
 			scoring?: Record<string, unknown>;
 		}>(`/api/pools/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
 	createPool: (name: string, tournaments: string[] = []) =>

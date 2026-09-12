@@ -122,8 +122,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
 		}
-		if lg, err := app.FindRecordById("pools", lid); err == nil && pools.Finished(app, lg) {
-			return apis.NewApiError(http.StatusConflict, "this pool is finished — the chat is read-only", nil)
+		if lg, err := app.FindRecordById("pools", lid); err == nil && !pools.ChatOpen(app, lg) {
+			return apis.NewApiError(http.StatusConflict, "this pool's chat has closed", nil)
 		}
 		var body struct {
 			Text string `json:"text"`

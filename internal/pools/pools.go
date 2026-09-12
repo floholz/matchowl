@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
@@ -75,6 +76,38 @@ func Finished(app core.App, lg *core.Record) bool {
 	return poolStatus(app, lg) == PoolFinished
 }
 
+// ChatGrace is how long a finished pool's chat stays open after its last
+// season ends, so the outcome can still be argued over.
+const ChatGrace = 30 * 24 * time.Hour
+
+// ChatUntil is when a finished pool's chat closes (zero while any season is
+// still on, or when the pool is unbound).
+func ChatUntil(app core.App, lg *core.Record) time.Time {
+	if !Finished(app, lg) {
+		return time.Time{}
+	}
+	var last time.Time
+	for _, id := range lg.GetStringSlice("tournaments") {
+		t, err := app.FindRecordById("tournaments", id)
+		if err != nil {
+			continue
+		}
+		if e := t.GetDateTime("endsAt").Time(); e.After(last) {
+			last = e
+		}
+	}
+	if last.IsZero() {
+		return time.Time{}
+	}
+	return last.Add(ChatGrace)
+}
+
+// ChatOpen reports whether the pool's chat still takes messages.
+func ChatOpen(app core.App, lg *core.Record) bool {
+	until := ChatUntil(app, lg)
+	return until.IsZero() || time.Now().Before(until)
+}
+
 func poolStatus(app core.App, lg *core.Record) string {
 	ids := lg.GetStringSlice("tournaments")
 	if len(ids) == 0 {
@@ -133,6 +166,13 @@ func nextSeasons(app core.App, lg *core.Record) []string {
 		}
 	}
 	return out
+}
+
+func chatUntilView(app core.App, lg *core.Record) string {
+	if u := ChatUntil(app, lg); !u.IsZero() {
+		return u.UTC().Format(time.RFC3339)
+	}
+	return ""
 }
 
 // seasonViews lists a pool's bound seasons for the client.
@@ -395,6 +435,8 @@ func Register(app core.App, se *core.ServeEvent) {
 				"members":     cnt,
 				"tournaments": seasonViews(app, lg),
 				"status":      poolStatus(app, lg),
+				"chatOpen":    ChatOpen(app, lg),
+				"chatUntil":   chatUntilView(app, lg),
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"pools": out})
@@ -440,6 +482,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		lb["tournament"] = used
 		lb["tournaments"] = seasonViews(app, lg)
 		lb["status"] = poolStatus(app, lg)
+		lb["chatOpen"] = ChatOpen(app, lg)
+		lb["chatUntil"] = chatUntilView(app, lg)
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
 		if lg, err := app.FindRecordById("pools", id); err == nil {
