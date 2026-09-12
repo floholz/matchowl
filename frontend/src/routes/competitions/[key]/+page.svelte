@@ -10,6 +10,7 @@
 		tournamentStore,
 		defaultSeason,
 		competitionLogoUrl,
+		seasonLabel,
 		type Tournament
 	} from '$lib/tournament.svelte';
 	import { tipsStore, type Match } from '$lib/tips.svelte';
@@ -202,17 +203,6 @@
 		return fcHas ? 'Placed' : 'Not placed yet';
 	});
 
-	/** "UEFA Champions League 2025/26" → "2025/26": the season without the
-	 *  competition's name in front (the import names seasons that way). */
-	function seasonLabel(t: Tournament): string {
-		const n = t.name.trim();
-		const c = competition?.name.trim() ?? '';
-		if (c && n.toLowerCase().startsWith(c.toLowerCase())) {
-			const rest = n.slice(c.length).replace(/^[\s·–-]+/, '');
-			if (rest) return rest;
-		}
-		return t.shortName || n;
-	}
 	const statusLabel: Record<string, string> = { active: 'live', upcoming: 'upcoming', finished: 'finished', archived: 'archived', draft: 'draft' };
 	function initials(name: string): string {
 		return name.split(/\s+/).filter((w) => /^[A-Z0-9]/.test(w)).map((w) => w[0]).join('').slice(0, 3);

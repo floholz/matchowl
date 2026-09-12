@@ -54,6 +54,18 @@ export function competitionLogoUrl(c: Pick<Competition, 'id' | 'logo'> | null | 
 	return c?.logo ? `/api/files/competitions/${c.id}/${c.logo}` : '';
 }
 
+/** "UEFA Champions League 2025/26" → "2025/26": the season without the
+ *  competition's name in front (the import names seasons that way). */
+export function seasonLabel(t: Pick<Tournament, 'name' | 'shortName' | 'competition'>): string {
+	const n = t.name.trim();
+	const c = t.competition?.name?.trim() ?? '';
+	if (c && n.toLowerCase().startsWith(c.toLowerCase())) {
+		const rest = n.slice(c.length).replace(/^[\s·–-]+/, '');
+		if (rest) return rest;
+	}
+	return t.shortName || n;
+}
+
 export type TournamentStatus = 'draft' | 'upcoming' | 'active' | 'finished' | 'archived';
 
 export interface Tournament {

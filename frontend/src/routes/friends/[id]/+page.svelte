@@ -3,7 +3,7 @@
 	import { api, type LeaderboardRow, type BotSummary } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
-	import { tournamentStore } from '$lib/tournament.svelte';
+	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
@@ -13,6 +13,7 @@
 		Copy,
 		Share2,
 		ChevronDown,
+		ChevronRight,
 		Telescope,
 		Settings,
 		Check,
@@ -65,6 +66,19 @@
 			.filter((t) => t.status !== 'draft')
 			.sort((a, b) => (a.startsAt < b.startsAt ? 1 : -1))
 	);
+	/** Competitions (one per key, first season in the list = newest). */
+	let competitions = $derived.by(() => {
+		const seen = new Map<string, (typeof tournamentOptions)[number]['competition']>();
+		for (const t of tournamentOptions) if (t.competition && !seen.has(t.competition.key)) seen.set(t.competition.key, t.competition);
+		return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+	});
+	let boardSeasons = $derived(
+		boardTournament ? tournamentOptions.filter((t) => t.competition?.key === boardTournament!.competition?.key) : []
+	);
+	function pickCompetition(key: string) {
+		const s = defaultSeason(tournamentOptions.filter((t) => t.competition?.key === key));
+		if (s) pickTournament(s.slug);
+	}
 	let fcRounds = $derived(
 		(boardTournament?.structure.stages ?? [])
 			.filter((s) => s.kind === 'knockout' && !s.consolation)
@@ -328,12 +342,21 @@
 		{#if view === 'board'}
 			<div class="chips">
 				<label class="chip sel">
-					<select value={boardSlug} onchange={(e) => pickTournament((e.currentTarget as HTMLSelectElement).value)} aria-label="Competition">
-						{#each tournamentOptions as t (t.id)}<option value={t.slug}>{t.shortName || t.name}</option>{/each}
+					<select value={boardTournament?.competition?.key ?? ''} onchange={(e) => pickCompetition((e.currentTarget as HTMLSelectElement).value)} aria-label="Competition">
+						{#each competitions as c (c.key)}<option value={c.key}>{c.shortName || c.name}</option>{/each}
 					</select>
-					<span class="lbl">{boardTournament?.shortName || boardTournament?.name || 'Competition'}</span>
+					<span class="lbl">{boardTournament?.competition?.shortName || boardTournament?.competition?.name || 'Competition'}</span>
 					<ChevronDown size={14} />
 				</label>
+				{#if boardSeasons.length > 1}
+					<label class="chip sel">
+						<select value={boardSlug} onchange={(e) => pickTournament((e.currentTarget as HTMLSelectElement).value)} aria-label="Season">
+							{#each boardSeasons as t (t.id)}<option value={t.slug}>{seasonLabel(t)}</option>{/each}
+						</select>
+						<span class="lbl">{boardTournament ? seasonLabel(boardTournament) : ''}</span>
+						<ChevronDown size={14} />
+					</label>
+				{/if}
 				<span class="spacer"></span>
 				<div class="seg2" role="tablist">
 					<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
@@ -520,14 +543,6 @@
 								{:else if r.role === 'owner'}
 									<span class="rolepill owner" title="Platform owner"><Crown size={11} /> Owner</span>
 								{/if}
-								<a
-									class="fclink"
-									href={`/forecast/${r.userId}`}
-									title="View {r.name}'s forecast"
-									onclick={(e) => e.stopPropagation()}
-								>
-									<Telescope size={15} />
-								</a>
 								<ChevronDown size={14} class="rx" />
 							</div>
 						</td>
@@ -568,6 +583,11 @@
 										<span><i>Correct winners</i><b>{r.correctWinners}</b></span>
 										<span><i>Goal-diff error</i><b>{r.gdDeviation}</b></span>
 									</div>
+								{/if}
+								{#if boardTournament && boardTournament.forecastSpec?.mode !== 'none'}
+									<a class="fcmore" href={`/forecast/${r.userId}?t=${boardSlug}`} onclick={(e) => e.stopPropagation()}>
+										<Telescope size={14} /> {r.userId === auth.user?.id ? 'Your' : `${r.name}’s`} forecast <ChevronRight size={14} />
+									</a>
 								{/if}
 							</td>
 						</tr>
@@ -884,6 +904,14 @@
 		background: var(--surface);
 		color: var(--text);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	}
+	.fcmore {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		margin-top: 0.5rem;
+		font-size: 0.82rem;
+		font-weight: 600;
 	}
 	.card.board {
 		padding-top: 0.4rem;
