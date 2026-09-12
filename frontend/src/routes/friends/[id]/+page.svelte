@@ -55,8 +55,19 @@
 	// The forecast-scored knockout rounds, from the tournament structure
 	// (consolation stages like the third-place play-off are not scored per
 	// round), plus the synthetic CHAMPION entry.
+	/** Which tournament the board scores: '' = the server's current pick;
+	 *  the response tells us which that was. */
+	let tslug = $state('');
+	let boardSlug = $state('');
+	let boardTournament = $derived(tournamentStore.list.find((t) => t.slug === boardSlug));
+	let tournamentOptions = $derived(
+		tournamentStore.list
+			.filter((t) => t.status !== 'draft')
+			.sort((a, b) => (a.startsAt < b.startsAt ? 1 : -1))
+	);
 	let fcRounds = $derived(
-		tournamentStore.knockoutStages.filter((s) => !s.consolation)
+		(boardTournament?.structure.stages ?? [])
+			.filter((s) => s.kind === 'knockout' && !s.consolation)
 	);
 	let roundLabel = $derived.by(() => {
 		const out: Record<string, string> = {};
@@ -103,10 +114,11 @@
 		availableBots = [];
 		// The leaderboard's forecast columns come from the tournament structure.
 		tournamentStore.ready().catch(() => {});
-		Promise.all([api.leaderboard(lid), api.myLeagues()])
+		Promise.all([api.leaderboard(lid, tslug), api.myLeagues()])
 			.then(([lb, mine]) => {
 				league = lb.league;
 				rows = lb.rows;
+				boardSlug = lb.tournament ?? '';
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
 				const me = mine.leagues.find((l) => l.id === lid);
 				invite = me?.inviteCode ?? '';
@@ -165,10 +177,16 @@
 
 	async function refreshRows() {
 		try {
-			rows = (await api.leaderboard(id)).rows;
+			const lb = await api.leaderboard(id, tslug);
+			rows = lb.rows;
+			boardSlug = lb.tournament ?? '';
 		} catch {
 			/* keep current rows on a transient error */
 		}
+	}
+	function pickTournament(slug: string) {
+		tslug = slug;
+		refreshRows();
 	}
 
 	async function addBot(b: BotSummary) {
@@ -299,7 +317,7 @@
 {:else if !loaded}
 	<p class="muted">Loading…</p>
 {:else if league}
-	<div class="subbar tabrow">
+	<div class="subbar tabrow" class:withchips={view === 'board'}>
 		<div class="utabs" role="tablist">
 			<button class="utab" class:on={view === 'board'} role="tab" aria-selected={view === 'board'} onclick={() => (view = 'board')}>Leaderboard</button>
 			<button class="utab" class:on={view === 'members'} role="tab" aria-selected={view === 'members'} onclick={() => (view = 'members')}>Members</button>
@@ -307,6 +325,23 @@
 				<a class="utab chat" href={`/friends/${id}/chat`}>Chat{#if chatUnread > 0}<span class="badge">{chatUnread > 99 ? '99+' : chatUnread}</span>{/if}</a>
 			{/if}
 		</div>
+		{#if view === 'board'}
+			<div class="chips">
+				<label class="chip sel">
+					<select value={boardSlug} onchange={(e) => pickTournament((e.currentTarget as HTMLSelectElement).value)} aria-label="Competition">
+						{#each tournamentOptions as t (t.id)}<option value={t.slug}>{t.shortName || t.name}</option>{/each}
+					</select>
+					<span class="lbl">{boardTournament?.shortName || boardTournament?.name || 'Competition'}</span>
+					<ChevronDown size={14} />
+				</label>
+				<span class="spacer"></span>
+				<div class="seg2" role="tablist">
+					<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
+					<button class:on={tab === 'tipsPoints'} onclick={() => (tab = 'tipsPoints')}>Tips</button>
+					<button class:on={tab === 'forecastPoints'} onclick={() => (tab = 'forecastPoints')}>Forecast</button>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 	{#if mgmtError}<p class="error">{mgmtError}</p>{/if}
@@ -437,12 +472,7 @@
 	{/if}
 
 	{#if view === 'board'}
-	<section class="card">
-		<div class="tabs">
-			<button class:active={tab === 'total'} onclick={() => (tab = 'total')}>Overall</button>
-			<button class:active={tab === 'tipsPoints'} onclick={() => (tab = 'tipsPoints')}>Tips</button>
-			<button class:active={tab === 'forecastPoints'} onclick={() => (tab = 'forecastPoints')}>Forecast</button>
-		</div>
+	<section class="card board">
 
 		<table class="lb">
 			<thead>
@@ -786,6 +816,77 @@
 		width: 2rem;
 		color: var(--muted);
 		font-family: var(--font-mono);
+	}
+	.subbar.withchips {
+		padding-bottom: 0.6rem;
+	}
+	.chips {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.55rem;
+	}
+	.chip {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		height: 32px;
+		padding: 0 0.7rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--border);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.8rem;
+		white-space: nowrap;
+		cursor: pointer;
+		max-width: 46vw;
+	}
+	.chip .lbl {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.chip.sel select {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		opacity: 0;
+		cursor: pointer;
+		color-scheme: dark;
+	}
+	.chip.sel option {
+		background: var(--surface);
+		color: var(--text);
+	}
+	/* Total · Tips · Forecast: a small pill segment with a lifted thumb. */
+	.seg2 {
+		display: inline-flex;
+		gap: 2px;
+		padding: 3px;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+	}
+	.seg2 button {
+		padding: 0.35rem 0.7rem;
+		border: none;
+		border-radius: var(--radius-pill);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-weight: 700;
+		font-size: 0.76rem;
+		cursor: pointer;
+	}
+	.seg2 button.on {
+		background: var(--surface);
+		color: var(--text);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	}
+	.card.board {
+		padding-top: 0.4rem;
 	}
 	.utab.chat {
 		display: inline-flex;

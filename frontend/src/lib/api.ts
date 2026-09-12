@@ -309,12 +309,15 @@ export const api = {
 			`/api/invite/${encodeURIComponent(code)}`
 		),
 	myLeagues: () => get<{ leagues: LeagueSummary[] }>('/api/leagues/mine'),
-	leaderboard: (id: string) =>
+	/** Standings of a league for one tournament (slug; default = the
+	 *  server's current one). The response names the tournament used. */
+	leaderboard: (id: string, tournament = '') =>
 		get<{
 			league: { id: string; name: string };
 			rows: LeaderboardRow[];
+			tournament?: string;
 			scoring?: Record<string, unknown>;
-		}>(`/api/leagues/${id}/leaderboard`),
+		}>(`/api/leagues/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
 	// Owner-only league management.
 	renameLeague: (id: string, name: string) =>
 		post<{ id: string; name: string }>(`/api/leagues/${id}/rename`, { name }),
