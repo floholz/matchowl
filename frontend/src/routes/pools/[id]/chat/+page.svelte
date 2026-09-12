@@ -13,6 +13,7 @@
 	let id = $derived($page.params.id ?? '');
 
 	let poolName = $state('');
+	let finished = $state(false);
 	let owner = $state(false); // pool owner → may delete any message
 	let ready = $state(false);
 	let error = $state('');
@@ -80,6 +81,7 @@
 				return;
 			}
 			poolName = lg.name;
+			finished = lg.status === 'finished';
 			owner = lg.role === 'owner';
 		} catch {
 			error = 'Could not open this chat.';
@@ -448,6 +450,9 @@
 			</div>
 		{/if}
 
+		{#if finished}
+			<p class="muted small closed">This pool is finished — the chat stays as it is.</p>
+		{:else}
 		<form class="composer" onsubmit={(e) => (e.preventDefault(), send())}>
 			<div class="ta-wrap">
 				<textarea
@@ -480,6 +485,7 @@
 				<SendHorizontal size={18} />
 			</button>
 		</form>
+		{/if}
 		{#if error}<p class="err sendErr">{error}</p>{/if}
 	{/if}
 </div>
@@ -544,6 +550,12 @@
 	}
 	.pad {
 		padding: 1rem 0;
+	}
+	.closed {
+		flex: none;
+		text-align: center;
+		padding: 0.6rem 0 0.2rem;
+		border-top: 1px solid var(--border);
 	}
 
 	.messages {

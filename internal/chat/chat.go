@@ -7,6 +7,7 @@ package chat
 
 import (
 	"context"
+	"github.com/floholz/matchowl/internal/pools"
 	"net/http"
 	"strings"
 	"time"
@@ -120,6 +121,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		lid := e.Request.PathValue("id")
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
+		}
+		if lg, err := app.FindRecordById("pools", lid); err == nil && pools.Finished(app, lg) {
+			return apis.NewApiError(http.StatusConflict, "this pool is finished — the chat is read-only", nil)
 		}
 		var body struct {
 			Text string `json:"text"`

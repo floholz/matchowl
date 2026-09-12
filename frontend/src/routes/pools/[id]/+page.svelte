@@ -221,6 +221,20 @@
 			.filter((t) => t.status === 'active' || t.status === 'upcoming')
 			.sort((a, b) => (a.status === 'active' ? -1 : 1) - (b.status === 'active' ? -1 : 1) || (a.startsAt < b.startsAt ? 1 : -1))
 	);
+	let finished = $derived(poolStatus === 'finished');
+	/** Same competitions, latest open season each — the next-season default. */
+	let nextSeasonSlugs = $derived.by(() => {
+		const out: string[] = [];
+		const seen = new Set<string>();
+		for (const b of bound) {
+			const key = b.competition?.key;
+			if (!key || seen.has(key)) continue;
+			seen.add(key);
+			const s = defaultSeason(seasonChoices.filter((t) => t.competition?.key === key));
+			if (s) out.push(s.slug);
+		}
+		return out;
+	});
 	let draftSeasons = $state<Set<string>>(new Set());
 	$effect(() => {
 		draftSeasons = new Set(bound.map((t) => t.slug));
@@ -251,7 +265,7 @@
 	let cloneSeasons = $state<Set<string>>(new Set());
 	function startClone() {
 		cloneName = league?.name ?? '';
-		cloneSeasons = new Set();
+		cloneSeasons = new Set(nextSeasonSlugs);
 		cloning = true;
 	}
 	function toggleCloneSeason(slug: string) {
@@ -448,7 +462,7 @@
 						<ChevronDown size={14} />
 					</label>
 				{/if}
-				{#if invite && invite !== 'GLOBAL'}
+				{#if invite && invite !== 'GLOBAL' && !finished}
 					<button class="chip inv" onclick={() => (view = 'members')}><Share2 size={14} /> Invite</button>
 				{/if}
 				<div class="seg2" role="tablist">
@@ -463,6 +477,33 @@
 	{#if mgmtError}<p class="error">{mgmtError}</p>{/if}
 
 	{#if view === 'members'}
+	{#if finished}
+		<section class="card vis">
+			<div class="muted small">This pool is finished</div>
+			<p class="muted small hint">Every season it counted is over: the standings, members and chat stay as they are.</p>
+			{#if isOwner}
+				{#if cloning}
+					<input class="input" bind:value={cloneName} maxlength="64" aria-label="New pool name" />
+					<div class="muted small">Same competitions, their current seasons — adjust if you like</div>
+					<div class="chipset">
+						{#each seasonChoices as t (t.id)}
+							<button type="button" class="schip" class:on={cloneSeasons.has(t.slug)} onclick={() => toggleCloneSeason(t.slug)}>
+								{#if cloneSeasons.has(t.slug)}<Check size={13} />{/if}
+								{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
+							</button>
+						{/each}
+					</div>
+					{#if nextSeasonSlugs.length === 0}<p class="muted small hint">None of this pool's competitions has an open season yet — pick any.</p>{/if}
+					<div class="regrow">
+						<button class="btn" onclick={doClone} disabled={mgmtBusy || !cloneName.trim() || cloneSeasons.size === 0}>Create the new pool</button>
+						<button class="btn secondary" onclick={() => (cloning = false)} disabled={mgmtBusy}>Cancel</button>
+					</div>
+				{:else}
+					<button class="btn slim" onclick={startClone}>Set up next season</button>
+				{/if}
+			{/if}
+		</section>
+	{/if}
 	<section class="card manage">
 		{#if bound.length}
 			<div class="muted small seasonsline">Counts {bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}</div>
@@ -474,7 +515,7 @@
 				<button class="btn secondary icon" onclick={exitEdit} disabled={mgmtBusy} aria-label="Done editing"><X size={18} /></button>
 			{:else}
 				<span class="mtxt"><b>{league.name}</b><span class="muted small">{memberLine}</span></span>
-				{#if isOwner}
+				{#if isOwner && !finished}
 					<button class="btn secondary slim" onclick={enterEdit}><Settings size={16} /> Manage</button>
 				{/if}
 			{/if}
@@ -534,7 +575,7 @@
 		</section>
 	{/if}
 
-	{#if invite && invite !== 'GLOBAL'}
+	{#if invite && invite !== 'GLOBAL' && !finished}
 		<section class="card invite">
 			<div class="irow">
 				<div class="ic">
@@ -601,14 +642,14 @@
 				{/if}
 				<span class="spacer"></span>
 				<a class="fclink" href={`/forecast/${r.userId}`} title="View {r.name}'s forecast"><Telescope size={16} /></a>
-				{#if editing && r.userId !== auth.user?.id}
+				{#if editing && !finished && r.userId !== auth.user?.id}
 					<button class="rmbtn" title="Remove {r.name}" aria-label="Remove {r.name}" disabled={mgmtBusy} onclick={() => requestRemove(r.userId, r.name)}>
 						<UserMinus size={15} />
 					</button>
 				{/if}
 			</div>
 		{/each}
-		{#if editing && availableBots.length}
+		{#if editing && !finished && availableBots.length}
 			<div class="botsep">Add a bot player</div>
 			{#each availableBots as b (b.userId)}
 				<div class="mem">
@@ -629,7 +670,7 @@
 	{#if poolStatus === 'finished'}
 		<div class="card quiet done">
 			<span class="qtxt"><b>This pool is finished.</b><span class="muted small">{isOwner ? 'Set it up again for the next season under Members.' : 'The final standings stay here.'}</span></span>
-			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; enterEdit(); }}>Next season</button>{/if}
+			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; startClone(); }}>Next season</button>{/if}
 		</div>
 	{/if}
 	<section class="card board">

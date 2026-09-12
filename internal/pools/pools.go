@@ -69,6 +69,12 @@ const (
 	PoolOpen     = "open"
 )
 
+// Finished reports whether every bound season is over: the pool is an
+// archive then — read-only except for "Set up next season".
+func Finished(app core.App, lg *core.Record) bool {
+	return poolStatus(app, lg) == PoolFinished
+}
+
 func poolStatus(app core.App, lg *core.Record) string {
 	ids := lg.GetStringSlice("tournaments")
 	if len(ids) == 0 {
@@ -95,6 +101,38 @@ func poolStatus(app core.App, lg *core.Record) string {
 	default:
 		return PoolFinished
 	}
+}
+
+// nextSeasons maps a pool's bound seasons to the same competitions' latest
+// open season (running first, else the next upcoming), skipping competitions
+// without one — the default for "Set up next season".
+func nextSeasons(app core.App, lg *core.Record) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, id := range lg.GetStringSlice("tournaments") {
+		t, err := app.FindRecordById("tournaments", id)
+		if err != nil {
+			continue
+		}
+		comp := t.GetString("competition")
+		if comp == "" || seen[comp] {
+			continue
+		}
+		seen[comp] = true
+		var best *core.Record
+		recs, _ := app.FindRecordsByFilter("tournaments",
+			"competition = {:c} && (status = 'active' || status = 'upcoming')", "startsAt", 0, 0,
+			map[string]any{"c": comp})
+		for _, r := range recs {
+			if best == nil || (r.GetString("status") == tournaments.StatusActive && best.GetString("status") != tournaments.StatusActive) {
+				best = r
+			}
+		}
+		if best != nil {
+			out = append(out, best.Id)
+		}
+	}
+	return out
 }
 
 // seasonViews lists a pool's bound seasons for the client.
@@ -204,6 +242,18 @@ func ownedLeague(app core.App, e *core.RequestEvent, id string) (*core.Record, e
 	return lg, nil
 }
 
+// ownedOpenLeague is ownedLeague for changes a finished pool no longer takes.
+func ownedOpenLeague(app core.App, e *core.RequestEvent, id string) (*core.Record, error) {
+	lg, err := ownedLeague(app, e, id)
+	if err != nil {
+		return nil, err
+	}
+	if Finished(app, lg) {
+		return nil, bad(e, http.StatusConflict, "this pool is finished — set it up again for the next season")
+	}
+	return lg, nil
+}
+
 // Register wires the League endpoints. Most require an authenticated user;
 // the invite-preview route below is intentionally public.
 func Register(app core.App, se *core.ServeEvent) {
@@ -299,6 +349,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		league, err := app.FindFirstRecordByFilter("pools", "inviteCode = {:c}", map[string]any{"c": code})
 		if err != nil {
 			return bad(e, http.StatusNotFound, "invalid invite code")
+		}
+		if Finished(app, league) {
+			return bad(e, http.StatusConflict, "this pool is finished")
 		}
 		if existing, _ := app.FindFirstRecordByFilter("pool_members",
 			"pool = {:l} && user = {:u}",
@@ -413,7 +466,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// POST /api/leagues/{id}/tournaments { "tournaments": ["slug", …] } —
 	// the seasons the pool counts (owner only).
 	g.POST("/{id}/tournaments", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
@@ -451,11 +504,19 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		name := strings.TrimSpace(body.Name)
 		if name == "" {
-			return bad(e, http.StatusBadRequest, "name required")
+			name = src.GetString("name")
 		}
-		tids, err := tournamentIDs(app, body.Tournaments)
-		if err != nil {
-			return bad(e, http.StatusBadRequest, err.Error())
+		var tids []string
+		if len(body.Tournaments) > 0 {
+			tids, err = tournamentIDs(app, body.Tournaments)
+			if err != nil {
+				return bad(e, http.StatusBadRequest, err.Error())
+			}
+		} else {
+			tids = nextSeasons(app, src)
+		}
+		if len(tids) == 0 {
+			return bad(e, http.StatusBadRequest, "none of this pool's competitions has an open season yet")
 		}
 		col, err := app.FindCollectionByNameOrId("pools")
 		if err != nil {
@@ -489,7 +550,7 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/leagues/{id}/rename  { "name": "..." }
 	g.POST("/{id}/rename", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
@@ -512,7 +573,7 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/leagues/{id}/code/regenerate
 	g.POST("/{id}/code/regenerate", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
@@ -526,7 +587,7 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/leagues/{id}/code/visibility  { "private": true }
 	g.POST("/{id}/code/visibility", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
@@ -545,7 +606,7 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// POST /api/leagues/{id}/members/remove  { "userId": "..." }
 	g.POST("/{id}/members/remove", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
@@ -605,7 +666,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// to the league. Owner-only, and the target must actually be a bot user so
 	// owners can't conscript arbitrary people into their league.
 	g.POST("/{id}/bots/add", func(e *core.RequestEvent) error {
-		lg, err := ownedLeague(app, e, e.Request.PathValue("id"))
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
