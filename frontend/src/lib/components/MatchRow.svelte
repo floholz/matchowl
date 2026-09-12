@@ -70,7 +70,10 @@
 	const COUNTDOWN_MS = 3 * 3600_000;
 	let now = $state(serverClock.now());
 	let kickoffMs = $derived(new Date(match.kickoff).getTime());
-	let locked = $derived(isLocked(match) || now >= kickoffMs);
+	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
+	let live = $derived(match.status === 'live');
+	// A match that is underway or done is locked whatever its kickoff says.
+	let locked = $derived(isLocked(match) || now >= kickoffMs || live || played);
 	let untilKickoff = $derived(kickoffMs - now);
 	let countdown = $derived(!locked && untilKickoff <= COUNTDOWN_MS);
 	let resolved = $derived(teamsResolved(match));
@@ -78,8 +81,6 @@
 	let away = $derived(teamOf(match.awayTeam));
 	let existing = $derived(tip !== undefined ? tip : tipsStore.tips[match.id]);
 	let isKO = $derived(knockout ?? tournamentStore.isKnockout(match.stage));
-	let played = $derived(match.status === 'finished' || !!match.finalizedAt);
-	let live = $derived(match.status === 'live');
 	let pts = $derived(points ?? tipsStore.scores[match.id]);
 	let editable = $derived(!locked && !live && !played && (!isKO || resolved));
 
