@@ -13,8 +13,9 @@
 	import AnnounceBanner from '$lib/components/AnnounceBanner.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { theme } from '$lib/theme.svelte';
+	import { shell } from '$lib/shell.svelte';
 	import '$lib/keyboard'; // tracks the on-screen keyboard → `kb-open` class + `--kb` var
-	import { CircleHelp } from '@lucide/svelte';
+	import { CircleHelp, ChevronLeft } from '@lucide/svelte';
 
 	let { children } = $props();
 
@@ -69,9 +70,20 @@
 </script>
 
 {#if chrome}
-	<!-- Top header: logo everywhere; nav links inline on desktop. -->
-	<header class="topbar">
-		<Logo />
+	<!-- Top header. Mobile: contextual — the page's title (or back +
+	     title + context) left, avatar right; Home shows the wordmark.
+	     Desktop: wordmark + nav links, always. -->
+	<header class="topbar" class:titled={!!shell.title || !!shell.back}>
+		<div class="topbar-brand"><Logo /></div>
+		<div class="topbar-ctx" class:withback={!!shell.back}>
+			{#if shell.back}
+				<a class="topbar-back" href={shell.back} aria-label="Back"><ChevronLeft size={22} /></a>
+			{/if}
+			<div class="topbar-ttl">
+				<span class="ttl">{shell.title}</span>
+				{#if shell.context}<span class="ctx muted">{shell.context}</span>{/if}
+			</div>
+		</div>
 		<nav class="topbar-links"><NavLinks variant="top" /></nav>
 		<div class="spacer"></div>
 		<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">

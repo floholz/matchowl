@@ -71,6 +71,7 @@
 
 	/* ---- Layout metrics ---- */
 	--maxw: 740px;
+	--maxw-wide: 1260px; /* desktop pages that spread out (Matches, Home) */
 	--nav-h: 66px;
 	--topbar-h: 58px;
 	--rail-w: 240px;

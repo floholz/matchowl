@@ -7,7 +7,7 @@
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import { tipsStore } from '$lib/tips.svelte';
 	import TipCard from '$lib/components/TipCard.svelte';
-	import { ChevronLeft } from '@lucide/svelte';
+	import { pageChrome } from '$lib/shell.svelte';
 
 	let id = $derived($page.params.id ?? '');
 	let missing = $state(false);
@@ -35,13 +35,18 @@
 	let season = $derived(tournamentStore.current);
 	let loaded = $derived(!!seasonId && tipsStore.loaded && season?.id === seasonId);
 	let match = $derived(loaded ? tipsStore.matches.find((m) => m.id === id) : undefined);
-	let hubHref = $derived(
-		season ? `/competitions/${season.competition.key}?s=${season.slug}&tab=matches` : '/'
-	);
+	pageChrome(() => ({
+		back: '/matches',
+		title: season?.competition?.name ?? 'Match',
+		context: match
+			? [tournamentStore.stageName(match.stage), match.roundLabel !== tournamentStore.stageName(match.stage) ? match.roundLabel : '']
+					.filter(Boolean)
+					.join(' · ')
+			: ''
+	}));
 </script>
 
 <div class="mp">
-	<a class="back" href={hubHref}><ChevronLeft size={18} /> {season?.competition?.name ?? 'Back'}</a>
 	{#if missing}
 		<div class="card"><p class="muted">No such match.</p></div>
 	{:else if !match}
@@ -52,12 +57,7 @@
 </div>
 
 <style>
-	.back {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		margin: 0.2rem 0 0.9rem;
-		font-weight: 700;
-		font-size: 0.9rem;
+	.mp :global(.card) {
+		margin-top: 0;
 	}
 </style>

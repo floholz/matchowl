@@ -163,10 +163,15 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
    (`static/fonts`). `/m/{id}` exists as a bridge (the old TipCard,
    expanded) until step 4 replaces it. TipCard itself is otherwise unused
    now and goes away with step 4.
-2. Shell: 4-tab nav, contextual top bar, desktop top-bar links, page-owned
-   sub-rows.
-3. Matches page (rename of the feed, Mine/All filter, day strip) and the new
-   Home.
+2. ✅ 2026-09-12 — Shell: 4-tab nav (Home · Matches · Competitions ·
+   Friends), contextual top bar driven by `lib/shell.svelte.ts`
+   (`pageChrome({title, back, context})`; desktop keeps wordmark + links),
+   `.subbar` class for page-owned sticky rows, kicker + h1 slabs removed
+   from the list pages. The feed moved to `/matches`; `/` is a first Home
+   (Tip now · forecast deadline · Live · Your leagues · Yesterday);
+   league-mate suggestions moved to the Competitions catalog.
+3. Matches page: Mine/All filter, Live chip, sticky day strip (the Home
+   first cut may need a polish pass against the mockup).
 4. Match page route; desktop detail panel reusing it.
 5. Competition hub header + tabs; Friends rework.
 

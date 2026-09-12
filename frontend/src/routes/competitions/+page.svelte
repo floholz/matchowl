@@ -8,18 +8,39 @@
 		type Tournament,
 		type Competition
 	} from '$lib/tournament.svelte';
-	import { Check, ChevronRight } from '@lucide/svelte';
+	import { pageChrome } from '$lib/shell.svelte';
+	import { Check, ChevronRight, Plus } from '@lucide/svelte';
+
+	pageChrome(() => ({ title: 'Competitions' }));
+
+	interface Suggestion {
+		id: string;
+		slug: string;
+		name: string;
+		leagueMates: number;
+	}
+	let suggestions = $state<Suggestion[]>([]);
 
 	let ready = $state(false);
 	let playing = $state<Set<string>>(new Set());
 
 	$effect(() => {
 		tournamentStore.ready().then(() => (ready = true));
-		if (auth.isAuthed)
+		if (auth.isAuthed) {
 			pb.send('/api/me/tournaments', { method: 'GET' })
 				.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
 				.catch(() => {});
+			pb.send('/api/tournaments/suggestions', { method: 'GET' })
+				.then((r) => (suggestions = (r.suggestions ?? []).filter((x: Suggestion) => x.leagueMates > 0)))
+				.catch(() => {});
+		}
 	});
+
+	async function play(s: Suggestion) {
+		await pb.send(`/api/tournaments/${s.slug}/play`, { method: 'POST' }).catch(() => {});
+		playing = new Set([...playing, s.id]);
+		suggestions = suggestions.filter((x) => x.id !== s.id);
+	}
 
 	interface Row {
 		competition: Competition;
@@ -79,10 +100,18 @@
 </script>
 
 <div class="cat stagger">
-	<header class="chead">
-		<p class="kicker">Pick your battles</p>
-		<h1>Competitions</h1>
-	</header>
+	{#each suggestions as s (s.id)}
+		<div class="card suggest">
+			<span class="stxt">
+				<b>{s.name}</b>
+				<span class="muted"
+					>{s.leagueMates} {s.leagueMates === 1 ? 'league mate plays' : 'league mates play'} this</span
+				>
+			</span>
+			<span class="spacer"></span>
+			<button class="btn slim" onclick={() => play(s)}><Plus size={16} /> Play</button>
+		</div>
+	{/each}
 
 	{#if ready && rows.length === 0}
 		<div class="card empty muted">No competitions yet — check back soon.</div>
@@ -114,8 +143,26 @@
 </div>
 
 <style>
-	.chead {
-		margin: 0.4rem 0 1.1rem;
+	.suggest {
+		display: flex;
+		align-items: center;
+		gap: 0.9rem;
+		margin-bottom: 0.7rem;
+		padding: 0.8rem 1rem;
+	}
+	.stxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+	}
+	.stxt .muted {
+		font-size: 0.85rem;
+	}
+	.btn.slim {
+		width: auto;
+		padding: 0.5rem 1rem;
+		gap: 0.35rem;
 	}
 	.crow {
 		display: flex;

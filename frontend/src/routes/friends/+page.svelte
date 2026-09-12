@@ -2,7 +2,10 @@
 	import { api, type LeagueSummary } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
+	import { pageChrome } from '$lib/shell.svelte';
 	import { Users, Globe, ChevronRight, MessageSquare } from '@lucide/svelte';
+
+	pageChrome(() => ({ title: 'Friends' }));
 
 	type Rank = { rank: number; total: number };
 
@@ -84,11 +87,7 @@
 	}
 </script>
 
-<p class="kicker">Play against your friends</p>
-<h1>Friends</h1>
-<p class="muted sub">Private competitions — your predictions vs. your friends'.</p>
-
-<h2 class="sec">Your leagues</h2>
+<h2 class="sec first">Your leagues</h2>
 {#if !loaded}
 	<p class="muted pad">Loading…</p>
 {:else if leagues.length === 0}
@@ -148,12 +147,10 @@
 {#if error}<p class="error">{error}</p>{/if}
 
 <style>
-	h1 {
-		margin: 1rem 0 0.2rem;
+	.sec.first {
+		margin-top: 0.2rem;
 	}
-	.sub {
-		margin: 0 0 1.5rem;
-	}
+
 	.sec {
 		font-size: 1.05rem;
 		margin: 0 0 0.7rem;
