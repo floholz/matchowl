@@ -1,0 +1,5 @@
+{{define "text"}}{{.From}} invited you to the pool "{{.League}}".
+
+Accept the invite in the app and you're in — no code needed:
+{{.CTAUrl}}
+{{end}}

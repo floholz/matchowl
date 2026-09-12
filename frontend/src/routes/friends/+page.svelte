@@ -3,7 +3,7 @@
      mutual graph: a board of you and your friends for one season, requests,
      and finding people. -->
 <script lang="ts">
-	import { api, type PoolSummary, type LeaderboardRow, type Person } from '$lib/api';
+	import { api, type PoolSummary, type PoolSeason, type LeaderboardRow, type Person } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { goto } from '$app/navigation';
@@ -23,6 +23,22 @@
 	// ---- pools ----
 	type Rank = { rank: number; total: number; points: number; leader: string; leaderPoints: number };
 	let leagues = $state<PoolSummary[]>([]);
+	type Invite = { id: string; pool: { id: string; name: string; members: number; tournaments: PoolSeason[] }; from: string };
+	let invites = $state<Invite[]>([]);
+	async function acceptInvite(i: Invite) {
+		try {
+			const r = await api.acceptInvite(i.id);
+			invites = invites.filter((x) => x.id !== i.id);
+			goto(`/pools/${r.id}`);
+		} catch {
+			invites = invites.filter((x) => x.id !== i.id);
+			load();
+		}
+	}
+	async function declineInvite(i: Invite) {
+		await api.declineInvite(i.id).catch(() => {});
+		invites = invites.filter((x) => x.id !== i.id);
+	}
 	let ranks = $state<Record<string, Rank | null>>({});
 	let unread = $state<Record<string, number>>({});
 	let loaded = $state(false);
@@ -71,6 +87,7 @@
 		try {
 			leagues = (await api.myPools()).pools;
 			leagues.forEach((l) => loadRank(l.id));
+			api.poolInvites().then((r) => (invites = r.invites)).catch(() => {});
 			api.chatUnread().then((r) => (unread = r.unread)).catch(() => {});
 		} catch {
 			/* ignore */
@@ -241,6 +258,20 @@
 </div>
 
 {#if view === 'pools'}
+	{#if invites.length}
+		<div class="sec2 first"><h2>Invites</h2><span class="pill ok">{invites.length}</span></div>
+		{#each invites as i (i.id)}
+			<div class="card inv">
+				<span class="itxt">
+					<b>{i.pool.name}</b>
+					<span class="muted small">{i.from} invited you · {i.pool.members} {i.pool.members === 1 ? 'member' : 'members'}{#if i.pool.tournaments.length} · {i.pool.tournaments.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}{/if}</span>
+				</span>
+				<span class="spacer"></span>
+				<button class="tbtn p" onclick={() => acceptInvite(i)}><Check size={14} /> Join</button>
+				<button class="tbtn" onclick={() => declineInvite(i)}>Decline</button>
+			</div>
+		{/each}
+	{/if}
 	{#if !loaded}
 		<p class="muted pad">Loading…</p>
 	{:else if pools.length === 0 && finishedPools.length === 0}
@@ -617,6 +648,22 @@
 	}
 	.sec2 h2 {
 		font-size: 1.15rem;
+	}
+	.sec2.first {
+		margin-top: 0.2rem;
+	}
+	.card.inv {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 0.9rem;
+		border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+	}
+	.itxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
 	}
 	.medal {
 		width: 22px;

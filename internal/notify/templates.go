@@ -66,7 +66,8 @@ type tplData struct {
 	Total        int
 	Ranks        []rankLine
 
-	League string // league name (took-the-lead event)
+	League string // pool name (took-the-lead, pool-invite events)
+	From   string // who invited you (pool-invite event)
 
 	// Title/Body back the free-text "announcement" broadcast event.
 	Title string

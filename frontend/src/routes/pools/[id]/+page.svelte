@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { api, type LeaderboardRow, type BotSummary, type PoolSeason, type PoolSummary } from '$lib/api';
+	import { api, type LeaderboardRow, type BotSummary, type PoolSeason, type PoolSummary, type Person } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
@@ -230,6 +230,18 @@
 			.sort((a, b) => (a.status === 'active' ? -1 : 1) - (b.status === 'active' ? -1 : 1) || (a.startsAt < b.startsAt ? 1 : -1))
 	);
 	let finished = $derived(poolStatus === 'finished');
+	/** Friends not in the pool yet (open pools only). */
+	let invitable = $state<(Person & { invited: boolean })[]>([]);
+	let invitableLoaded = false;
+	$effect(() => {
+		if (view !== 'members' || !loaded || invitableLoaded || invite === 'GLOBAL') return;
+		invitableLoaded = true;
+		api.invitable(id).then((r) => (invitable = r.friends)).catch(() => {});
+	});
+	async function inviteFriend(p: Person) {
+		await api.invite(id, p.userId).catch(() => {});
+		invitable = invitable.map((x) => (x.userId === p.userId ? { ...x, invited: true } : x));
+	}
 	/** Same competitions, latest open season each — the next-season default. */
 	let nextSeasonSlugs = $derived.by(() => {
 		const out: string[] = [];
@@ -583,6 +595,23 @@
 		</section>
 	{/if}
 
+	{#if invite !== 'GLOBAL' && !finished && invitable.length}
+		<section class="card members">
+			<div class="botsep">Invite friends</div>
+			{#each invitable as p (p.userId)}
+				<div class="mem">
+					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={30} />
+					<span class="pname">{p.name}</span>
+					<span class="spacer"></span>
+					{#if p.invited}
+						<span class="pill">invited</span>
+					{:else}
+						<button class="btn secondary slim" onclick={() => inviteFriend(p)}><UserPlus size={14} /> Invite</button>
+					{/if}
+				</div>
+			{/each}
+		</section>
+	{/if}
 	{#if invite && invite !== 'GLOBAL' && !finished}
 		<section class="card invite">
 			<div class="irow">

@@ -351,6 +351,17 @@ export const api = {
 		post<{ tournaments: PoolSeason[] }>(`/api/pools/${id}/tournaments`, { tournaments }),
 	clonePool: (id: string, name: string, tournaments: string[]) =>
 		post<{ id: string; name: string; inviteCode: string }>(`/api/pools/${id}/clone`, { name, tournaments }),
+	// ---- pool invites: members bring friends in without a code ----
+	invitable: (poolId: string) =>
+		get<{ friends: (Person & { invited: boolean })[] }>(`/api/pools/${poolId}/invitable`),
+	invite: (poolId: string, userId: string) =>
+		post<{ state: string }>(`/api/pools/${poolId}/invite`, { userId }),
+	poolInvites: () =>
+		get<{
+			invites: { id: string; pool: { id: string; name: string; members: number; tournaments: PoolSeason[] }; from: string }[];
+		}>('/api/pools/invites'),
+	acceptInvite: (id: string) => post<{ id: string; name: string }>(`/api/pools/invites/${id}/accept`, {}),
+	declineInvite: (id: string) => post<{ ok: boolean }>(`/api/pools/invites/${id}/decline`, {}),
 	// ---- friends: a mutual graph ----
 	friends: () => get<{ friends: Person[]; incoming: Person[]; outgoing: Person[] }>('/api/friends'),
 	searchPeople: (q: string) => get<{ users: Person[] }>(`/api/friends/search?q=${encodeURIComponent(q)}`),

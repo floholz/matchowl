@@ -129,6 +129,39 @@ func Register(app core.App, se *core.ServeEvent) {
 		registerChatDigestCron(app, r)
 	}
 
+	// Pool invites go out the moment they are written (internal/pools), as
+	// push + email to the invitee — event "pool_invite".
+	app.OnRecordAfterCreateSuccess("pool_invites").BindFunc(func(e *core.RecordEvent) error {
+		if disabled() {
+			return e.Next()
+		}
+		inv := e.Record
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			u, err := e.App.FindRecordById("users", inv.GetString("user"))
+			if err != nil {
+				return
+			}
+			pool, err := e.App.FindRecordById("pools", inv.GetString("pool"))
+			if err != nil {
+				return
+			}
+			from := ""
+			if f, err := e.App.FindRecordById("users", inv.GetString("inviter")); err == nil {
+				from = f.GetString("name")
+			}
+			ncol, err := e.App.FindCollectionByNameOrId("notifications")
+			if err != nil {
+				return
+			}
+			data := tplData{League: pool.GetString("name"), From: from, CTAText: "See the invite", CTAUrl: r.base().url + "/friends"}
+			res := &Result{}
+			r.dispatch(ctx, res, ncol, u, "pool_invite", "pool_invite:"+inv.Id, data)
+		}()
+		return e.Next()
+	})
+
 	// Dev-only manual trigger so the flow can be exercised against the virtual
 	// clock without waiting for the cron. Mirrors the /api/dev gating in dev.go.
 	if os.Getenv("MATCHOWL_DEV") == "1" || os.Getenv("WMP_DEV") == "1" {
@@ -661,6 +694,10 @@ func (r *Runner) sampleData(event string) tplData {
 		d.Title = "New: live match tracker is here"
 		d.Body = "We just shipped a live tracker so you can follow scores in real time. Open the app to check it out and get your tips in before kickoff."
 		d.CTAText, d.CTAUrl = "Open Matchowl", base.url+"/"
+	case "pool_invite":
+		d.From = "Lena"
+		d.League = "Bürocup"
+		d.CTAText, d.CTAUrl = "See the invite", base.url+"/friends"
 	case "pool_chat":
 		d.ChatTotal = 5
 		d.ChatLeagues = []chatLine{{League: "Squad", Count: 3}, {League: "Office Pool", Count: 2}}

@@ -40,6 +40,11 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 		hint: 'When you climb to #1 in one of your pools.'
 	},
 	{
+		key: 'pool_invite',
+		label: 'Pool invites',
+		hint: 'When a friend invites you into one of their pools.'
+	},
+	{
 		key: 'pool_chat',
 		label: 'Pool chat',
 		hint: 'New messages in your pool chats — push is prompt; email is a periodic digest.'

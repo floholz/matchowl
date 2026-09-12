@@ -338,8 +338,9 @@ add more):
   collection + `/api/friends`, pools bound to seasons (`leagues.tournaments`,
   board sums them, `?tournament=` narrows), owner season binding and
   "Set up next season" (clone), Friends page with Pools/Friends tabs,
-  `/pools/{id}` routes with redirects, league wording → pools. Still to do:
-  friend-request notifications, the pinned own row on long boards, the
+  `/pools/{id}` routes with redirects, league wording → pools. Pool invites
+  for friends (`pool_invites`, event `pool_invite`, pinned on the Pools tab)
+  landed `9fe700e`. Still to do: friend-request notifications, the
   activity feed, docs sweep (README/plans still say leagues).
 - **Launch data plan** (2026-09-13, to discuss): the app launches clean
   with imported data; the old WC app and its data stay as they are. Decide

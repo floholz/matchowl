@@ -17,6 +17,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 
+	"github.com/floholz/matchowl/internal/friends"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
@@ -590,6 +591,157 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, map[string]any{
 			"id": next.Id, "name": name, "inviteCode": next.GetString("inviteCode"),
 		})
+	})
+
+	// ---- Invites: members bring their friends in without a code ----
+
+	memberOf := func(poolID, userID string) bool {
+		_, err := app.FindFirstRecordByFilter("pool_members", "pool = {:l} && user = {:u}",
+			map[string]any{"l": poolID, "u": userID})
+		return err == nil
+	}
+
+	// GET /api/pools/{id}/invitable — my friends who are not in the pool yet,
+	// with whether an invite is already out.
+	g.GET("/{id}/invitable", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		lg, err := app.FindRecordById("pools", id)
+		if err != nil || !memberOf(id, e.Auth.Id) {
+			return bad(e, http.StatusForbidden, "not a member of this pool")
+		}
+		out := make([]map[string]any, 0)
+		if Finished(app, lg) || lg.GetString("inviteCode") == GlobalInviteCode {
+			return e.JSON(http.StatusOK, map[string]any{"friends": out})
+		}
+		for _, fid := range friends.AcceptedIDs(app, e.Auth.Id) {
+			if memberOf(id, fid) {
+				continue
+			}
+			u, err := app.FindRecordById("users", fid)
+			if err != nil {
+				continue
+			}
+			_, pending := app.FindFirstRecordByFilter("pool_invites", "pool = {:l} && user = {:u}",
+				map[string]any{"l": id, "u": fid})
+			out = append(out, map[string]any{
+				"userId": u.Id, "name": u.GetString("name"), "avatar": u.GetString("avatar"), "invited": pending == nil,
+			})
+		}
+		return e.JSON(http.StatusOK, map[string]any{"friends": out})
+	})
+
+	// POST /api/pools/{id}/invite { userId } — invite a friend (members only,
+	// open pools only). Idempotent.
+	g.POST("/{id}/invite", func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		lg, err := app.FindRecordById("pools", id)
+		if err != nil || !memberOf(id, e.Auth.Id) {
+			return bad(e, http.StatusForbidden, "not a member of this pool")
+		}
+		if Finished(app, lg) || lg.GetString("inviteCode") == GlobalInviteCode {
+			return bad(e, http.StatusConflict, "this pool takes no invites")
+		}
+		var body struct {
+			UserID string `json:"userId"`
+		}
+		if err := e.BindBody(&body); err != nil || body.UserID == "" {
+			return bad(e, http.StatusBadRequest, "userId required")
+		}
+		isFriend := false
+		for _, fid := range friends.AcceptedIDs(app, e.Auth.Id) {
+			if fid == body.UserID {
+				isFriend = true
+			}
+		}
+		if !isFriend {
+			return bad(e, http.StatusForbidden, "you can only invite your friends")
+		}
+		if memberOf(id, body.UserID) {
+			return e.JSON(http.StatusOK, map[string]any{"state": "member"})
+		}
+		if _, err := app.FindFirstRecordByFilter("pool_invites", "pool = {:l} && user = {:u}",
+			map[string]any{"l": id, "u": body.UserID}); err == nil {
+			return e.JSON(http.StatusOK, map[string]any{"state": "invited"})
+		}
+		col, err := app.FindCollectionByNameOrId("pool_invites")
+		if err != nil {
+			return err
+		}
+		rec := core.NewRecord(col)
+		rec.Set("pool", id)
+		rec.Set("inviter", e.Auth.Id)
+		rec.Set("user", body.UserID)
+		if err := app.Save(rec); err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{"state": "invited"})
+	})
+
+	// GET /api/pools/invites — invites waiting for me.
+	g.GET("/invites", func(e *core.RequestEvent) error {
+		recs, err := app.FindRecordsByFilter("pool_invites", "user = {:u}", "-created", 0, 0,
+			map[string]any{"u": e.Auth.Id})
+		if err != nil {
+			return err
+		}
+		out := make([]map[string]any, 0, len(recs))
+		for _, r := range recs {
+			lg, err := app.FindRecordById("pools", r.GetString("pool"))
+			if err != nil || Finished(app, lg) {
+				continue
+			}
+			from := ""
+			if f, err := app.FindRecordById("users", r.GetString("inviter")); err == nil {
+				from = f.GetString("name")
+			}
+			cnt, _ := app.CountRecords("pool_members", dbx.HashExp{"pool": lg.Id})
+			out = append(out, map[string]any{
+				"id":   r.Id,
+				"pool": map[string]any{"id": lg.Id, "name": lg.GetString("name"), "members": cnt, "tournaments": seasonViews(app, lg)},
+				"from": from,
+			})
+		}
+		return e.JSON(http.StatusOK, map[string]any{"invites": out})
+	})
+
+	// POST /api/pools/invites/{id}/accept — join; /decline — drop it.
+	inviteFor := func(e *core.RequestEvent) (*core.Record, error) {
+		r, err := app.FindRecordById("pool_invites", e.Request.PathValue("id"))
+		if err != nil || r.GetString("user") != e.Auth.Id {
+			return nil, bad(e, http.StatusNotFound, "no such invite")
+		}
+		return r, nil
+	}
+	g.POST("/invites/{id}/accept", func(e *core.RequestEvent) error {
+		r, err := inviteFor(e)
+		if err != nil {
+			return err
+		}
+		lg, err := app.FindRecordById("pools", r.GetString("pool"))
+		if err != nil {
+			return bad(e, http.StatusNotFound, "pool is gone")
+		}
+		if Finished(app, lg) {
+			_ = app.Delete(r)
+			return bad(e, http.StatusConflict, "this pool is finished")
+		}
+		if !memberOf(lg.Id, e.Auth.Id) {
+			if err := addMember(app, lg.Id, e.Auth.Id, "member"); err != nil {
+				return err
+			}
+		}
+		_ = app.Delete(r)
+		return e.JSON(http.StatusOK, map[string]any{"id": lg.Id, "name": lg.GetString("name")})
+	})
+	g.POST("/invites/{id}/decline", func(e *core.RequestEvent) error {
+		r, err := inviteFor(e)
+		if err != nil {
+			return err
+		}
+		if err := app.Delete(r); err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, map[string]any{"ok": true})
 	})
 
 	// POST /api/leagues/{id}/rename  { "name": "..." }
