@@ -279,7 +279,7 @@ func finished(m *core.Record) bool {
 // globalLeagueID returns the id of the auto-managed "Global" league (the one
 // every user belongs to), or "" if it doesn't exist yet.
 func globalLeagueID(app core.App) string {
-	g, err := app.FindFirstRecordByFilter("leagues",
+	g, err := app.FindFirstRecordByFilter("pools",
 		"inviteCode = {:c}", map[string]any{"c": "GLOBAL"})
 	if err != nil {
 		return ""
@@ -293,19 +293,19 @@ func globalLeagueID(app core.App) string {
 // picks. Friends' picks are private-league only.
 func sharedLeagueUserIDs(app core.App, userID string) (map[string]bool, error) {
 	globalID := globalLeagueID(app)
-	mine, err := app.FindRecordsByFilter("league_members",
+	mine, err := app.FindRecordsByFilter("pool_members",
 		"user = {:u}", "", 0, 0, map[string]any{"u": userID})
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]bool{}
 	for _, lm := range mine {
-		lid := lm.GetString("league")
+		lid := lm.GetString("pool")
 		if lid == globalID {
 			continue
 		}
-		peers, err := app.FindRecordsByFilter("league_members",
-			"league = {:l}", "", 0, 0, map[string]any{"l": lid})
+		peers, err := app.FindRecordsByFilter("pool_members",
+			"pool = {:l}", "", 0, 0, map[string]any{"l": lid})
 		if err != nil {
 			return nil, err
 		}

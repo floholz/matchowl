@@ -23,7 +23,7 @@ const (
 )
 
 // Call is one headline pick of a calls-mode forecast, e.g. "Champion",
-// "Champions League spots", "Relegated", "Final four".
+// "Champions Pool spots", "Relegated", "Final four".
 type Call struct {
 	Key    string `json:"key"`
 	Name   string `json:"name"`

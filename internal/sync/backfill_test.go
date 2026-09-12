@@ -11,7 +11,7 @@ import (
 // one draw at a time via backfillMatch → appendStage.
 func TestAppendStageUCLDraws(t *testing.T) {
 	st := &tournaments.Structure{
-		Stages:    []tournaments.Stage{{Code: "group", Name: "League", Kind: tournaments.KindGroup}},
+		Stages:    []tournaments.Stage{{Code: "group", Name: "Pool", Kind: tournaments.KindGroup}},
 		GroupSize: 36, GamesPerTeam: 8,
 	}
 	st.Normalize()
@@ -36,8 +36,8 @@ func TestAppendStageUCLDraws(t *testing.T) {
 		t.Fatalf("re-append: changed=%v err=%v", changed, err)
 	}
 	// A league-phase fixture maps onto the existing group stage.
-	if changed, err := appendStage(st, importer.StageFor("League Stage - 9")); changed || err != nil {
-		t.Fatalf("league round: changed=%v err=%v", changed, err)
+	if changed, err := appendStage(st, importer.StageFor("Pool Stage - 9")); changed || err != nil {
+		t.Fatalf("pool round: changed=%v err=%v", changed, err)
 	}
 	if err := st.Validate(); err != nil {
 		t.Fatalf("structure invalid: %v", err)

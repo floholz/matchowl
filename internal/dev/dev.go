@@ -281,7 +281,7 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	lmCol, err := app.FindCollectionByNameOrId("league_members")
+	lmCol, err := app.FindCollectionByNameOrId("pool_members")
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +372,7 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 
 			for _, lid := range leagueIDs {
 				lm := core.NewRecord(lmCol)
-				lm.Set("league", lid)
+				lm.Set("pool", lid)
 				lm.Set("user", u.Id)
 				lm.Set("role", "member")
 				if err := tx.Save(lm); err != nil {
@@ -492,13 +492,13 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, state(app))
 	})
 
-	// POST /api/dev/bots { "count": 3, "leagueId": "" } — create bot players
+	// POST /api/dev/bots { "count": 3, "poolId": "" } — create bot players
 	// with a full Forecast + a Tip on every match. Joins the given league, or
 	// every league the caller is in if omitted.
 	g.POST("/bots", func(e *core.RequestEvent) error {
 		var body struct {
 			Count    int    `json:"count"`
-			LeagueID string `json:"leagueId"`
+			LeagueID string `json:"poolId"`
 		}
 		_ = e.BindBody(&body)
 		if body.Count <= 0 {
@@ -511,10 +511,10 @@ func Register(app core.App, se *core.ServeEvent) {
 		if body.LeagueID != "" {
 			leagueIDs = []string{body.LeagueID}
 		} else {
-			mems, _ := app.FindRecordsByFilter("league_members",
+			mems, _ := app.FindRecordsByFilter("pool_members",
 				"user = {:u}", "", 0, 0, map[string]any{"u": e.Auth.Id})
 			for _, m := range mems {
-				leagueIDs = append(leagueIDs, m.GetString("league"))
+				leagueIDs = append(leagueIDs, m.GetString("pool"))
 			}
 		}
 		names, err := makeBots(app, body.Count, leagueIDs)

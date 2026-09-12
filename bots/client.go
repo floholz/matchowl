@@ -86,7 +86,7 @@ func (c *Client) Login(ctx context.Context, identity, password string) error {
 // JoinLeague joins a league by invite code (idempotent server-side). Optional —
 // the bot can also be added to leagues directly in the PocketBase admin.
 func (c *Client) JoinLeague(ctx context.Context, code string) error {
-	return c.do(ctx, http.MethodPost, "/api/leagues/join",
+	return c.do(ctx, http.MethodPost, "/api/pools/join",
 		map[string]string{"code": code}, nil)
 }
 

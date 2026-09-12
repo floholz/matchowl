@@ -17,7 +17,7 @@
 		id: string;
 		slug: string;
 		name: string;
-		leagueMates: number;
+		poolMates: number;
 	}
 	let suggestions = $state<Suggestion[]>([]);
 
@@ -31,7 +31,7 @@
 				.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
 				.catch(() => {});
 			pb.send('/api/tournaments/suggestions', { method: 'GET' })
-				.then((r) => (suggestions = (r.suggestions ?? []).filter((x: Suggestion) => x.leagueMates > 0)))
+				.then((r) => (suggestions = (r.suggestions ?? []).filter((x: Suggestion) => x.poolMates > 0)))
 				.catch(() => {});
 		}
 	});
@@ -105,7 +105,7 @@
 			<span class="stxt">
 				<b>{s.name}</b>
 				<span class="muted"
-					>{s.leagueMates} {s.leagueMates === 1 ? 'pool mate plays' : 'pool mates play'} this</span
+					>{s.poolMates} {s.poolMates === 1 ? 'pool mate plays' : 'pool mates play'} this</span
 				>
 			</span>
 			<span class="spacer"></span>

@@ -95,7 +95,7 @@ func TestValidateRejections(t *testing.T) {
 		`{"stages": [{"code":"a","name":"A","kind":"group"},{"code":"a","name":"A2","kind":"knockout"}], "groupSize":4,"gamesPerTeam":3}`, // dup code
 		`{"stages": [{"code":"g","name":"G","kind":"group"}], "groupSize": 1, "gamesPerTeam": 3}`,                                         // groupSize < 2
 		`{"stages": [{"code":"F","name":"Final","kind":"knockout"}], "extraQualifiers": {"fromPosition":3,"count":8}}`,                    // extras without groups
-		`{"stages": [{"code":"g","name":"G","kind":"weird"}]}`,                                                                           // bad kind
+		`{"stages": [{"code":"g","name":"G","kind":"weird"}]}`,                                                                            // bad kind
 		`{"stages": [{"code":"g","name":"G","kind":"group","consolation":true}], "groupSize":4,"gamesPerTeam":3}`,                         // consolation group
 	}
 	for i, raw := range bad {

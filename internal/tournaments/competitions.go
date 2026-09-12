@@ -48,7 +48,7 @@ func ByLeagueID(app core.App, leagueID int) (*core.Record, error) {
 
 // LeagueLogoURL is the provider's stable (public, key-less) league badge.
 func LeagueLogoURL(leagueID int) string {
-	return fmt.Sprintf("https://media.api-sports.io/football/leagues/%d.png", leagueID)
+	return fmt.Sprintf("https://media.api-sports.io/football/pools/%d.png", leagueID)
 }
 
 var compKeyJunk = regexp.MustCompile(`[^a-z0-9]+`)

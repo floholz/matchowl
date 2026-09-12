@@ -212,7 +212,7 @@ func runOnce(cfg config, opts runOpts) error {
 
 	if cfg.leagueCode != "" {
 		if err := c.JoinLeague(ctx, cfg.leagueCode); err != nil {
-			log.Warn("join league failed", "code", cfg.leagueCode, "err", err)
+			log.Warn("join pool failed", "code", cfg.leagueCode, "err", err)
 		}
 	}
 

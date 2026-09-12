@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { pb } from '$lib/pb';
 	import { serverClock } from '$lib/serverclock.svelte';
-	import { api, type LeagueSummary } from '$lib/api';
+	import { api, type PoolSummary } from '$lib/api';
 
 	let when = $state('');
 	let busy = $state(false);
@@ -9,13 +9,13 @@
 
 	let botCount = $state(3);
 	let botLeague = $state('');
-	let leagues = $state<LeagueSummary[]>([]);
+	let leagues = $state<PoolSummary[]>([]);
 
 	$effect(() => {
 		if (serverClock.dev)
 			api
-				.myLeagues()
-				.then((r) => (leagues = r.leagues))
+				.myPools()
+				.then((r) => (leagues = r.pools))
 				.catch(() => {});
 	});
 
@@ -25,7 +25,7 @@
 		try {
 			await pb.send('/api/dev/bots', {
 				method: 'POST',
-				body: { count: botCount, leagueId: botLeague }
+				body: { count: botCount, poolId: botLeague }
 			});
 			location.reload();
 		} catch (e: unknown) {
@@ -77,7 +77,7 @@
 		{ key: 'results_recap', label: '🏆 Results recap' },
 		{ key: 'stage_starting', label: '🏟 Stage starting' },
 		{ key: 'forecast_reminder', label: '⏰ Forecast deadline' },
-		{ key: 'league_lead', label: '🥇 Took the lead' },
+		{ key: 'pool_lead', label: '🥇 Took the lead' },
 		{ key: 'kickoff_countdown', label: '📅 Countdown to kickoff' }
 	];
 

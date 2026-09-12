@@ -58,7 +58,7 @@ func configsInUse(app core.App) (map[string]Config, string, error) {
 		return nil, "", err
 	}
 	out[def.Id] = loadConfig(def)
-	leagues, err := app.FindRecordsByFilter("leagues", "id != ''", "", 0, 0)
+	leagues, err := app.FindRecordsByFilter("pools", "id != ''", "", 0, 0)
 	if err != nil {
 		return nil, "", err
 	}

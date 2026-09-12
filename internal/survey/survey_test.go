@@ -37,7 +37,7 @@ func TestValidateClearsOrphanedOtherText(t *testing.T) {
 	a := base()
 	a.LikedOther = "the bots"
 	a.Competitions = []string{"bundesliga"}
-	a.CompetitionsOther = "my sunday league"
+	a.CompetitionsOther = "my sunday pool"
 	if err := a.validate(); err != nil {
 		t.Fatal(err)
 	}

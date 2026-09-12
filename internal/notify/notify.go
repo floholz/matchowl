@@ -250,7 +250,7 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 	tinfo, tErr := r.currentTournament()
 	if tErr != nil {
 		if err := r.detectLeagueLead(ctx, res, recipients, base); err != nil {
-			log.Printf("[notify] league_lead: %v", err)
+			log.Printf("[notify] pool_lead: %v", err)
 		}
 		return res, nil
 	}
@@ -285,7 +285,7 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 		}
 	}
 	if err := r.detectLeagueLead(ctx, res, recipients, base); err != nil {
-		log.Printf("[notify] league_lead: %v", err)
+		log.Printf("[notify] pool_lead: %v", err)
 	}
 
 	return res, nil
@@ -652,19 +652,19 @@ func (r *Runner) sampleData(event string) tplData {
 		d.PointsGained = 7
 		d.Total = 42
 		d.Ranks = []rankLine{{League: "Friends", Rank: 2, Of: 8}}
-		d.CTAText, d.CTAUrl = "See the leaderboard", base.url+"/leagues"
-	case "league_lead":
+		d.CTAText, d.CTAUrl = "See the leaderboard", base.url+"/pools"
+	case "pool_lead":
 		d.League = "Friends"
 		d.Total = 48
-		d.CTAText, d.CTAUrl = "See the leaderboard", base.url+"/leagues"
+		d.CTAText, d.CTAUrl = "See the leaderboard", base.url+"/pools"
 	case "announcement":
 		d.Title = "New: live match tracker is here"
 		d.Body = "We just shipped a live tracker so you can follow scores in real time. Open the app to check it out and get your tips in before kickoff."
 		d.CTAText, d.CTAUrl = "Open Matchowl", base.url+"/"
-	case "league_chat":
+	case "pool_chat":
 		d.ChatTotal = 5
 		d.ChatLeagues = []chatLine{{League: "Squad", Count: 3}, {League: "Office Pool", Count: 2}}
-		d.CTAText, d.CTAUrl = "Open your chats", base.url+"/leagues"
+		d.CTAText, d.CTAUrl = "Open your chats", base.url+"/pools"
 	case "kickoff_countdown":
 		d.DaysLeft = 3
 		d.WhenText = when

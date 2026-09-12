@@ -76,7 +76,7 @@
 		<h2 class="sec"><Trophy size={18} /> Leagues</h2>
 		<div class="grid">
 			<div class="stat">
-				<span class="num digits">{stats.leagues}</span>
+				<span class="num digits">{stats.pools}</span>
 				<span class="lbl">Leagues</span>
 				<span class="hint">user-created (Global excluded)</span>
 			</div>

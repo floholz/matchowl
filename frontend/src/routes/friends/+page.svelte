@@ -3,7 +3,7 @@
      mutual graph: a board of you and your friends for one season, requests,
      and finding people. -->
 <script lang="ts">
-	import { api, type LeagueSummary, type LeaderboardRow, type Person } from '$lib/api';
+	import { api, type PoolSummary, type LeaderboardRow, type Person } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { goto } from '$app/navigation';
@@ -22,7 +22,7 @@
 
 	// ---- pools ----
 	type Rank = { rank: number; total: number; points: number; leader: string; leaderPoints: number };
-	let leagues = $state<LeagueSummary[]>([]);
+	let leagues = $state<PoolSummary[]>([]);
 	let ranks = $state<Record<string, Rank | null>>({});
 	let unread = $state<Record<string, number>>({});
 	let loaded = $state(false);
@@ -56,7 +56,7 @@
 			setTimeout(() => (linkCopied = false), 1800);
 		}
 	}
-	const isGlobal = (l: LeagueSummary) => l.inviteCode === 'GLOBAL';
+	const isGlobal = (l: PoolSummary) => l.inviteCode === 'GLOBAL';
 	let pools = $derived(leagues.filter((l) => !isGlobal(l)));
 	let global = $derived(leagues.find(isGlobal));
 	/** Seasons a new pool can count: anything visible, running first. */
@@ -68,7 +68,7 @@
 
 	async function load() {
 		try {
-			leagues = (await api.myLeagues()).leagues;
+			leagues = (await api.myPools()).pools;
 			leagues.forEach((l) => loadRank(l.id));
 			api.chatUnread().then((r) => (unread = r.unread)).catch(() => {});
 		} catch {
@@ -104,7 +104,7 @@
 		error = '';
 		busy = true;
 		try {
-			const r = await api.createLeague(newName, [...newSeasons]);
+			const r = await api.createPool(newName, [...newSeasons]);
 			newName = '';
 			newSeasons = new Set();
 			created = r;
@@ -120,7 +120,7 @@
 		error = '';
 		busy = true;
 		try {
-			const r = await api.joinLeague(joinCode);
+			const r = await api.joinPool(joinCode);
 			joinCode = '';
 			sheet = '';
 			goto(`/pools/${r.id}`);
@@ -130,7 +130,7 @@
 			busy = false;
 		}
 	}
-	const seasonsLine = (l: LeagueSummary) =>
+	const seasonsLine = (l: PoolSummary) =>
 		l.tournaments.length
 			? l.tournaments.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')
 			: 'no season yet';

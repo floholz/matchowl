@@ -59,23 +59,23 @@ func PlayedIDs(app core.App, userID string) ([]string, error) {
 // contains everyone).
 func leagueMates(app core.App, userID string) (map[string]bool, error) {
 	mates := map[string]bool{}
-	mine, err := app.FindRecordsByFilter("league_members",
+	mine, err := app.FindRecordsByFilter("pool_members",
 		"user = {:u}", "", 0, 0, map[string]any{"u": userID})
 	if err != nil {
 		return nil, err
 	}
 	globalID := ""
-	if g, err := app.FindFirstRecordByFilter("leagues",
+	if g, err := app.FindFirstRecordByFilter("pools",
 		"inviteCode = {:c}", map[string]any{"c": "GLOBAL"}); err == nil {
 		globalID = g.Id
 	}
 	for _, m := range mine {
-		lid := m.GetString("league")
+		lid := m.GetString("pool")
 		if lid == globalID {
 			continue
 		}
-		members, err := app.FindRecordsByFilter("league_members",
-			"league = {:l}", "", 0, 0, map[string]any{"l": lid})
+		members, err := app.FindRecordsByFilter("pool_members",
+			"pool = {:l}", "", 0, 0, map[string]any{"l": lid})
 		if err != nil {
 			continue
 		}
@@ -193,12 +193,12 @@ func Register(app core.App, se *core.ServeEvent) {
 				}
 			}
 			out = append(out, map[string]any{
-				"id":          t.Id,
-				"slug":        t.GetString("slug"),
-				"name":        t.GetString("name"),
-				"status":      st,
-				"startsAt":    t.GetString("startsAt"),
-				"leagueMates": n,
+				"id":        t.Id,
+				"slug":      t.GetString("slug"),
+				"name":      t.GetString("name"),
+				"status":    st,
+				"startsAt":  t.GetString("startsAt"),
+				"poolMates": n,
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"suggestions": out})

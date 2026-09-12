@@ -69,7 +69,7 @@
 	async function init() {
 		// Verify the league: must be a private one we belong to.
 		try {
-			const mine = (await api.myLeagues()).leagues;
+			const mine = (await api.myPools()).pools;
 			const lg = mine.find((l) => l.id === id);
 			if (!lg || lg.inviteCode === 'GLOBAL') {
 				goto(`/pools/${id}`);

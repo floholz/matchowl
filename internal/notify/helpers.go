@@ -26,7 +26,7 @@ func pushIcon(event string, data tplData) string {
 		return "/icons/notif/tips.png"
 	case "results_recap":
 		return "/icons/notif/recap.png"
-	case "league_lead":
+	case "pool_lead":
 		return "/icons/notif/lead.png"
 	case "announcement":
 		return "/icons/notif/default.png"
@@ -255,7 +255,7 @@ func (r *Runner) userPoints(userID, cfgID string, finalized map[string]bool) (ga
 // userRanks computes the user's standing in each league they belong to, caching
 // each league's leaderboard for the duration of one pass.
 func (r *Runner) userRanks(userID string, cache map[string][]scoring.Row) []rankLine {
-	mems, err := r.app.FindRecordsByFilter("league_members",
+	mems, err := r.app.FindRecordsByFilter("pool_members",
 		"user = {:u}", "", 0, 0, map[string]any{"u": userID})
 	if err != nil {
 		return nil
@@ -266,7 +266,7 @@ func (r *Runner) userRanks(userID string, cache map[string][]scoring.Row) []rank
 	}
 	var out []rankLine
 	for _, mem := range mems {
-		lid := mem.GetString("league")
+		lid := mem.GetString("pool")
 		rows, ok := cache[lid]
 		name := ""
 		if !ok {
@@ -293,7 +293,7 @@ func (r *Runner) userRanks(userID string, cache map[string][]scoring.Row) []rank
 }
 
 func (r *Runner) leagueName(id string) (string, bool) {
-	l, err := r.app.FindRecordById("leagues", id)
+	l, err := r.app.FindRecordById("pools", id)
 	if err != nil {
 		return "", false
 	}

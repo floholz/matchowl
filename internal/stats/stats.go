@@ -113,11 +113,11 @@ func compute(app core.App) (map[string]any, error) {
 	}
 
 	// Leagues, excluding the auto-managed Global league (every user is in it).
-	leagues, err := app.FindRecordsByFilter("leagues", "inviteCode != 'GLOBAL'", "", 0, 0)
+	leagues, err := app.FindRecordsByFilter("pools", "inviteCode != 'GLOBAL'", "", 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	members, err := app.FindRecordsByFilter("league_members", "id != ''", "", 0, 0)
+	members, err := app.FindRecordsByFilter("pool_members", "id != ''", "", 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func compute(app core.App) (map[string]any, error) {
 		if !realID[uid] {
 			continue
 		}
-		lid := lm.GetString("league")
+		lid := lm.GetString("pool")
 		realMembers[lid]++
 		if tipCount[uid] > 0 {
 			leagueHasTip[lid] = true
@@ -147,7 +147,7 @@ func compute(app core.App) (map[string]any, error) {
 		"users":          len(realUsers),
 		"usersLast24h":   usersLast24h,
 		"activeUsers":    activeUsers,
-		"leagues":        len(leagues),
+		"pools":          len(leagues),
 		"activeLeagues":  activeLeagues,
 		"pushEnabled":    pushEnabled,
 		"notifyDisabled": notifyDisabled,

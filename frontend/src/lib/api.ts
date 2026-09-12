@@ -26,7 +26,7 @@ export interface PoolSeason {
 }
 
 /** A pool (the API still calls them leagues). */
-export interface LeagueSummary {
+export interface PoolSummary {
 	id: string;
 	name: string;
 	inviteCode: string;
@@ -172,7 +172,7 @@ export interface OwnerStats {
 	users: number; // real users (bots excluded)
 	usersLast24h: number;
 	activeUsers: number; // >=3 tips or a complete forecast
-	leagues: number; // user-created (Global excluded)
+	pools: number; // user-created (Global excluded)
 	activeLeagues: number; // >1 member and some tips
 	pushEnabled: number;
 	notifyDisabled: number; // opted out of >=1 notification
@@ -280,7 +280,7 @@ export interface FootballLeague {
 
 /** Import proposal derived from a league season (editable before import). */
 export interface ImportProposal {
-	leagueId: number;
+	poolId: number;
 	leagueName: string;
 	leagueType: string;
 	leagueLogo: string;
@@ -314,9 +314,9 @@ export interface ImportProposal {
 }
 
 export const api = {
-	joinLeague: (code: string) =>
+	joinPool: (code: string) =>
 		post<{ id: string; name: string; already?: boolean }>(
-			'/api/leagues/join',
+			'/api/pools/join',
 			{ code }
 		),
 	// Public — resolves an invite code to a league name for the /join page.
@@ -324,7 +324,7 @@ export const api = {
 		get<{ id: string; name: string }>(
 			`/api/invite/${encodeURIComponent(code)}`
 		),
-	myLeagues: () => get<{ leagues: LeagueSummary[] }>('/api/leagues/mine'),
+	myPools: () => get<{ pools: PoolSummary[] }>('/api/pools/mine'),
 	/** Standings of a league for one tournament (slug; default = the
 	 *  server's current one). The response names the tournament used. */
 	leaderboard: (id: string, tournament = '') =>
@@ -335,13 +335,13 @@ export const api = {
 			tournament?: string;
 			tournaments?: PoolSeason[];
 			scoring?: Record<string, unknown>;
-		}>(`/api/leagues/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
-	createLeague: (name: string, tournaments: string[] = []) =>
-		post<{ id: string; name: string; inviteCode: string }>('/api/leagues/create', { name, tournaments }),
-	setLeagueSeasons: (id: string, tournaments: string[]) =>
-		post<{ tournaments: PoolSeason[] }>(`/api/leagues/${id}/tournaments`, { tournaments }),
-	cloneLeague: (id: string, name: string, tournaments: string[]) =>
-		post<{ id: string; name: string; inviteCode: string }>(`/api/leagues/${id}/clone`, { name, tournaments }),
+		}>(`/api/pools/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
+	createPool: (name: string, tournaments: string[] = []) =>
+		post<{ id: string; name: string; inviteCode: string }>('/api/pools/create', { name, tournaments }),
+	setPoolSeasons: (id: string, tournaments: string[]) =>
+		post<{ tournaments: PoolSeason[] }>(`/api/pools/${id}/tournaments`, { tournaments }),
+	clonePool: (id: string, name: string, tournaments: string[]) =>
+		post<{ id: string; name: string; inviteCode: string }>(`/api/pools/${id}/clone`, { name, tournaments }),
 	// ---- friends: a mutual graph ----
 	friends: () => get<{ friends: Person[]; incoming: Person[]; outgoing: Person[] }>('/api/friends'),
 	searchPeople: (q: string) => get<{ users: Person[] }>(`/api/friends/search?q=${encodeURIComponent(q)}`),
@@ -353,42 +353,42 @@ export const api = {
 			`/api/friends/board${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`
 		),
 	// Owner-only league management.
-	renameLeague: (id: string, name: string) =>
-		post<{ id: string; name: string }>(`/api/leagues/${id}/rename`, { name }),
+	renamePool: (id: string, name: string) =>
+		post<{ id: string; name: string }>(`/api/pools/${id}/rename`, { name }),
 	regenerateCode: (id: string) =>
-		post<{ inviteCode: string }>(`/api/leagues/${id}/code/regenerate`, {}),
+		post<{ inviteCode: string }>(`/api/pools/${id}/code/regenerate`, {}),
 	setCodePrivacy: (id: string, isPrivate: boolean) =>
-		post<{ private: boolean }>(`/api/leagues/${id}/code/visibility`, {
+		post<{ private: boolean }>(`/api/pools/${id}/code/visibility`, {
 			private: isPrivate
 		}),
 	removeMember: (id: string, userId: string) =>
-		post<{ ok: boolean }>(`/api/leagues/${id}/members/remove`, { userId }),
+		post<{ ok: boolean }>(`/api/pools/${id}/members/remove`, { userId }),
 	// Owner-only: bot accounts not yet in the league, and adding one.
 	availableBots: (id: string) =>
-		get<{ bots: BotSummary[] }>(`/api/leagues/${id}/bots`),
+		get<{ bots: BotSummary[] }>(`/api/pools/${id}/bots`),
 	addBot: (id: string, userId: string) =>
-		post<{ ok: boolean; already?: boolean }>(`/api/leagues/${id}/bots/add`, {
+		post<{ ok: boolean; already?: boolean }>(`/api/pools/${id}/bots/add`, {
 			userId
 		}),
 	// League chat (private leagues only).
-	chatHistory: (leagueId: string, before?: string) =>
+	chatHistory: (poolId: string, before?: string) =>
 		get<{ messages: ChatMessage[]; hasMore: boolean }>(
-			`/api/leagues/${leagueId}/chat${before ? `?before=${encodeURIComponent(before)}` : ''}`
+			`/api/pools/${poolId}/chat${before ? `?before=${encodeURIComponent(before)}` : ''}`
 		),
-	chatMembers: (leagueId: string) =>
-		get<{ members: ChatMember[] }>(`/api/leagues/${leagueId}/members`),
-	chatPost: (leagueId: string, body: { text?: string; gif?: string }) =>
-		post<ChatMessage>(`/api/leagues/${leagueId}/chat`, body),
+	chatMembers: (poolId: string) =>
+		get<{ members: ChatMember[] }>(`/api/pools/${poolId}/members`),
+	chatPost: (poolId: string, body: { text?: string; gif?: string }) =>
+		post<ChatMessage>(`/api/pools/${poolId}/chat`, body),
 	chatGifSearch: (q: string, pos?: string) =>
 		get<{ gifs: GifResult[]; next: string; configured: boolean }>(
 			`/api/chat/gif/search?q=${encodeURIComponent(q)}${pos ? `&pos=${pos}` : ''}`
 		),
-	chatDelete: (leagueId: string, msgId: string) =>
-		del<ChatMessage>(`/api/leagues/${leagueId}/chat/${msgId}`),
-	chatRestore: (leagueId: string, msgId: string) =>
-		post<ChatMessage>(`/api/leagues/${leagueId}/chat/${msgId}/restore`, {}),
-	chatMarkRead: (leagueId: string) =>
-		post<{ ok: boolean }>(`/api/leagues/${leagueId}/chat/read`, {}),
+	chatDelete: (poolId: string, msgId: string) =>
+		del<ChatMessage>(`/api/pools/${poolId}/chat/${msgId}`),
+	chatRestore: (poolId: string, msgId: string) =>
+		post<ChatMessage>(`/api/pools/${poolId}/chat/${msgId}/restore`, {}),
+	chatMarkRead: (poolId: string) =>
+		post<{ ok: boolean }>(`/api/pools/${poolId}/chat/read`, {}),
 	chatUnread: () => get<{ unread: Record<string, number> }>('/api/chat/unread'),
 
 	// Global notification policy: read (any signed-in user, so settings can show

@@ -20,7 +20,7 @@ import (
 // members with unread messages, with a per-(league,user) cooldown so an active
 // room can't spam.
 const (
-	chatEvent      = "league_chat"
+	chatEvent      = "pool_chat"
 	chatCooldown   = 10 * time.Minute // at most one chat push per league/user per window
 	chatMaxAge     = time.Hour        // don't notify about chats quiet longer than this
 	chatPreviewMax = 120
@@ -58,7 +58,7 @@ func (r *Runner) chatPass(ctx context.Context) int {
 	base := r.base()
 	bucket := time.Now().Unix() / int64(chatCooldown.Seconds())
 
-	leagues, err := r.app.FindRecordsByFilter("leagues", "inviteCode != 'GLOBAL'", "", 0, 0)
+	leagues, err := r.app.FindRecordsByFilter("pools", "inviteCode != 'GLOBAL'", "", 0, 0)
 	if err != nil {
 		return 0
 	}
@@ -67,8 +67,8 @@ func (r *Runner) chatPass(ctx context.Context) int {
 
 	for _, lg := range leagues {
 		lid := lg.Id
-		latestList, _ := r.app.FindRecordsByFilter("league_messages",
-			"league = {:l} && deleted = false", "-created", 1, 0, dbx.Params{"l": lid})
+		latestList, _ := r.app.FindRecordsByFilter("pool_messages",
+			"pool = {:l} && deleted = false", "-created", 1, 0, dbx.Params{"l": lid})
 		if len(latestList) == 0 {
 			continue
 		}
@@ -78,8 +78,8 @@ func (r *Runner) chatPass(ctx context.Context) int {
 			continue // chat's gone quiet — leave it to the unread badge / email digest
 		}
 
-		members, _ := r.app.FindRecordsByFilter("league_members",
-			"league = {:l}", "", 0, 0, dbx.Params{"l": lid})
+		members, _ := r.app.FindRecordsByFilter("pool_members",
+			"pool = {:l}", "", 0, 0, dbx.Params{"l": lid})
 		leagueName := lg.GetString("name")
 		senderName := cachedName(r.app, names, latest.GetString("user"))
 		preview := truncateRunes(latest.GetString("text"), chatPreviewMax)
@@ -176,14 +176,14 @@ func (r *Runner) chatDigestPass(ctx context.Context) int {
 	if err != nil {
 		return 0
 	}
-	mems, _ := r.app.FindRecordsByFilter("league_members", "id != ''", "", 0, 0)
+	mems, _ := r.app.FindRecordsByFilter("pool_members", "id != ''", "", 0, 0)
 	byUser := map[string][]string{}
 	for _, m := range mems {
-		byUser[m.GetString("user")] = append(byUser[m.GetString("user")], m.GetString("league"))
+		byUser[m.GetString("user")] = append(byUser[m.GetString("user")], m.GetString("pool"))
 	}
 	lName := map[string]string{}
 	lGlobal := map[string]bool{}
-	if lgs, err := r.app.FindRecordsByFilter("leagues", "id != ''", "", 0, 0); err == nil {
+	if lgs, err := r.app.FindRecordsByFilter("pools", "id != ''", "", 0, 0); err == nil {
 		for _, lg := range lgs {
 			lName[lg.Id] = lg.GetString("name")
 			lGlobal[lg.Id] = lg.GetString("inviteCode") == "GLOBAL"
@@ -235,14 +235,14 @@ func (r *Runner) chatDigestPass(ctx context.Context) int {
 // latestUnread returns the newest unread (by another member, non-deleted)
 // message in a league for a user, used as the digest dedup discriminator.
 func (r *Runner) latestUnread(leagueID, userID string) (string, time.Time) {
-	filter := "league = {:l} && user != {:u} && deleted = false"
+	filter := "pool = {:l} && user != {:u} && deleted = false"
 	params := dbx.Params{"l": leagueID, "u": userID}
-	if rec, err := r.app.FindFirstRecordByFilter("league_reads",
-		"league = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {
+	if rec, err := r.app.FindFirstRecordByFilter("pool_reads",
+		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {
 		filter += " && created > {:s}"
 		params["s"] = rec.GetDateTime("lastRead").String()
 	}
-	recs, err := r.app.FindRecordsByFilter("league_messages", filter, "-created", 1, 0, params)
+	recs, err := r.app.FindRecordsByFilter("pool_messages", filter, "-created", 1, 0, params)
 	if err != nil || len(recs) == 0 {
 		return "", time.Time{}
 	}
@@ -250,8 +250,8 @@ func (r *Runner) latestUnread(leagueID, userID string) (string, time.Time) {
 }
 
 func (r *Runner) lastReadAt(leagueID, userID string) time.Time {
-	rec, err := r.app.FindFirstRecordByFilter("league_reads",
-		"league = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
+	rec, err := r.app.FindFirstRecordByFilter("pool_reads",
+		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
 	if err != nil {
 		return time.Time{}
 	}
@@ -260,14 +260,14 @@ func (r *Runner) lastReadAt(leagueID, userID string) time.Time {
 
 // chatUnread counts a user's unread, non-deleted messages in a league (capped).
 func (r *Runner) chatUnread(leagueID, userID string) int {
-	filter := "league = {:l} && user != {:u} && deleted = false"
+	filter := "pool = {:l} && user != {:u} && deleted = false"
 	params := dbx.Params{"l": leagueID, "u": userID}
-	if rec, err := r.app.FindFirstRecordByFilter("league_reads",
-		"league = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {
+	if rec, err := r.app.FindFirstRecordByFilter("pool_reads",
+		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {
 		filter += " && created > {:s}"
 		params["s"] = rec.GetDateTime("lastRead").String()
 	}
-	recs, err := r.app.FindRecordsByFilter("league_messages", filter, "", 100, 0, params)
+	recs, err := r.app.FindRecordsByFilter("pool_messages", filter, "", 100, 0, params)
 	if err != nil {
 		return 0
 	}

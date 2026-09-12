@@ -97,7 +97,7 @@ type answers struct {
 }
 
 var (
-	likedKeys       = enum("tips", "forecast", "leagues", "chat", "notifications", "design", "other")
+	likedKeys       = enum("tips", "forecast", "pools", "chat", "notifications", "design", "other")
 	competitionKeys = enum("premierLeague", "bundesliga", "laLiga", "serieA", "ligue1", "championsLeague", "other")
 	comparisons     = enum("better", "same", "worse")
 	playAgains      = enum("definitely", "probably", "no")

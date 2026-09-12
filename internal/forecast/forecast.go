@@ -245,15 +245,15 @@ type ThirdSlot struct {
 // sharesLeague reports whether users a and b are both members of at least
 // one common League.
 func sharesLeague(app core.App, a, b string) bool {
-	mine, err := app.FindRecordsByFilter("league_members",
+	mine, err := app.FindRecordsByFilter("pool_members",
 		"user = {:u}", "", 0, 0, map[string]any{"u": a})
 	if err != nil {
 		return false
 	}
 	for _, m := range mine {
-		if _, err := app.FindFirstRecordByFilter("league_members",
-			"league = {:l} && user = {:u}",
-			map[string]any{"l": m.GetString("league"), "u": b}); err == nil {
+		if _, err := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
+			map[string]any{"l": m.GetString("pool"), "u": b}); err == nil {
 			return true
 		}
 	}
@@ -381,7 +381,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	se.Router.GET("/api/forecast/of/{userId}", func(e *core.RequestEvent) error {
 		uid := e.Request.PathValue("userId")
 		if uid != e.Auth.Id && !sharesLeague(app, e.Auth.Id, uid) {
-			return apis.NewForbiddenError("not in a league with this player", nil)
+			return apis.NewForbiddenError("not in a pool with this player", nil)
 		}
 		u, err := app.FindRecordById("users", uid)
 		if err != nil {

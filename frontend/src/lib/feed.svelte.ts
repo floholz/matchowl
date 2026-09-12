@@ -45,7 +45,7 @@ export interface FeedSuggestion {
 	name: string;
 	status: string;
 	startsAt: string;
-	leagueMates: number;
+	poolMates: number;
 }
 
 /** A day's matches from one tournament, in kickoff order. */

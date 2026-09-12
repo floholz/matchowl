@@ -351,7 +351,7 @@ func (r *Runner) detectLeagueLead(ctx context.Context, res *Result,
 		byID[u.Id] = u
 	}
 
-	leagues, err := r.app.FindRecordsByFilter("leagues", "id != ''", "", 0, 0)
+	leagues, err := r.app.FindRecordsByFilter("pools", "id != ''", "", 0, 0)
 	if err != nil {
 		return err
 	}
@@ -388,10 +388,10 @@ func (r *Runner) detectLeagueLead(ctx context.Context, res *Result,
 			League:  lg.GetString("name"),
 			Total:   top.Total,
 			CTAText: "See the leaderboard",
-			CTAUrl:  base.url + "/leagues/" + lg.Id,
+			CTAUrl:  base.url + "/pools/" + lg.Id,
 		}
-		dedupKey := "league_lead:" + lg.Id + ":" + top.UserID + ":" + strconv.Itoa(st.Seq)
-		r.dispatch(ctx, res, ncol, u, "league_lead", dedupKey, data)
+		dedupKey := "pool_lead:" + lg.Id + ":" + top.UserID + ":" + strconv.Itoa(st.Seq)
+		r.dispatch(ctx, res, ncol, u, "pool_lead", dedupKey, data)
 	}
 	return nil
 }
@@ -447,7 +447,7 @@ func (r *Runner) detectResultsRecap(ctx context.Context, res *Result, now time.T
 			Total:        total,
 			Ranks:        ranks,
 			CTAText:      "See the leaderboard",
-			CTAUrl:       base.url + "/leagues",
+			CTAUrl:       base.url + "/pools",
 		}
 		r.dispatch(ctx, res, ncol, u, "results_recap", "results_recap:"+u.Id+":"+dateKey, data)
 	}

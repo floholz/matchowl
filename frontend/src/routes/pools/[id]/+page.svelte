@@ -136,14 +136,14 @@
 		availableBots = [];
 		// The leaderboard's forecast columns come from the tournament structure.
 		tournamentStore.ready().catch(() => {});
-		Promise.all([api.leaderboard(lid, tslug), api.myLeagues()])
+		Promise.all([api.leaderboard(lid, tslug), api.myPools()])
 			.then(([lb, mine]) => {
 				league = lb.league;
 				rows = lb.rows;
 				boardSlug = lb.tournament ?? '';
 				bound = lb.tournaments ?? [];
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
-				const me = mine.leagues.find((l) => l.id === lid);
+				const me = mine.pools.find((l) => l.id === lid);
 				invite = me?.inviteCode ?? '';
 				isOwner = me?.role === 'owner';
 				isPrivate = me?.private ?? false;
@@ -233,7 +233,7 @@
 		mgmtBusy = true;
 		mgmtError = '';
 		try {
-			const r = await api.setLeagueSeasons(league.id, [...draftSeasons]);
+			const r = await api.setPoolSeasons(league.id, [...draftSeasons]);
 			bound = r.tournaments;
 			tslug = '';
 			await refreshRows();
@@ -262,7 +262,7 @@
 		mgmtBusy = true;
 		mgmtError = '';
 		try {
-			const r = await api.cloneLeague(league.id, cloneName, [...cloneSeasons]);
+			const r = await api.clonePool(league.id, cloneName, [...cloneSeasons]);
 			goto(`/pools/${r.id}`);
 		} catch {
 			mgmtError = 'Could not set up the new pool.';
@@ -299,7 +299,7 @@
 		mgmtBusy = true;
 		mgmtError = '';
 		try {
-			await api.renameLeague(league.id, name);
+			await api.renamePool(league.id, name);
 			league = { ...league, name };
 			exitEdit();
 		} catch {

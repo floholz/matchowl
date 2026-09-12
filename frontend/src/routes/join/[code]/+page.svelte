@@ -26,7 +26,7 @@
 				leagueName = lg.name;
 				if (auth.isAuthed) {
 					phase = 'joining';
-					const r = await api.joinLeague(c);
+					const r = await api.joinPool(c);
 					if (!cancelled) goto(`/pools/${r.id}`);
 				} else {
 					phase = 'invite';

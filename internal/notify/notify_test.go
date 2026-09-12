@@ -88,7 +88,7 @@ func TestToPath(t *testing.T) {
 	tests := map[string]string{
 		"https://fhdt.example.ts.net/tips":          "/tips",
 		"https://prod.example.com/forecast?u=abc#x": "/forecast?u=abc",
-		"http://localhost:8090/leagues":             "/leagues",
+		"http://localhost:8090/pools":               "/pools",
 		"/settings":                                 "/settings",
 		"/tips?x=1":                                 "/tips?x=1",
 	}
@@ -186,14 +186,14 @@ func TestChannelGate(t *testing.T) {
 		{"defaults allow push", storedConfig{}, "results_recap", "push", true},
 		{"master email off blocks email", storedConfig{Channels: &storedChannels{Email: boolp(false)}}, "results_recap", "email", false},
 		{"master email off leaves push", storedConfig{Channels: &storedChannels{Email: boolp(false)}}, "results_recap", "push", true},
-		{"master push off blocks push", storedConfig{Channels: &storedChannels{Push: boolp(false)}}, "league_chat", "push", false},
+		{"master push off blocks push", storedConfig{Channels: &storedChannels{Push: boolp(false)}}, "pool_chat", "push", false},
 		{"per-event override blocks one channel",
 			storedConfig{Disabled: map[string]map[string]bool{"results_recap": {"email": true}}}, "results_recap", "email", false},
 		{"per-event override spares other events",
 			storedConfig{Disabled: map[string]map[string]bool{"results_recap": {"email": true}}}, "tips_reminder", "email", true},
 		{"per-event override spares other channel",
 			storedConfig{Disabled: map[string]map[string]bool{"results_recap": {"email": true}}}, "results_recap", "push", true},
-		{"explicit master on", storedConfig{Channels: &storedChannels{Email: boolp(true)}}, "league_lead", "email", true},
+		{"explicit master on", storedConfig{Channels: &storedChannels{Email: boolp(true)}}, "pool_lead", "email", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

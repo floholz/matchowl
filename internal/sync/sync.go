@@ -167,7 +167,7 @@ func pickProvider(app core.App, t *core.Record) (source string, run func(context
 			}
 			log.Printf("[sync] %s: API-Football key can't reach season %d (free plan?) — using openfootball",
 				t.GetString("slug"), cfg.Season)
-			apiNote = fmt.Sprintf("API-Football key can't reach league %d season %d (paid plan needed?)",
+			apiNote = fmt.Sprintf("API-Football key can't reach pool %d season %d (paid plan needed?)",
 				cfg.APIFootballLeague, cfg.Season)
 		} else {
 			apiNote = "API_FOOTBALL_KEY is not set"

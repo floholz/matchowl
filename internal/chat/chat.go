@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	messages = "league_messages"
-	reads    = "league_reads"
+	messages = "pool_messages"
+	reads    = "pool_reads"
 	maxLen   = 2000
 	pageSize = 50
 )
@@ -71,13 +71,13 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// GET /api/leagues/{id}/members — member directory (resolves message senders,
 	// including for realtime messages from someone not yet in the loaded history).
-	g.GET("/leagues/{id}/members", func(e *core.RequestEvent) error {
+	g.GET("/pools/{id}/members", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
 		}
-		mems, err := app.FindRecordsByFilter("league_members",
-			"league = {:l}", "", 0, 0, dbx.Params{"l": lid})
+		mems, err := app.FindRecordsByFilter("pool_members",
+			"pool = {:l}", "", 0, 0, dbx.Params{"l": lid})
 		if err != nil {
 			return err
 		}
@@ -92,12 +92,12 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// GET /api/leagues/{id}/chat?before=<rfc3339>&limit=N — message history,
 	// newest first (the client reverses + prepends for "load older").
-	g.GET("/leagues/{id}/chat", func(e *core.RequestEvent) error {
+	g.GET("/pools/{id}/chat", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
 		}
-		filter := "league = {:l}"
+		filter := "pool = {:l}"
 		params := dbx.Params{"l": lid}
 		if before := e.Request.URL.Query().Get("before"); before != "" {
 			filter += " && created < {:b}"
@@ -116,7 +116,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 
 	// POST /api/leagues/{id}/chat  { "text": "..." } — post a message.
-	g.POST("/leagues/{id}/chat", func(e *core.RequestEvent) error {
+	g.POST("/pools/{id}/chat", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
@@ -146,7 +146,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			return err
 		}
 		rec := core.NewRecord(col)
-		rec.Set("league", lid)
+		rec.Set("pool", lid)
 		rec.Set("user", e.Auth.Id)
 		rec.Set("text", text)
 		rec.Set("gif", gif)
@@ -161,14 +161,14 @@ func Register(app core.App, se *core.ServeEvent) {
 	// a message: the live text is cleared (members + realtime see only "message
 	// deleted") and the original is stashed in the hidden origText field for
 	// admin moderation. Fires a realtime update event.
-	g.DELETE("/leagues/{id}/chat/{msgId}", func(e *core.RequestEvent) error {
+	g.DELETE("/pools/{id}/chat/{msgId}", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		lg, err := authorize(app, e, lid)
 		if err != nil {
 			return err
 		}
 		rec, err := app.FindRecordById(messages, e.Request.PathValue("msgId"))
-		if err != nil || rec.GetString("league") != lid {
+		if err != nil || rec.GetString("pool") != lid {
 			return apis.NewNotFoundError("message not found", nil)
 		}
 		if rec.GetString("user") != e.Auth.Id && lg.GetString("owner") != e.Auth.Id {
@@ -192,14 +192,14 @@ func Register(app core.App, se *core.ServeEvent) {
 	// POST /api/leagues/{id}/chat/{msgId}/restore — author or league owner undoes
 	// a soft-delete: the original text comes back and the deleted flags clear.
 	// Fires a realtime update event. Backs the "Undo" affordance after deleting.
-	g.POST("/leagues/{id}/chat/{msgId}/restore", func(e *core.RequestEvent) error {
+	g.POST("/pools/{id}/chat/{msgId}/restore", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		lg, err := authorize(app, e, lid)
 		if err != nil {
 			return err
 		}
 		rec, err := app.FindRecordById(messages, e.Request.PathValue("msgId"))
-		if err != nil || rec.GetString("league") != lid {
+		if err != nil || rec.GetString("pool") != lid {
 			return apis.NewNotFoundError("message not found", nil)
 		}
 		if rec.GetString("user") != e.Auth.Id && lg.GetString("owner") != e.Auth.Id {
@@ -221,7 +221,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 
 	// POST /api/leagues/{id}/chat/read — mark this league's chat read (to now).
-	g.POST("/leagues/{id}/chat/read", func(e *core.RequestEvent) error {
+	g.POST("/pools/{id}/chat/read", func(e *core.RequestEvent) error {
 		lid := e.Request.PathValue("id")
 		if _, err := authorize(app, e, lid); err != nil {
 			return err
@@ -233,7 +233,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// GET /api/chat/unread — { leagueId: count } for the caller's private leagues.
 	g.GET("/chat/unread", func(e *core.RequestEvent) error {
 		uid := e.Auth.Id
-		mems, err := app.FindRecordsByFilter("league_members",
+		mems, err := app.FindRecordsByFilter("pool_members",
 			"user = {:u}", "", 0, 0, dbx.Params{"u": uid})
 		if err != nil {
 			return err
@@ -241,8 +241,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		lastReads := readMarkers(app, uid)
 		out := map[string]int{}
 		for _, m := range mems {
-			lid := m.GetString("league")
-			lg, err := app.FindRecordById("leagues", lid)
+			lid := m.GetString("pool")
+			lg, err := app.FindRecordById("pools", lid)
 			if err != nil || lg.GetString("inviteCode") == "GLOBAL" {
 				continue
 			}
@@ -257,36 +257,36 @@ func Register(app core.App, se *core.ServeEvent) {
 // authorize loads the league and confirms the caller may use its chat: it must
 // be a private (non-Global) league the caller belongs to.
 func authorize(app core.App, e *core.RequestEvent, leagueID string) (*core.Record, error) {
-	lg, err := app.FindRecordById("leagues", leagueID)
+	lg, err := app.FindRecordById("pools", leagueID)
 	if err != nil {
-		return nil, apis.NewNotFoundError("league not found", nil)
+		return nil, apis.NewNotFoundError("pool not found", nil)
 	}
 	if lg.GetString("inviteCode") == "GLOBAL" {
-		return nil, apis.NewForbiddenError("chat is not available in the Global league", nil)
+		return nil, apis.NewForbiddenError("chat is not available in the Global pool", nil)
 	}
 	if !isMember(app, leagueID, e.Auth.Id) {
-		return nil, apis.NewForbiddenError("you are not a member of this league", nil)
+		return nil, apis.NewForbiddenError("you are not a member of this pool", nil)
 	}
 	return lg, nil
 }
 
 func isMember(app core.App, leagueID, userID string) bool {
-	_, err := app.FindFirstRecordByFilter("league_members",
-		"league = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
+	_, err := app.FindFirstRecordByFilter("pool_members",
+		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
 	return err == nil
 }
 
 // markRead upserts the caller's last-read marker for a league to now.
 func markRead(app core.App, leagueID, userID string) {
 	rec, err := app.FindFirstRecordByFilter(reads,
-		"league = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
+		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID})
 	if err != nil {
 		col, err := app.FindCollectionByNameOrId(reads)
 		if err != nil {
 			return
 		}
 		rec = core.NewRecord(col)
-		rec.Set("league", leagueID)
+		rec.Set("pool", leagueID)
 		rec.Set("user", userID)
 	}
 	rec.Set("lastRead", time.Now().UTC())
@@ -301,7 +301,7 @@ func readMarkers(app core.App, userID string) map[string]string {
 		return out
 	}
 	for _, r := range recs {
-		out[r.GetString("league")] = r.GetDateTime("lastRead").String()
+		out[r.GetString("pool")] = r.GetDateTime("lastRead").String()
 	}
 	return out
 }
@@ -310,7 +310,7 @@ func readMarkers(app core.App, userID string) map[string]string {
 // empty = all) that weren't sent by the user. Capped so a huge backlog stays a
 // cheap query; the UI renders the cap as "99+".
 func unreadCount(app core.App, leagueID, userID, since string) int {
-	filter := "league = {:l} && user != {:u}"
+	filter := "pool = {:l} && user != {:u}"
 	params := dbx.Params{"l": leagueID, "u": userID}
 	if since != "" {
 		filter += " && created > {:s}"

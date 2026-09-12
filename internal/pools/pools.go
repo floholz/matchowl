@@ -1,8 +1,8 @@
-// Package leagues provides the private-competition ("League") endpoints:
+// Package leagues provides the private-competition ("Pool") endpoints:
 // create (with a unique invite code, creator auto-joined as owner), join by
 // code, list mine, and a leaderboard. Scoring totals are filled by the Phase 5
 // engine; until then the leaderboard returns members with zeroed points.
-package leagues
+package pools
 
 import (
 	"crypto/rand"
@@ -138,14 +138,14 @@ func uniqueCode(app core.App) string {
 		if code == "" {
 			break
 		}
-		if _, err := app.FindFirstRecordByFilter("leagues", "inviteCode = {:c}", map[string]any{"c": code}); err != nil {
+		if _, err := app.FindFirstRecordByFilter("pools", "inviteCode = {:c}", map[string]any{"c": code}); err != nil {
 			return code // not found => unique
 		}
 	}
 	var code string
 	for range 10 {
 		code = newInviteCode(6)
-		if _, err := app.FindFirstRecordByFilter("leagues", "inviteCode = {:c}", map[string]any{"c": code}); err != nil {
+		if _, err := app.FindFirstRecordByFilter("pools", "inviteCode = {:c}", map[string]any{"c": code}); err != nil {
 			break
 		}
 	}
@@ -156,12 +156,12 @@ func uniqueCode(app core.App) string {
 // returns a 403 for non-owners — which also covers the auto-managed "Global"
 // league, whose owner is empty and therefore matches no authenticated user.
 func ownedLeague(app core.App, e *core.RequestEvent, id string) (*core.Record, error) {
-	lg, err := app.FindRecordById("leagues", id)
+	lg, err := app.FindRecordById("pools", id)
 	if err != nil {
-		return nil, bad(e, http.StatusNotFound, "league not found")
+		return nil, bad(e, http.StatusNotFound, "pool not found")
 	}
 	if lg.GetString("owner") != e.Auth.Id {
-		return nil, bad(e, http.StatusForbidden, "only the league owner can do this")
+		return nil, bad(e, http.StatusForbidden, "only the pool owner can do this")
 	}
 	return lg, nil
 }
@@ -172,11 +172,11 @@ func Register(app core.App, se *core.ServeEvent) {
 	// Auto-managed "Global" league: ensure it exists, backfill existing users,
 	// and add every new user as a member when their account is created.
 	if err := backfillGlobal(app); err != nil {
-		log.Printf("[leagues] global backfill failed: %v", err)
+		log.Printf("[pools] global backfill failed: %v", err)
 	}
 	app.OnRecordAfterCreateSuccess("users").BindFunc(func(e *core.RecordEvent) error {
 		if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
-			log.Printf("[leagues] auto-join global failed for %s: %v", e.Record.Id, err)
+			log.Printf("[pools] auto-join global failed for %s: %v", e.Record.Id, err)
 		}
 		return e.Next()
 	})
@@ -190,7 +190,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// /api/leagues/{id}/leaderboard.
 	se.Router.GET("/api/invite/{code}", func(e *core.RequestEvent) error {
 		code := strings.ToUpper(strings.TrimSpace(e.Request.PathValue("code")))
-		league, err := app.FindFirstRecordByFilter("leagues",
+		league, err := app.FindFirstRecordByFilter("pools",
 			"inviteCode = {:c}", map[string]any{"c": code})
 		if err != nil {
 			return bad(e, http.StatusNotFound, "invalid invite code")
@@ -200,7 +200,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		})
 	})
 
-	g := se.Router.Group("/api/leagues")
+	g := se.Router.Group("/api/pools")
 	g.Bind(apis.RequireAuth())
 
 	// POST /api/leagues/create  { "name": "..." }
@@ -221,7 +221,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
 
-		col, err := app.FindCollectionByNameOrId("leagues")
+		col, err := app.FindCollectionByNameOrId("pools")
 		if err != nil {
 			return err
 		}
@@ -258,12 +258,12 @@ func Register(app core.App, se *core.ServeEvent) {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
 		code := strings.ToUpper(strings.TrimSpace(body.Code))
-		league, err := app.FindFirstRecordByFilter("leagues", "inviteCode = {:c}", map[string]any{"c": code})
+		league, err := app.FindFirstRecordByFilter("pools", "inviteCode = {:c}", map[string]any{"c": code})
 		if err != nil {
 			return bad(e, http.StatusNotFound, "invalid invite code")
 		}
-		if existing, _ := app.FindFirstRecordByFilter("league_members",
-			"league = {:l} && user = {:u}",
+		if existing, _ := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
 			map[string]any{"l": league.Id, "u": e.Auth.Id}); existing != nil {
 			return e.JSON(http.StatusOK, map[string]any{"id": league.Id, "name": league.GetString("name"), "already": true})
 		}
@@ -275,19 +275,19 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// GET /api/leagues/mine
 	g.GET("/mine", func(e *core.RequestEvent) error {
-		members, err := app.FindRecordsByFilter("league_members",
+		members, err := app.FindRecordsByFilter("pool_members",
 			"user = {:u}", "-joinedAt", 0, 0, map[string]any{"u": e.Auth.Id})
 		if err != nil {
 			return err
 		}
 		out := make([]map[string]any, 0, len(members))
 		for _, m := range members {
-			lg, err := app.FindRecordById("leagues", m.GetString("league"))
+			lg, err := app.FindRecordById("pools", m.GetString("pool"))
 			if err != nil {
 				continue
 			}
-			cnt, _ := app.CountRecords("league_members",
-				dbx.HashExp{"league": lg.Id})
+			cnt, _ := app.CountRecords("pool_members",
+				dbx.HashExp{"pool": lg.Id})
 			role := m.GetString("role")
 			private := lg.GetBool("privateCode")
 			// On a private league only the owner may see/share the code.
@@ -305,21 +305,21 @@ func Register(app core.App, se *core.ServeEvent) {
 				"tournaments": seasonViews(app, lg),
 			})
 		}
-		return e.JSON(http.StatusOK, map[string]any{"leagues": out})
+		return e.JSON(http.StatusOK, map[string]any{"pools": out})
 	})
 
 	// GET /api/leagues/{id}/leaderboard?tournament=<slug> — standings for one
 	// tournament (default: current). Leagues persist across tournaments.
 	g.GET("/{id}/leaderboard", func(e *core.RequestEvent) error {
 		id := e.Request.PathValue("id")
-		if _, err := app.FindFirstRecordByFilter("league_members",
-			"league = {:l} && user = {:u}",
+		if _, err := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
 			map[string]any{"l": id, "u": e.Auth.Id}); err != nil {
-			return bad(e, http.StatusForbidden, "not a member of this league")
+			return bad(e, http.StatusForbidden, "not a member of this pool")
 		}
-		lg, err := app.FindRecordById("leagues", id)
+		lg, err := app.FindRecordById("pools", id)
 		if err != nil {
-			return bad(e, http.StatusNotFound, "league not found")
+			return bad(e, http.StatusNotFound, "pool not found")
 		}
 		bound := lg.GetStringSlice("tournaments")
 		// ?tournament=<slug> narrows to one season; a pool without it sums
@@ -343,13 +343,13 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		lb, err := scoring.Leaderboard(app, id, tids)
 		if err != nil {
-			return bad(e, http.StatusNotFound, "league not found")
+			return bad(e, http.StatusNotFound, "pool not found")
 		}
 		lb["tournament"] = used
 		lb["tournaments"] = seasonViews(app, lg)
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
-		if lg, err := app.FindRecordById("leagues", id); err == nil {
+		if lg, err := app.FindRecordById("pools", id); err == nil {
 			cid := lg.GetString("scoringConfig")
 			var sc *core.Record
 			if cid != "" {
@@ -417,7 +417,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
-		col, err := app.FindCollectionByNameOrId("leagues")
+		col, err := app.FindCollectionByNameOrId("pools")
 		if err != nil {
 			return err
 		}
@@ -431,8 +431,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err := app.Save(next); err != nil {
 			return err
 		}
-		members, _ := app.FindRecordsByFilter("league_members",
-			"league = {:l}", "", 0, 0, map[string]any{"l": src.Id})
+		members, _ := app.FindRecordsByFilter("pool_members",
+			"pool = {:l}", "", 0, 0, map[string]any{"l": src.Id})
 		for _, m := range members {
 			role := "member"
 			if m.GetString("user") == e.Auth.Id {
@@ -521,11 +521,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		if body.UserID == lg.GetString("owner") {
 			return bad(e, http.StatusBadRequest, "the owner cannot be removed")
 		}
-		member, err := app.FindFirstRecordByFilter("league_members",
-			"league = {:l} && user = {:u}",
+		member, err := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
 			map[string]any{"l": lg.Id, "u": body.UserID})
 		if err != nil {
-			return bad(e, http.StatusNotFound, "not a member of this league")
+			return bad(e, http.StatusNotFound, "not a member of this pool")
 		}
 		if err := app.Delete(member); err != nil {
 			return err
@@ -546,8 +546,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		out := make([]map[string]any, 0, len(bots))
 		for _, b := range bots {
-			if existing, _ := app.FindFirstRecordByFilter("league_members",
-				"league = {:l} && user = {:u}",
+			if existing, _ := app.FindFirstRecordByFilter("pool_members",
+				"pool = {:l} && user = {:u}",
 				map[string]any{"l": lg.Id, "u": b.Id}); existing != nil {
 				continue // already a member
 			}
@@ -585,8 +585,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if u.GetString("role") != "bot" {
 			return bad(e, http.StatusBadRequest, "only bot accounts can be added this way")
 		}
-		if existing, _ := app.FindFirstRecordByFilter("league_members",
-			"league = {:l} && user = {:u}",
+		if existing, _ := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
 			map[string]any{"l": lg.Id, "u": body.UserID}); existing != nil {
 			return e.JSON(http.StatusOK, map[string]any{"ok": true, "already": true})
 		}
@@ -598,12 +598,12 @@ func Register(app core.App, se *core.ServeEvent) {
 }
 
 func addMember(app core.App, leagueID, userID, role string) error {
-	col, err := app.FindCollectionByNameOrId("league_members")
+	col, err := app.FindCollectionByNameOrId("pool_members")
 	if err != nil {
 		return err
 	}
 	rec := core.NewRecord(col)
-	rec.Set("league", leagueID)
+	rec.Set("pool", leagueID)
 	rec.Set("user", userID)
 	rec.Set("role", role)
 	return app.Save(rec)
@@ -612,11 +612,11 @@ func addMember(app core.App, leagueID, userID, role string) error {
 // ensureGlobal idempotently creates the "Global" league (owner left empty so
 // no one can update/delete it via REST). Returns the league id.
 func ensureGlobal(app core.App) (string, error) {
-	if rec, err := app.FindFirstRecordByFilter("leagues",
+	if rec, err := app.FindFirstRecordByFilter("pools",
 		"inviteCode = {:c}", map[string]any{"c": GlobalInviteCode}); err == nil {
 		return rec.Id, nil
 	}
-	col, err := app.FindCollectionByNameOrId("leagues")
+	col, err := app.FindCollectionByNameOrId("pools")
 	if err != nil {
 		return "", err
 	}
@@ -639,8 +639,8 @@ func ensureGlobalMember(app core.App, userID string) error {
 	if err != nil {
 		return err
 	}
-	if existing, _ := app.FindFirstRecordByFilter("league_members",
-		"league = {:l} && user = {:u}",
+	if existing, _ := app.FindFirstRecordByFilter("pool_members",
+		"pool = {:l} && user = {:u}",
 		map[string]any{"l": leagueID, "u": userID}); existing != nil {
 		return nil
 	}

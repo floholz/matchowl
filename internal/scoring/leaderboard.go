@@ -38,13 +38,13 @@ type Row struct {
 // sync when changing tiebreakers (update this function, the seeded default
 // in internal/seed, and add a migration for existing DBs).
 func Leaderboard(app core.App, leagueID string, tournamentIDs []string) (map[string]any, error) {
-	league, err := app.FindRecordById("leagues", leagueID)
+	league, err := app.FindRecordById("pools", leagueID)
 	if err != nil {
 		return nil, err
 	}
 	cfgID := league.GetString("scoringConfig")
-	members, err := app.FindRecordsByFilter("league_members",
-		"league = {:l}", "", 0, 0, map[string]any{"l": leagueID})
+	members, err := app.FindRecordsByFilter("pool_members",
+		"pool = {:l}", "", 0, 0, map[string]any{"l": leagueID})
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +54,15 @@ func Leaderboard(app core.App, leagueID string, tournamentIDs []string) (map[str
 	}
 	rows := Board(app, userIDs, cfgID, tournamentIDs)
 	return map[string]any{
-		"league": map[string]any{"id": league.Id, "name": league.GetString("name")},
-		"rows":   rows,
+		"pool": map[string]any{"id": league.Id, "name": league.GetString("name")},
+		"rows": rows,
 	}, nil
 }
 
 // PoolTournaments returns the seasons a pool's board counts: its bound
 // seasons, else the fallback (the current tournament — Global has none).
 func PoolTournaments(app core.App, leagueID, fallback string) []string {
-	if lg, err := app.FindRecordById("leagues", leagueID); err == nil {
+	if lg, err := app.FindRecordById("pools", leagueID); err == nil {
 		if b := lg.GetStringSlice("tournaments"); len(b) > 0 {
 			return b
 		}

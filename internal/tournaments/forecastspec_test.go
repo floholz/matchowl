@@ -25,10 +25,10 @@ func eq(a, b []string) bool {
 
 func TestRelationsLeague(t *testing.T) {
 	st := &Structure{
-		Stages:    []Stage{{Code: "group", Name: "League", Kind: KindGroup}},
+		Stages:    []Stage{{Code: "group", Name: "Pool", Kind: KindGroup}},
 		GroupSize: 20, GamesPerTeam: 38,
 		Zones: []Zone{
-			{Key: "ucl", Name: "Champions League", From: 1, To: 4},
+			{Key: "ucl", Name: "Champions Pool", From: 1, To: 4},
 			{Key: "top6", Name: "Europe", From: 1, To: 6},
 			{Key: "rel", Name: "Relegated", From: 18, To: 20},
 		},

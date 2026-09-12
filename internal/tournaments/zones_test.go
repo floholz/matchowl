@@ -5,7 +5,7 @@ import "testing"
 func TestNormalizeDefaultZonesForLeaguePhase(t *testing.T) {
 	s := &Structure{
 		Stages: []Stage{
-			{Code: "group", Name: "League", Kind: KindGroup},
+			{Code: "group", Name: "Pool", Kind: KindGroup},
 			{Code: "R32", Name: "Round of 32", Kind: KindKnockout},
 			{Code: "R16", Name: "Round of 16", Kind: KindKnockout},
 		},
@@ -25,18 +25,18 @@ func TestNormalizeDefaultZonesForLeaguePhase(t *testing.T) {
 }
 
 func TestNormalizeLeavesOtherShapesWithoutZones(t *testing.T) {
-	league := &Structure{Stages: []Stage{{Code: "group", Name: "League", Kind: KindGroup}}, GroupSize: 20}
+	league := &Structure{Stages: []Stage{{Code: "group", Name: "Pool", Kind: KindGroup}}, GroupSize: 20}
 	league.Normalize()
 	if len(league.Zones) != 0 {
-		t.Fatalf("plain league got zones %+v", league.Zones)
+		t.Fatalf("plain pool got zones %+v", league.Zones)
 	}
-	phaseOnly := &Structure{Stages: []Stage{{Code: "group", Name: "League", Kind: KindGroup}}, GroupSize: 36}
+	phaseOnly := &Structure{Stages: []Stage{{Code: "group", Name: "Pool", Kind: KindGroup}}, GroupSize: 36}
 	phaseOnly.Normalize()
 	if len(phaseOnly.Zones) != 2 || phaseOnly.Zones[1].Name != "Knockout play-offs" {
-		t.Fatalf("league phase before the draw should get the fixed zones, got %+v", phaseOnly.Zones)
+		t.Fatalf("pool phase before the draw should get the fixed zones, got %+v", phaseOnly.Zones)
 	}
 	custom := &Structure{
-		Stages:    []Stage{{Code: "group", Name: "League", Kind: KindGroup}, {Code: "R16", Name: "Round of 16", Kind: KindKnockout}},
+		Stages:    []Stage{{Code: "group", Name: "Pool", Kind: KindGroup}, {Code: "R16", Name: "Round of 16", Kind: KindKnockout}},
 		GroupSize: 36,
 		Zones:     []Zone{{Key: "x", Name: "Custom", From: 1, To: 4}},
 	}

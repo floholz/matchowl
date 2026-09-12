@@ -7,7 +7,7 @@
 	import { otherLegView } from '$lib/tips.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
-	import { api, type LeagueSummary } from '$lib/api';
+	import { api, type PoolSummary } from '$lib/api';
 	import Landing from '$lib/components/Landing.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
@@ -23,9 +23,9 @@
 		tournamentStore.ready().catch(() => {});
 	});
 
-	// ---- leagues: where am I, who leads ----
+	// ---- pools: where am I, who leads ----
 	interface LeagueLine {
-		league: LeagueSummary;
+		league: PoolSummary;
 		rank: number;
 		total: number;
 		points: number;
@@ -37,8 +37,8 @@
 	$effect(() => {
 		if (!auth.isAuthed) return;
 		api
-			.myLeagues()
-			.then(async ({ leagues: ls }) => {
+			.myPools()
+			.then(async ({ pools: ls }) => {
 				const mine = ls.filter((l) => l.inviteCode !== 'GLOBAL');
 				const lines = await Promise.all(
 					mine.map(async (league) => {
