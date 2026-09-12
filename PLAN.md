@@ -325,11 +325,13 @@ add more):
 - **Admin follow-ups** (plan 05): scoring-config picker, team edits, flags.
 - **Polls** decision (plan 02) — see inventory §9.
 - **Screenshots / meta / docs sweep** (plan 03 phase 5).
-- **Friends + Pools** (2026-09-13, §7 verdict): friend requests/accept +
-  friends board; pools bound to seasons with the season/competition chips,
-  "Set up next season"; rename leagues → pools everywhere (nav, Home,
-  feed suggestions, notifications, docs); migrate existing leagues to
-  WC 2026 pools.
+- ✅ **Friends + Pools** built 2026-09-13 (`6e2a889`): friendships
+  collection + `/api/friends`, pools bound to seasons (`leagues.tournaments`,
+  board sums them, `?tournament=` narrows), owner season binding and
+  "Set up next season" (clone), Friends page with Pools/Friends tabs,
+  `/pools/{id}` routes with redirects, league wording → pools. Still to do:
+  friend-request notifications, the pinned own row on long boards, the
+  activity feed, docs sweep (README/plans still say leagues).
 - **Launch data plan** (2026-09-13, to discuss): the app launches clean
   with imported data; the old WC app and its data stay as they are. Decide
   what gets imported (users? competitions only?) and how.
