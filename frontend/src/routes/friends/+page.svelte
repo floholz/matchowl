@@ -746,9 +746,6 @@
 		.actpad {
 			display: none;
 		}
-		.sheet {
-			padding-bottom: calc(1.2rem + env(safe-area-inset-bottom));
-		}
 	}
 	.scrim {
 		position: fixed;
@@ -852,6 +849,22 @@
 	.sheet .btn {
 		display: inline-flex;
 		gap: 0.35rem;
+	}
+	@media (min-width: 900px) {
+		/* Desktop: a centered dialog instead of a bottom sheet. */
+		.sheet {
+			inset: 50% auto auto 50%;
+			transform: translate(-50%, -50%);
+			width: min(520px, calc(100vw - 2rem));
+			max-height: calc(100dvh - 4rem);
+			padding: 1.25rem 1.4rem 1.4rem;
+			border-bottom: 1px solid var(--border);
+			border-radius: var(--radius);
+			box-shadow: var(--shadow-pop);
+		}
+		.grab {
+			display: none;
+		}
 	}
 	.chip {
 		position: relative;
