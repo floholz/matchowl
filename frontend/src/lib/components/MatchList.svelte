@@ -10,7 +10,10 @@
 	import MatchRow from './MatchRow.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { LocateFixed, ChevronDown, X } from '@lucide/svelte';
-	import { tick } from 'svelte';
+	import { tick, onDestroy } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { shell } from '$lib/shell.svelte';
 
 	let { focusId = '' }: { focusId?: string } = $props();
 
@@ -33,17 +36,17 @@
 		}
 		return [...seen.values()];
 	});
-	/** The round in play: holds the next match not yet kicked off. */
-	let currentRound = $derived.by(() => {
-		const now = serverClock.now();
-		const ms = [...tipsStore.matches].sort(byKickoff);
-		const next = ms.find((m) => new Date(m.kickoff).getTime() >= now && !played(m)) ?? ms[ms.length - 1];
-		return next ? `${next.stage}|${next.roundLabel}` : '';
-	});
-	/** '' = all rounds. Starts on the current round once loaded. */
-	let round = $state<string | null>(null);
-	let roundKey = $derived(round ?? currentRound);
-	let team = $state('');
+	// Filters live in the URL (?round=stage|label, ?team=id): empty = all.
+	// Only the user sets them; coming back restores them with the page.
+	let roundKey = $derived($page.url.searchParams.get('round') ?? '');
+	let team = $derived($page.url.searchParams.get('team') ?? '');
+	function setFilter(k: 'round' | 'team', v: string) {
+		const u = new URL($page.url);
+		u.searchParams.delete('round');
+		u.searchParams.delete('team');
+		if (v) u.searchParams.set(k, v);
+		goto(`${u.pathname}${u.search}`, { replaceState: true, noScroll: true, keepFocus: true });
+	}
 	let teams = $derived(Object.values(tipsStore.teams).sort((a, b) => a.name.localeCompare(b.name)));
 
 	let filtered = $derived(
@@ -95,10 +98,10 @@
 	);
 	let activeDay = $state(-1);
 	let stripEl = $state<HTMLElement | null>(null);
-	function goDay(i: number) {
+	function goDay(i: number, behavior: ScrollBehavior = 'smooth') {
 		if (i < 0) return;
 		activeDay = i;
-		document.getElementById(`day-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		document.getElementById(`day-${i}`)?.scrollIntoView({ behavior, block: 'start' });
 	}
 	// Follow the list: the topmost day section below the sticky chrome.
 	$effect(() => {
@@ -122,12 +125,27 @@
 			?.querySelector<HTMLElement>(`[data-i="${i}"]`)
 			?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
 	});
-	// A fresh filter lands on its current day.
+	// Land on the current day: on first load, and whenever the user changes
+	// a filter. Coming back (history) restores the saved position instead.
+	const memory = (globalThis as { __matchListPos?: Map<string, number> }).__matchListPos ??=
+		new Map<string, number>();
+	const memKey = () => `${tournamentStore.current?.id}|${roundKey}|${team}`;
+	let lastFilter = '';
 	$effect(() => {
-		void roundKey;
-		void team;
+		const key = `${roundKey}|${team}`;
 		if (!tipsStore.loaded) return;
-		tick().then(() => goDay(nowDayIndex));
+		const first = lastFilter === '';
+		if (key === lastFilter) return;
+		lastFilter = key;
+		const remembered = memory.get(memKey());
+		if (first && shell.navType === 'popstate' && remembered !== undefined) {
+			tick().then(() => window.scrollTo({ top: remembered, behavior: 'instant' as ScrollBehavior }));
+			return;
+		}
+		tick().then(() => goDay(nowDayIndex, first ? 'instant' : 'smooth'));
+	});
+	onDestroy(() => {
+		if (typeof window !== 'undefined') memory.set(memKey(), window.scrollY);
 	});
 
 	/** Card sub-line for a day: the stage, plus the round when shared. */
@@ -151,8 +169,7 @@
 		if (!tipsStore.loaded || !id || id === lastFocus) return;
 		if (!tipsStore.matches.some((m) => m.id === id)) return;
 		lastFocus = id;
-		round = '';
-		team = '';
+		if (roundKey || team) setFilter('round', '');
 		openId = id;
 		tick().then(() =>
 			document.getElementById(`m-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -165,10 +182,7 @@
 		<label class="chip sel" class:on={!team && !!roundKey}>
 			<select
 				value={team ? '' : roundKey}
-				onchange={(e) => {
-					team = '';
-					round = (e.currentTarget as HTMLSelectElement).value;
-				}}
+				onchange={(e) => setFilter('round', (e.currentTarget as HTMLSelectElement).value)}
 				aria-label="Matchday"
 			>
 				<option value="">All matchdays</option>
@@ -178,7 +192,7 @@
 			<ChevronDown size={14} />
 		</label>
 		<label class="chip sel" class:on={!!team}>
-			<select value={team} onchange={(e) => (team = (e.currentTarget as HTMLSelectElement).value)} aria-label="Team">
+			<select value={team} onchange={(e) => setFilter('team', (e.currentTarget as HTMLSelectElement).value)} aria-label="Team">
 				<option value="">By team</option>
 				{#each teams as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
 			</select>

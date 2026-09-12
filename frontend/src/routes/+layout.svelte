@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { auth } from '$lib/auth.svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import Logo from '$lib/components/Logo.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import NavLinks from '$lib/components/NavLinks.svelte';
@@ -21,6 +21,18 @@
 
 	// Apply the saved (or device) theme before anything renders.
 	theme.init();
+
+	afterNavigate((nav) => {
+		shell.hasFrom = !!nav.from && nav.type !== 'enter';
+		shell.navType = nav.type;
+	});
+	/** Back = history when we came from inside the app (keeps that page's
+	 *  filters and scroll), else the page's fallback link. */
+	function goBack(e: MouseEvent) {
+		if (!shell.hasFrom) return;
+		e.preventDefault();
+		history.back();
+	}
 
 	// Pull the (possibly simulated) server clock once so lock checks and the
 	// dev-tools link are correct app-wide.
@@ -80,7 +92,7 @@
 		{/if}
 		<div class="topbar-ctx" class:withback={!!shell.back} class:hidden={!!shell.bar}>
 			{#if shell.back}
-				<a class="topbar-back" href={shell.back} aria-label="Back"><ChevronLeft size={22} /></a>
+				<a class="topbar-back" href={shell.back} aria-label="Back" onclick={goBack}><ChevronLeft size={22} /></a>
 			{/if}
 			<div class="topbar-ttl">
 				<span class="ttl">{shell.title}</span>

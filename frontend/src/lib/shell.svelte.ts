@@ -22,6 +22,11 @@ class Shell {
 	context = $state('');
 	wide = $state(false);
 	bar = $state.raw<Snippet | undefined>(undefined);
+	/** The last navigation came from another page of the app (so the back
+	 *  button can be a real history back, keeping that page's state). */
+	hasFrom = $state(false);
+	/** Type of the last navigation ('popstate' = back/forward). */
+	navType = $state('');
 
 	set(c: Chrome) {
 		this.title = c.title ?? '';

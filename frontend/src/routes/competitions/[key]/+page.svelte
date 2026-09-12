@@ -17,6 +17,7 @@
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { describeSeason, dateSpan } from '$lib/describe';
 	import PageChrome from '$lib/components/PageChrome.svelte';
+	import { shell } from '$lib/shell.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import MatchList from '$lib/components/MatchList.svelte';
 	import Standings from '$lib/components/Standings.svelte';
@@ -37,11 +38,21 @@
 
 	$effect(() => {
 		tournamentStore.ready().then(() => (ready = true));
-		if (auth.isAuthed)
-			pb.send('/api/me/tournaments', { method: 'GET' })
-				.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
-				.catch(() => {});
 	});
+	// Your played competitions — re-read after every saved tip, since the
+	// first tip on a season auto-subscribes you to it.
+	$effect(() => {
+		void tipsStore.saved;
+		if (!auth.isAuthed) return;
+		pb.send('/api/me/tournaments', { method: 'GET' })
+			.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
+			.catch(() => {});
+	});
+	function goBack(e: MouseEvent) {
+		if (!shell.hasFrom) return;
+		e.preventDefault();
+		history.back();
+	}
 
 	let seasons = $derived(ready ? tournamentStore.seasonsOf(key) : []);
 	let competition = $derived(seasons[0]?.competition ?? null);
@@ -210,7 +221,7 @@
 
 {#snippet head()}
 	{#if competition && season}
-		<a class="topbar-back" href="/competitions" aria-label="Back to competitions"><ChevronLeft size={22} /></a>
+		<a class="topbar-back" href="/competitions" aria-label="Back to competitions" onclick={goBack}><ChevronLeft size={22} /></a>
 		<span class="hcrest" class:ph={!competitionLogoUrl(competition)}>
 			{#if competitionLogoUrl(competition)}<img src={competitionLogoUrl(competition)} alt="" />{:else}{initials(competition.name)}{/if}
 		</span>

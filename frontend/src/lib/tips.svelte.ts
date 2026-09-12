@@ -170,6 +170,9 @@ class TipsStore {
 	matches = $state<Match[]>([]);
 	tips = $state<Record<string, Tip>>({}); // keyed by matchId
 	scores = $state<Record<string, number>>({}); // matchId -> points (default cfg)
+	/** Bumped after every saved tip (the server auto-subscribes you to the
+	 *  tournament on the first one — pages showing Play re-read on this). */
+	saved = $state(0);
 	tournamentGroups = $state<Record<string, string[]>>({}); // letter -> teamIds
 	loaded = $state(false);
 	private subscribed = false;
@@ -280,6 +283,7 @@ class TipsStore {
 			penWinner: rec.penWinner,
 			advancer: rec.advancer
 		};
+		this.saved++;
 	}
 
 	async friends(matchId: string): Promise<FriendsResult> {
