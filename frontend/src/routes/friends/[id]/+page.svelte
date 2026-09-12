@@ -357,7 +357,6 @@
 						<ChevronDown size={14} />
 					</label>
 				{/if}
-				<span class="spacer"></span>
 				<div class="seg2" role="tablist">
 					<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
 					<button class:on={tab === 'tipsPoints'} onclick={() => (tab = 'tipsPoints')}>Tips</button>
@@ -842,9 +841,13 @@
 	}
 	.chips {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem;
 		margin-top: 0.55rem;
+	}
+	.chips .seg2 {
+		margin-left: auto;
 	}
 	.chip {
 		position: relative;
