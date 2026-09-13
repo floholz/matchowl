@@ -25,8 +25,13 @@ build-frontend: ## Build the SPA into internal/web/build (cleaned first)
 	cd frontend && npm run build
 	touch internal/web/build/.gitkeep
 
+# Version stamped into the binary (Home footer, /api/appconfig): the release
+# tag when on one, else the nearest tag + commit, "-dirty" with local changes.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS = -s -w -X github.com/floholz/matchowl/internal/version.Version=$(VERSION)
+
 build: build-frontend ## Build the single binary (frontend embedded)
-	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o matchowl .
+	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o matchowl .
 
 run: build ## Build then run the single binary
 	./matchowl serve --http=127.0.0.1:8090 --dir=./pb_data

@@ -10,6 +10,7 @@
 	import { api, type PoolSummary } from '$lib/api';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
+	import { appConfig } from '$lib/appconfig.svelte'; // loaded by SupportCard
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
 
 	let openId = $state('');
@@ -237,7 +238,10 @@
 		{/if}
 
 		<SupportCard />
-		<footer class="foot muted">Matchowl · made by floholz</footer>
+		<footer class="foot muted">
+			Matchowl{#if appConfig.version} <span class="ver">v{appConfig.version}</span>{/if} · made by floholz ·
+			<a href="/help">Help</a> · <a href="/legal/about">About</a>
+		</footer>
 	</div>
 {/if}
 

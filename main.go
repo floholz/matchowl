@@ -65,6 +65,7 @@ func main() {
 		applyMeta(e.App)
 		oauth.Register(e.App)
 		users.Register(e.App)
+		users.RegisterSignupGate(e.App)
 		users.RegisterPurge(e.App)
 		tournaments.Register(e.App, e)
 		players.Register(e.App, e)

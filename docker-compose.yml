@@ -1,13 +1,31 @@
+# Matchowl — one container: the Go binary serves the API and the embedded SPA.
+#
+#   docker compose pull && docker compose up -d       # the CI image of MATCHOWL_VERSION
+#   docker compose up --build -d                      # or build from this checkout
+#
+# Runs next to the old WC 2026 app on the same host without touching it:
+# its own container, network and volume, and HTTP_PORT picks the host port.
 services:
   app:
-    build: .
-    container_name: fhun_tips
-    image: matchowl:latest
+    build:
+      context: .
+      args:
+        VERSION: ${MATCHOWL_VERSION:-dev}
+    container_name: matchowl
+    image: ghcr.io/floholz/matchowl:${MATCHOWL_VERSION:-latest}
     restart: unless-stopped
     ports:
       - "${HTTP_PORT:-8090}:8090"
     environment:
-      - MATCHOWL_DEV=${MATCHOWL_DEV:-${WMP_DEV:-}}
+      - MATCHOWL_DEV=${MATCHOWL_DEV:-}
+      # Public origin (mail links, OAuth redirect) and who runs it.
+      - APP_URL=${APP_URL:-}
+      - OPERATOR_NAME=${OPERATOR_NAME:-}
+      - OPERATOR_LOCATION=${OPERATOR_LOCATION:-}
+      # Sign-up switch (0 = private testing, invite existing accounts only).
+      - REGISTRATION_OPEN=${REGISTRATION_OPEN:-}
+      - UNVERIFIED_PURGE_DAYS=${UNVERIFIED_PURGE_DAYS:-}
+      # Match data.
       - API_FOOTBALL_KEY=${API_FOOTBALL_KEY:-}
       - RESULTS_SOURCE=${RESULTS_SOURCE:-}
       - SYNC_CRON=${SYNC_CRON:-}
@@ -29,7 +47,7 @@ services:
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY:-}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY:-}
       - VAPID_SUBJECT=${VAPID_SUBJECT:-}
-      # League chat: push cadence, email-digest cadence, and the KLIPY GIF key.
+      # Pool chat: push cadence, email-digest cadence, and the KLIPY GIF key.
       - CHAT_NOTIFY_CRON=${CHAT_NOTIFY_CRON:-}
       - CHAT_DIGEST_CRON=${CHAT_DIGEST_CRON:-}
       - KLIPY_API_KEY=${KLIPY_API_KEY:-}
@@ -38,12 +56,12 @@ services:
       - CONTACT_EMAIL=${CONTACT_EMAIL:-}
     volumes:
       - pb_data:/pb_data
-    networks: [wmpickems]
+    networks: [matchowl]
 
 volumes:
   pb_data:
 
 networks:
-    wmpickems:
-        name: wmpickems
-        driver: bridge
+  matchowl:
+    name: matchowl
+    driver: bridge

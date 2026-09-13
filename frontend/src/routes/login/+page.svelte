@@ -4,6 +4,10 @@
 	import { page } from '$app/stores';
 	import AuthShell from '$lib/components/AuthShell.svelte';
 	import GoogleButton from '$lib/components/GoogleButton.svelte';
+	import { appConfig } from '$lib/appconfig.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => appConfig.load());
 
 	let identity = $state('');
 	let password = $state('');
@@ -78,9 +82,13 @@
 		<button class="btn" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
 		<div class="sep"><span>or</span></div>
 		<GoogleButton disabled={busy} onclick={google} />
-		<p class="muted switch">
-			No account? <a href={registerHref}>Create one</a>
-		</p>
+		{#if appConfig.registrationOpen}
+			<p class="muted switch">
+				No account? <a href={registerHref}>Create one</a>
+			</p>
+		{:else}
+			<p class="muted switch">Private testing — sign-up is closed for now.</p>
+		{/if}
 	</form>
 	<p class="muted foot">
 		<a href="/help">How Matchowl works</a> · <a href="/legal/privacy">Privacy</a> ·

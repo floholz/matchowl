@@ -4,6 +4,10 @@
 	import { page } from '$app/stores';
 	import AuthShell from '$lib/components/AuthShell.svelte';
 	import GoogleButton from '$lib/components/GoogleButton.svelte';
+	import { appConfig } from '$lib/appconfig.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => appConfig.load());
 
 	// After registering, resume an invite if one was carried in the URL.
 	let invite = $derived($page.url.searchParams.get('invite'));
@@ -61,6 +65,17 @@
 </script>
 
 <AuthShell title="Create account" lead="Tip the matches. Play the competitions. Beat your friends.">
+	{#if !appConfig.registrationOpen}
+		<div class="card">
+			<p class="kicker">Private testing</p>
+			<p>
+				Matchowl is in a closed test right now, so no new accounts can be
+				created. If you have one already, sign in. Otherwise ask floholz for
+				an invite.
+			</p>
+			<a class="btn" href={loginHref}>Sign in</a>
+		</div>
+	{:else}
 	<form class="card" onsubmit={submit}>
 		<div class="field">
 			<label for="nm">Display name</label>
@@ -108,6 +123,7 @@
 		You can tip and play right away. Friends, pools and email need a verified
 		address — we send the link as soon as you sign up.
 	</p>
+	{/if}
 </AuthShell>
 
 <style>

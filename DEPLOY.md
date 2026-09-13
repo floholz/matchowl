@@ -14,6 +14,9 @@ cp .env.example .env
 |-----|--------|-------|
 | `HTTP_PORT` | no | Host port (default `8090`). |
 | `OPERATOR_NAME` / `OPERATOR_LOCATION` | **yes** / no | Who runs Matchowl, shown on the About & contact page (Austrian media-law disclosure: name and town, no street). Location defaults to `Vienna, Austria`. |
+| `REGISTRATION_OPEN` | no | `0` closes sign-up (email/password and new Google accounts) for a private test run; existing accounts sign in as usual. Default open. |
+| `UNVERIFIED_PURGE_DAYS` | no | Nightly purge of unverified accounts older than this (default `180`; `0` disables). |
+| `MATCHOWL_VERSION` | no | Image tag to run with `docker compose pull` (e.g. `1.0.0-alpha.1`; default `latest`). |
 | `APP_URL` | **yes** | Public origin of the app, e.g. `https://play.matchowl.app`. Applied to PocketBase's application URL at boot: every link in verification / reset / email-change mails is built from it. |
 | `API_FOOTBALL_KEY` | optional | Only used if it's a **paid** API-Football plan (the free tier has no WC2026 access). |
 | `RESULTS_SOURCE` | no | `auto` (default): API-Football if its key reaches WC2026, else the free **openfootball** JSON. Force with `apifootball` / `openfootball`. Manual override always works. openfootball is community-updated (hours, not real-time). |
@@ -50,13 +53,25 @@ matched case-insensitively against each user's email.
 
 ## 2. Run
 
+Either the released image (set `MATCHOWL_VERSION` in `.env`, e.g.
+`1.0.0-alpha.1`):
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+or a build from this checkout:
+
 ```sh
 docker compose up --build -d
 ```
 
 App + API: `http://<host>:${HTTP_PORT}`. Data persists in the `pb_data`
-Docker volume (SQLite DB, uploaded files, logs). First boot auto-runs
-migrations and seeds 48 teams / 12 groups / 104 fixtures.
+Docker volume (SQLite DB, uploaded files, logs). First boot runs every
+migration and seeds the reference data; competitions are imported through
+the admin wizard afterwards. The container, network and volume are named
+`matchowl`, so it runs next to the old WC 2026 app on the same host without
+touching it — pick a free `HTTP_PORT`.
 
 ## 3. Create an admin (superuser)
 
@@ -110,12 +125,28 @@ pickems.example.com {
 }
 ```
 
-## 7. Updating
+## 7. Releases and updating
+
+A release is a git tag on `main`:
 
 ```sh
-git pull
-docker compose up --build -d   # migrations run automatically on boot
+git tag v1.0.0-alpha.1 && git push origin v1.0.0-alpha.1
 ```
+
+CI (`.github/workflows/docker-publish.yml`) builds and pushes
+`ghcr.io/floholz/matchowl:1.0.0-alpha.1` (plus `1` and `latest` for a proper
+release — never for a pre-release) and publishes the GitHub release with the
+matching section of `CHANGELOG.md`; tags containing a `-` (alpha, beta, rc)
+are marked as pre-releases. Write the changelog section before tagging.
+
+On the host:
+
+```sh
+# .env: MATCHOWL_VERSION=1.0.0-alpha.1
+docker compose pull && docker compose up -d   # migrations run on boot
+```
+
+The running version shows in the Home footer and in `GET /api/appconfig`.
 
 ## Health
 

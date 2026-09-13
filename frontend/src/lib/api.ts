@@ -193,6 +193,8 @@ export interface AppConfig {
 	contactEmail: string;
 	operatorName: string; // who runs Matchowl ('' until configured)
 	operatorLocation: string; // town + country, never a street
+	version: string; // build version, e.g. "1.0.0-alpha.1" ("dev" locally)
+	registrationOpen: boolean; // false = private testing, no new accounts
 }
 
 // End-of-tournament feedback survey (v1). Enum values mirror the validation

@@ -7,6 +7,8 @@ class AppConfigStore {
 	contactEmail = $state('contact@floholz.dev'); // fallback until loaded
 	operatorName = $state('');
 	operatorLocation = $state('Vienna, Austria');
+	version = $state('');
+	registrationOpen = $state(true);
 	loaded = $state(false);
 	private loading = false;
 
@@ -19,6 +21,8 @@ class AppConfigStore {
 			if (r.contactEmail) this.contactEmail = r.contactEmail;
 			this.operatorName = r.operatorName ?? '';
 			if (r.operatorLocation) this.operatorLocation = r.operatorLocation;
+			this.version = r.version ?? '';
+			this.registrationOpen = r.registrationOpen !== false;
 			this.loaded = true;
 		} catch {
 			/* keep fallbacks; retry on next load() call */

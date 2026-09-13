@@ -9,6 +9,9 @@ import (
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/floholz/matchowl/internal/users"
+	"github.com/floholz/matchowl/internal/version"
 )
 
 // Register wires GET /api/appconfig. Public on purpose: nothing here is a
@@ -27,6 +30,12 @@ func Register(app core.App, se *core.ServeEvent) {
 			// Empty = no Ko-Fi configured; the support card stays hidden.
 			"kofiUrl":      strings.TrimSpace(os.Getenv("KOFI_URL")),
 			"contactEmail": contact,
+			// Build version (release tag), shown in the Home footer and Help.
+			"version": version.Short(),
+			// Whether new accounts may be created (REGISTRATION_OPEN); the
+			// register page and the sign-up links follow it, the server
+			// enforces it (internal/users).
+			"registrationOpen": users.RegistrationOpen(),
 			// Who runs Matchowl, for the About & contact disclosure (Austrian
 			// media law asks a private, non-commercial site for name and
 			// place of residence — town, never a street address). The name

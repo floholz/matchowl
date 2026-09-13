@@ -15,7 +15,11 @@ RUN go mod download
 COPY . .
 # Replace the committed placeholder with the freshly built SPA before embed.
 COPY --from=frontend /app/internal/web/build ./internal/web/build
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /matchowl .
+# Stamp the release version (CI passes the tag; "dev" for local builds).
+ARG VERSION=dev
+RUN CGO_ENABLED=0 go build -trimpath \
+	-ldflags="-s -w -X github.com/floholz/matchowl/internal/version.Version=${VERSION}" \
+	-o /matchowl .
 
 # ---- Stage 3: minimal runtime ----
 FROM alpine:3.20
@@ -28,7 +32,7 @@ ARG VERSION=dev
 ARG REVISION=unknown
 ARG CREATED=
 LABEL org.opencontainers.image.title="matchowl" \
-      org.opencontainers.image.description="World Cup 2026 prediction game" \
+      org.opencontainers.image.description="Matchowl — football prediction game for friends" \
       org.opencontainers.image.url="https://github.com/floholz/matchowl" \
       org.opencontainers.image.source="https://github.com/floholz/matchowl" \
       org.opencontainers.image.licenses="GPL-3.0-only" \

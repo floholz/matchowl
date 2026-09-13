@@ -9,6 +9,10 @@
 	import { api } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import AuthShell from '$lib/components/AuthShell.svelte';
+	import { appConfig } from '$lib/appconfig.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => appConfig.load());
 
 	let code = $derived($page.params.code ?? '');
 	let poolName = $state('');
@@ -99,9 +103,14 @@
 		{:else if phase === 'invite'}
 			<p class="kicker">You've been invited</p>
 			<h2 class="lname">{poolName}</h2>
-			<p class="muted">Sign in or create an account to join this pool.</p>
-			<a class="btn" href={`/register?invite=${encodeURIComponent(code)}`}>Create account</a>
-			<a class="btn secondary" href={`/login?invite=${encodeURIComponent(code)}`}>Sign in</a>
+			{#if appConfig.registrationOpen}
+				<p class="muted">Sign in or create an account to join this pool.</p>
+				<a class="btn" href={`/register?invite=${encodeURIComponent(code)}`}>Create account</a>
+				<a class="btn secondary" href={`/login?invite=${encodeURIComponent(code)}`}>Sign in</a>
+			{:else}
+				<p class="muted">Sign in to join this pool. Matchowl is in private testing — new accounts are by invite from floholz.</p>
+				<a class="btn" href={`/login?invite=${encodeURIComponent(code)}`}>Sign in</a>
+			{/if}
 		{:else if phase === 'finished'}
 			<p class="kicker">Pool finished</p>
 			<h2 class="lname">{poolName}</h2>
