@@ -466,6 +466,12 @@ func (r *Runner) alreadySent(dedupKey, channel string) bool {
 func (r *Runner) dispatch(ctx context.Context, res *Result, ncol *core.Collection,
 	u *core.Record, event, dedupKey string, data tplData) {
 
+	// Machines get nothing, whichever path called (the scheduler filters
+	// its recipients already; the per-record hooks — pool invites, chat —
+	// come straight here).
+	if users.IsBot(u) {
+		return
+	}
 	data.AppName = data.AppNameOr(r.base().appName)
 	data.BaseURL = r.base().url
 	data.SettingsUrl = r.base().url + "/settings"
@@ -481,6 +487,12 @@ func (r *Runner) dispatchEmail(ctx context.Context, res *Result, ncol *core.Coll
 	// Global policy gate (e.g. mail provider suspended). Suppressed platform-wide,
 	// not a user choice, so it's silent and uncounted — like push-not-configured.
 	if !r.gate.channelAllowed(event, "email") {
+		return
+	}
+	// Never an email to an unconfirmed address (the verification mail is
+	// PocketBase's own and doesn't pass here). Silent: it is policy, not a
+	// preference.
+	if u.Email() == "" || !u.Verified() {
 		return
 	}
 	res.Considered++

@@ -148,8 +148,10 @@ func Register(app core.App, se *core.ServeEvent) {
 		if b.UserID == "" || b.UserID == e.Auth.Id {
 			return "", bad(e, http.StatusBadRequest, "pick another user")
 		}
+		// Bots and unverified accounts are invisible to others — no
+		// requests to them either.
 		u, err := app.FindRecordById("users", b.UserID)
-		if err != nil || users.IsBot(u) {
+		if err != nil || users.IsBot(u) || !u.Verified() {
 			return "", bad(e, http.StatusNotFound, "no such user")
 		}
 		return b.UserID, nil
