@@ -280,12 +280,19 @@ work pending · ⏭ deliberately deferred
   (skipWaiting + claim already), plus a small "update ready · reload" toast
   for open sessions; big changes keep going out via announcements.
 
-#### 2. Feed (`/`, the app's center)
-- ⬜ Day sections, per-competition grouping, today anchor, earlier/later window
-- ⬜ Inline tipping from the feed (cross-tournament TipCard usage)
-- ⬜ Deadline cards (forecast locks), suggestion cards (league-mates play X)
-- ⬜ Live score behavior in the feed, results + points display
-- ⬜ Empty states (plays nothing, no matches in window), SupportCard placement
+#### 2. Matches (`/matches`, the app's center) — ✅ verified 2026-09-13
+- ✅ Day sections, per-competition grouping, today anchor, infinite scroll
+  both ways (30-day cap each side). Fixed on the walk: landing on today
+  after navigation and on a nav re-tap, the sticky-chrome offset, the
+  strip following loaded-in days, the loader race, the upward load
+  keeping the page still.
+- ✅ Inline tipping via the match row (TipCard deleted — it was dead code)
+- ✅ Deadline cards come with the feed and Home shows them; suggestions
+  live on Competitions
+- ⏭ Live score behaviour — check with the dev simulator when a live
+  match is around (§4)
+- ⬜ Empty states (plays nothing, no matches in window) — not yet eyeballed
+- 🔨 Light theme: brown text, burnt-orange board tile (`--board-*` tokens)
 
 #### 3. Competitions
 - ⬜ Catalog `/competitions` — grouping by competition, Play buttons, archive
