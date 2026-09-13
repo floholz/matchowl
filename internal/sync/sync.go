@@ -732,11 +732,14 @@ func APICheck(ctx context.Context, app core.App, client *football.Client, yr int
 	}, nil
 }
 
-// applySchedule moves a not-yet-finished match to the provider's kick-off
-// time and round label, reporting whether anything changed. Finished
-// matches keep their recorded kick-off.
+// applySchedule moves a match to the provider's kick-off time and round
+// label, reporting whether anything changed. Finished matches follow too:
+// the provider's date is the truth, and a match that was played on a
+// different day than we had it (Lazio – Milan, 2026-09-12: brought forward
+// a day, seen only after it had finished) must not sit in the feed under
+// the wrong day.
 func applySchedule(rec *core.Record, f football.Fixture, status string) bool {
-	if status == "finished" || f.Date.IsZero() {
+	if f.Date.IsZero() {
 		return false
 	}
 	changed := false
