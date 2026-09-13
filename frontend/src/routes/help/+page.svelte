@@ -174,7 +174,7 @@
 		<Mail size={16} /> Questions, a wrong result, an idea?
 		<a href={`mailto:${appConfig.contactEmail}`}>{appConfig.contactEmail}</a>
 		· <a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy</a> ·
-		<a href="/legal/imprint">Imprint</a>
+		<a href="/legal/about">About</a>
 	</p>
 	{#if !auth.isAuthed}
 		<a class="btn cta" href="/login">Sign in</a>

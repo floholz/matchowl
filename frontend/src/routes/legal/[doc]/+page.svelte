@@ -1,8 +1,10 @@
 <script lang="ts">
-	// Terms of use, privacy notice, imprint. Public (reachable signed out,
-	// linked from register and the sign-in footer). The final texts belong on
-	// the marketing site once it exists; these are the in-app copies and are
-	// DRAFTS until floholz has signed them off.
+	// Terms of use, privacy notice, about & contact. Public (reachable signed
+	// out, linked from register and the sign-in footer). The final texts
+	// belong on the marketing site once it exists; these are the in-app
+	// copies and are DRAFTS until floholz has signed them off. The About
+	// page is the Austrian small media-law disclosure: name and town, never
+	// a street address (decided 2026-09-13, not open for discussion).
 	import { page } from '$app/stores';
 	import { appConfig } from '$lib/appconfig.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
@@ -16,9 +18,10 @@
 	const titles: Record<string, string> = {
 		terms: 'Terms of use',
 		privacy: 'Privacy notice',
-		imprint: 'Imprint'
+		about: 'About & contact'
 	};
-	let doc = $derived($page.params.doc ?? '');
+	// "imprint" was the first name of the about page; old links still land.
+	let doc = $derived(($page.params.doc ?? '') === 'imprint' ? 'about' : ($page.params.doc ?? ''));
 	let title = $derived(titles[doc] ?? 'Legal');
 	pageChrome(() => ({ title, back: '/settings' }));
 </script>
@@ -30,7 +33,7 @@
 	<nav class="tabs" aria-label="Legal pages">
 		<a class:on={doc === 'terms'} href="/legal/terms">Terms</a>
 		<a class:on={doc === 'privacy'} href="/legal/privacy">Privacy</a>
-		<a class:on={doc === 'imprint'} href="/legal/imprint">Imprint</a>
+		<a class:on={doc === 'about'} href="/legal/about">About</a>
 	</nav>
 
 	{#if doc === 'terms'}
@@ -106,21 +109,37 @@
 			there. For anything else, or to exercise your rights under the GDPR,
 			write to <a href={`mailto:${appConfig.contactEmail}`}>{appConfig.contactEmail}</a>.
 		</p>
-	{:else if doc === 'imprint'}
-		<h1>Imprint</h1>
-		<p class="muted small">Draft — the operator's name and postal address go here (required for a German-facing service).</p>
+		<h2>Who is responsible</h2>
 		<p>
-			Matchowl is run by <b>[Name]</b><br />
-			[Street and number]<br />
-			[Postcode and city]<br />
-			[Country]
+			The controller is the person who runs Matchowl as a private project:
+			{#if appConfig.operatorName}{appConfig.operatorName}, {/if}{appConfig.operatorLocation},
+			reachable at the address above. See <a href="/legal/about">About &amp; contact</a>.
 		</p>
+	{:else if doc === 'about'}
+		<h1>About & contact</h1>
 		<p>
-			Contact: <a href={`mailto:${appConfig.contactEmail}`}>{appConfig.contactEmail}</a>
+			Matchowl is a private, non-commercial project — a prediction game for
+			friends, run by one person in their spare time. No company, no ads, no
+			betting. Voluntary donations through Ko-fi help cover the server and the
+			match data.
+		</p>
+		<h2>Who runs it</h2>
+		<p>
+			{#if appConfig.operatorName}<b>{appConfig.operatorName}</b><br />{/if}
+			{appConfig.operatorLocation}<br />
+			<a href={`mailto:${appConfig.contactEmail}`}>{appConfig.contactEmail}</a>
 		</p>
 		<p class="muted small">
-			Match data from third-party sources. Team names and crests belong to
-			their owners. Matchowl is not affiliated with any league or federation.
+			Media owner and publisher within the meaning of § 25 of the Austrian
+			Media Act (MedienG). Purpose of the site: running a free football
+			prediction game. Also the controller for the data described in the
+			<a href="/legal/privacy">privacy notice</a>.
+		</p>
+		<h2>Sources and marks</h2>
+		<p class="muted small">
+			Match data comes from third-party providers and may be late or wrong.
+			Team names and crests belong to their owners. Matchowl is not affiliated
+			with any league, club or federation.
 		</p>
 	{:else}
 		<h1>Not found</h1>

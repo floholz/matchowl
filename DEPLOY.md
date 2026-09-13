@@ -13,6 +13,7 @@ cp .env.example .env
 | Var | Needed | Notes |
 |-----|--------|-------|
 | `HTTP_PORT` | no | Host port (default `8090`). |
+| `OPERATOR_NAME` / `OPERATOR_LOCATION` | **yes** / no | Who runs Matchowl, shown on the About & contact page (Austrian media-law disclosure: name and town, no street). Location defaults to `Vienna, Austria`. |
 | `APP_URL` | **yes** | Public origin of the app, e.g. `https://play.matchowl.app`. Applied to PocketBase's application URL at boot: every link in verification / reset / email-change mails is built from it. |
 | `API_FOOTBALL_KEY` | optional | Only used if it's a **paid** API-Football plan (the free tier has no WC2026 access). |
 | `RESULTS_SOURCE` | no | `auto` (default): API-Football if its key reaches WC2026, else the free **openfootball** JSON. Force with `apifootball` / `openfootball`. Manual override always works. openfootball is community-updated (hours, not real-time). |

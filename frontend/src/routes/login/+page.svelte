@@ -84,7 +84,7 @@
 	</form>
 	<p class="muted foot">
 		<a href="/help">How Matchowl works</a> · <a href="/legal/privacy">Privacy</a> ·
-		<a href="/legal/imprint">Imprint</a>
+		<a href="/legal/about">About</a>
 	</p>
 </AuthShell>
 

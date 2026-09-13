@@ -232,8 +232,14 @@ work pending · ⏭ deliberately deferred
   verification tiers server-side (`users.RequireVerified` on friends,
   pools and chat; Global pool = verified only; nightly purge after 180
   days) with a verify gate on the Friends page; app name + `APP_URL`
-  applied at boot; "update ready" toast; join page states. Open: the
-  imprint text, the final legal wording, PWA screenshots.
+  applied at boot; "update ready" toast; join page states. Open for the
+  release pass: the final legal wording, PWA screenshots.
+  **Legal identity (decided 2026-09-13):** no imprint page and no street
+  address, ever. `/legal/about` is the Austrian small media-law disclosure
+  for a private, non-commercial site: name (`OPERATOR_NAME` env, kept out
+  of the public repo) + "Vienna, Austria" + contact email, and it names the
+  GDPR controller. Ko-fi stays; ads may come later, at which point the
+  e-commerce rules get re-checked.
 - 🔨 Register / login, Google OAuth — verdict 2026-09-13: taglines to fit
   the multi-competition scope; Google button on register too (self-host
   Roboto Medium, keep Google's branding rules); both pages carry the owl

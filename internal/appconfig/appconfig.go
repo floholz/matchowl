@@ -19,10 +19,20 @@ func Register(app core.App, se *core.ServeEvent) {
 		if contact == "" {
 			contact = "contact@floholz.dev"
 		}
+		location := strings.TrimSpace(os.Getenv("OPERATOR_LOCATION"))
+		if location == "" {
+			location = "Vienna, Austria"
+		}
 		return e.JSON(http.StatusOK, map[string]any{
 			// Empty = no Ko-Fi configured; the support card stays hidden.
 			"kofiUrl":      strings.TrimSpace(os.Getenv("KOFI_URL")),
 			"contactEmail": contact,
+			// Who runs Matchowl, for the About & contact disclosure (Austrian
+			// media law asks a private, non-commercial site for name and
+			// place of residence — town, never a street address). The name
+			// lives in env so it stays out of the public repository.
+			"operatorName":     strings.TrimSpace(os.Getenv("OPERATOR_NAME")),
+			"operatorLocation": location,
 		})
 	})
 }

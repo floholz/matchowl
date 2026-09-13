@@ -191,6 +191,8 @@ export interface OwnerStats {
 export interface AppConfig {
 	kofiUrl: string; // empty = no Ko-Fi configured, hide the support card
 	contactEmail: string;
+	operatorName: string; // who runs Matchowl ('' until configured)
+	operatorLocation: string; // town + country, never a street
 }
 
 // End-of-tournament feedback survey (v1). Enum values mirror the validation

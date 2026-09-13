@@ -5,6 +5,8 @@ import { api } from './api';
 class AppConfigStore {
 	kofiUrl = $state('');
 	contactEmail = $state('contact@floholz.dev'); // fallback until loaded
+	operatorName = $state('');
+	operatorLocation = $state('Vienna, Austria');
 	loaded = $state(false);
 	private loading = false;
 
@@ -15,6 +17,8 @@ class AppConfigStore {
 			const r = await api.appConfig();
 			this.kofiUrl = r.kofiUrl ?? '';
 			if (r.contactEmail) this.contactEmail = r.contactEmail;
+			this.operatorName = r.operatorName ?? '';
+			if (r.operatorLocation) this.operatorLocation = r.operatorLocation;
 			this.loaded = true;
 		} catch {
 			/* keep fallbacks; retry on next load() call */
