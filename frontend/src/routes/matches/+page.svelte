@@ -15,7 +15,7 @@
 	import MatchGroup from '$lib/components/MatchGroup.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import MatchDetail from '$lib/components/MatchDetail.svelte';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Globe, Radio } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Matches', wide: true }));
@@ -159,17 +159,27 @@
 	// tap (auto-loading upwards would fire on first paint and move the
 	// landing off today). The button stays as the visible state.
 	let bottomEl = $state<HTMLElement | null>(null);
+	/** Load further fixtures when the bottom loader is within reach (600px
+	 *  below the viewport counts — the next days arrive before you get
+	 *  there) and nothing is loading. */
+	function maybeLoadLater() {
+		const el = bottomEl;
+		if (!el || !scrolled || feedStore.loading || !feedStore.canLater) return;
+		if (el.getBoundingClientRect().top < window.innerHeight + 600) feedStore.later().catch(() => {});
+	}
 	$effect(() => {
 		const el = bottomEl;
 		if (!el || !scrolled) return;
-		const io = new IntersectionObserver((entries) => {
-			for (const e of entries) {
-				if (e.isIntersecting && !feedStore.loading && feedStore.canLater)
-					feedStore.later().catch(() => {});
-			}
-		});
+		const io = new IntersectionObserver(() => maybeLoadLater(), { rootMargin: '0px 0px 600px 0px' });
 		io.observe(el);
 		return () => io.disconnect();
+	});
+	// An intersection that happened while another load was running (a scope
+	// switch, a far strip tap) was swallowed — the observer only reports
+	// crossings. Look again whenever a load settles; that also keeps filling
+	// until the loader is out of reach.
+	$effect(() => {
+		if (!feedStore.loading) untrack(() => maybeLoadLater());
 	});
 	// Follow the scroll: the topmost day section below the sticky chrome.
 	$effect(() => {
