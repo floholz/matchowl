@@ -200,6 +200,12 @@ The app accreted from the WC26-only base through three reworks. Before
 building more, **every spot of the app gets validated**: either its current
 shape is confirmed, or the final direction is worked out.
 
+**Refocused 2026-09-13:** the layout rework is considered done, so the
+walkthrough now hunts **migration artifacts** first (wording, routes, data
+and behaviour inherited from the WC26 era, like the leaderboard key that
+still read `league` after the rename). Each spot also gets a quick layout
+confirmation in all sizes (phone, tablet, desktop) and all three colour ways.
+
 **Protocol** (session by session, spot by spot):
 
 1. Claude walks through one spot — what it does today, how it behaves, its
@@ -214,12 +220,59 @@ work pending · ⏭ deliberately deferred
 ### Inventory
 
 #### 1. Entry & onboarding
-- ⬜ Landing page (logged-out `/`) — multi-tournament pitch, owl identity
-- ⬜ Register / login, Google OAuth
-- ⬜ Email flows: verification, password reset, email change (`/confirm-*`, `/forgot-password`) + system email templates
-- ⬜ `/welcome` post-signup flow
-- ⬜ `/join/{code}` league invite deep link
-- ⬜ PWA: install banners/button, manifest, service worker, update flow
+- 🔨 Landing page (logged-out `/`) — moves out to the static site at
+  matchowl.app (see backlog); signed-out `/` becomes login + site link
+- ✅ 2026-09-13 built (batch after the §1 walk): `AuthShell` front door
+  (owl mark, new tagline) on sign-in, register, forgot, the confirm pages
+  and the invite; `GoogleButton` on both pages with self-hosted Roboto;
+  terms checkbox on register + `/accept-terms` interstitial (migration
+  0040: `termsAcceptedAt`, `termsVersion`, `lang`; `lib/legal.ts` holds
+  the version); `/legal/{terms,privacy,imprint}` drafts; `/help` replaces
+  `/welcome` and the Landing component is gone (signed-out `/` → login);
+  verification tiers server-side (`users.RequireVerified` on friends,
+  pools and chat; Global pool = verified only; nightly purge after 180
+  days) with a verify gate on the Friends page; app name + `APP_URL`
+  applied at boot; "update ready" toast; join page states. Open: the
+  imprint text, the final legal wording, PWA screenshots.
+- 🔨 Register / login, Google OAuth — verdict 2026-09-13: taglines to fit
+  the multi-competition scope; Google button on register too (self-host
+  Roboto Medium, keep Google's branding rules); both pages carry the owl
+  mark and become the app's front door; the "?" help link gets a real
+  in-app help / how-to page instead of the landing copy. **Verification
+  tiers:** anyone may register with any email; unverified accounts can tip,
+  play competitions and forecast, get **no mail at all** and **no social
+  features** (friends, pools, chat, people search, the everyone board)
+  until verified; Google sign-in counts as verified (PocketBase marks it).
+  Enforced server-side, with a banner + resend in the app. **Legal at
+  register:** terms + privacy acceptance (checkbox, stored with timestamp
+  and version; Google sign-ups accept on first login), imprint/privacy/terms
+  reachable signed-out (on the site, linked from the app). Unverified
+  accounts older than 180 days get deleted.
+- 🔨 Email flows: verification, password reset, email change (`/confirm-*`,
+  `/forgot-password`) + system email templates — verdict 2026-09-13: flows
+  work; the confirm pages are well themed but bare (same front-door
+  treatment as login: owl mark, wordmark). Subjects say "Acme" and links
+  point at localhost:8090 because the PocketBase app name / app URL settings
+  still hold the defaults — the squashed init sets the name to Matchowl and
+  the URL from env at boot. Dev: the log mail sink now prints the links.
+- 🔨 `/welcome` post-signup flow — it is the Landing component again; goes
+  with the landing, replaced by the in-app help page (see register/login)
+- 🔨 **Light theme** (app-wide, 2026-09-13): white-ish ground, peach
+  surfaces — swapped in `theme.css`, to be confirmed screen by screen
+- 🔨 `/join/{code}` pool invite deep link — verdict 2026-09-13: the signed-in
+  path swallows the server's reason and shows "Couldn't join. Please try
+  again" for everything (Bürocup is a finished pool → 409). The page must
+  say the real reason: pool finished (already at preview, before asking a
+  stranger to sign up), already a member (just open it), unverified
+  (verify first, once the tiers land), invalid code. Same WC26 tagline and
+  bare front door as login.
+- 🔨 PWA: install banners/button, manifest, service worker, update flow —
+  verdict 2026-09-13: install works (Pixel + desktop). Screenshots are
+  WC26-era and get redone once the layout is confirmed; manifest
+  description reworded (German variant with i18n). Black status bar in
+  light mode is fine. Update flow: new build activates on the next launch
+  (skipWaiting + claim already), plus a small "update ready · reload" toast
+  for open sessions; big changes keep going out via announcements.
 
 #### 2. Feed (`/`, the app's center)
 - ⬜ Day sections, per-competition grouping, today anchor, earlier/later window
@@ -342,9 +395,45 @@ add more):
   for friends (`pool_invites`, event `pool_invite`, pinned on the Pools tab)
   landed `9fe700e`. Still to do: friend-request notifications, the
   activity feed, docs sweep (README/plans still say leagues).
-- **Launch data plan** (2026-09-13, to discuss): the app launches clean
-  with imported data; the old WC app and its data stay as they are. Decide
-  what gets imported (users? competitions only?) and how.
+- **Release data plan** (decided 2026-09-13): v1 starts from an empty
+  database. Before v1 the 39 migrations get **squashed into one initial
+  setup** (schema, rules, mail templates, seeded config rows — the final
+  state, not the history; verify by diffing a fresh database's collections
+  against one migrated the long way). Once live, a **one-off import** copies
+  selected data sets from the WC 2026 run, then a plain backup covers the
+  rest. Nothing repeatable is needed beyond the importer itself.
+  - *No importer code:* when it is time, read the latest WC 2026 backup and
+    insert the chosen records by hand through the PocketBase API (users;
+    tips, forecasts, leagues as pools bound to WC 2026). One off, done.
+  - *Claimable accounts (proposed):* imported users are created with their
+    email, name, avatar and role, `verified=false`, a random password, and a
+    `claimed=false` marker. Claiming is the two paths that already exist:
+    **Google sign-in** (PocketBase 0.38 links an OAuth login to the record
+    with the same email) and **password reset** (mails the address). An auth
+    hook flips `claimed` on the first successful login and routes to
+    `/welcome`. Until then the account is dormant: no notification mail or
+    push, hidden from people search and friend suggestions, but still on the
+    imported pool boards with a "not back yet" marker. Login page gets a
+    "Played WC 2026?" hint; optionally one owner-triggered invitation mail
+    batch to the dormant addresses.
+- **Domains + marketing site** (decided 2026-09-13): the app moves to
+  `play.matchowl.app` (PWA scope `/`, mail links and OAuth redirect point
+  there; signed-out `/` becomes login with a link to the site; the SPA's
+  `Landing` component goes). `matchowl.app` is a static bilingual marketing
+  site (Astro, in `site/`, content collections for dated spotlights such as
+  a CL final), English at the root, German under `/de`; `matchowl.de`
+  redirects to the German pages, `play.matchowl.de` to
+  `play.matchowl.app/?lang=de`. The site follows the device theme; no
+  theme or session sync across origins. Build after the walkthrough and the
+  i18n pass. matchowl.com is not ours (premium resale) and is out.
+- **Languages before launch** (decided 2026-09-13): English default, German
+  second. Language is a user setting, never a route prefix: saved setting →
+  one-time `?lang=` hint from the site → browser language → English. UI
+  strings via Paraglide (inlang) with Intl for dates and numbers; a `lang`
+  field on users picks the notification and system-mail templates per
+  language (system-mail hook chooses the template). Admin-authored content
+  (descriptions, announcements) stays single-language. One extraction pass
+  after the walkthrough, when the wording is settled.
 - **Sync cadence** (2026-09-12): fit result syncs to the known fixtures
   (poll around kick-offs, idle otherwise) instead of a flat cron; the sync
   now also follows kick-off changes, so the schedule is trustworthy.
@@ -354,6 +443,18 @@ add more):
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
 
+- 2026-09-13 — §1 register/login: verification tiers (unverified = play
+  only, no mail, no social), terms + privacy acceptance at register, Google
+  on both pages, owl mark, real help page replaces `/welcome`.
+- 2026-09-13 — Domains: app at play.matchowl.app, static bilingual site at
+  matchowl.app (.de redirects to the German pages), no language in app
+  URLs; i18n (en default, de) via Paraglide before launch, after the
+  walkthrough. §1 landing page verdict: moves out to the site.
+- 2026-09-13 — Release data: clean start, migrations squashed to one initial
+  setup before v1, one-off import of selected WC 2026 data after go-live,
+  imported accounts dormant until claimed (Google or password reset).
+  Walkthrough resumes with migration artifacts as the main target; layout
+  gets confirmed per spot in all sizes and colour ways.
 - 2026-09-13 — §7 Friends: split into mutual Friends (request + accept,
   per-competition board, Global) and Pools (former leagues, bound to
   seasons, manual next-season setup, filters kept). Existing leagues → WC

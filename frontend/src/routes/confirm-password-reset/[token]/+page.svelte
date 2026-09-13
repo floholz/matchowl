@@ -2,6 +2,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import AuthShell from '$lib/components/AuthShell.svelte';
 
 	let token = $derived($page.params.token ?? '');
 	let password = $state('');
@@ -39,10 +40,7 @@
 	}
 </script>
 
-<div class="auth">
-	<h1>Choose a new password</h1>
-	<p class="muted">Enter and confirm your new password.</p>
-
+<AuthShell title="Choose a new password" lead="Enter and confirm your new password.">
 	{#if done}
 		<div class="card">
 			<p class="ok">Password updated — taking you to sign in…</p>
@@ -80,20 +78,9 @@
 			<p class="muted switch"><a href="/login">Back to sign in</a></p>
 		</form>
 	{/if}
-</div>
+</AuthShell>
 
 <style>
-	.auth {
-		max-width: 380px;
-		margin: 12dvh auto 0;
-	}
-	h1 {
-		margin: 0;
-		font-size: 1.8rem;
-	}
-	.muted {
-		margin: 0.25rem 0 1.5rem;
-	}
 	.ok {
 		color: var(--success);
 		font-size: 0.95rem;

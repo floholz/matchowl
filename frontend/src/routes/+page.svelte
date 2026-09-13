@@ -1,6 +1,6 @@
 <!-- Home: the time-based hub. Tip now (matches locking soonest), the
      forecast deadline, Live, your pools, yesterday's points. Nothing
-     else. Signed-out visitors get the landing page. -->
+     else. Signed-out visitors are sent to sign in by the layout. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
 	import { feedStore, type FeedMatch } from '$lib/feed.svelte';
@@ -8,7 +8,6 @@
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import { api, type PoolSummary } from '$lib/api';
-	import Landing from '$lib/components/Landing.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
@@ -130,9 +129,7 @@
 	/>
 {/snippet}
 
-{#if !auth.isAuthed}
-	<Landing />
-{:else}
+{#if auth.isAuthed}
 	<div class="home stagger">
 		{#if feedStore.error && !feedStore.loaded}
 			<div class="card empty">

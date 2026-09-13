@@ -70,6 +70,8 @@ func AcceptedIDs(app core.App, userID string) []string {
 func Register(app core.App, se *core.ServeEvent) {
 	g := se.Router.Group("/api/friends")
 	g.Bind(apis.RequireAuth())
+	// Friends are a social feature: verified accounts only.
+	g.Bind(users.RequireVerified())
 
 	// GET /api/friends — accepted friends, incoming requests, outgoing requests.
 	g.GET("", func(e *core.RequestEvent) error {
@@ -112,8 +114,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		// Starts-with on the name or on any word of it (case-insensitive),
 		// not a loose contains: "bo" finds "Bob" and "Anna Bode", not "Jacob".
+		// Unverified accounts are invisible to others until they verify.
 		recs, err := app.FindRecordsByFilter("users",
-			"(name ~ {:p} || name ~ {:w}) && id != {:me} && role != 'bot'", "name", 10, 0,
+			"(name ~ {:p} || name ~ {:w}) && id != {:me} && role != 'bot' && verified = true", "name", 10, 0,
 			map[string]any{"p": q + "%", "w": "% " + q + "%", "me": e.Auth.Id})
 		if err != nil {
 			return err

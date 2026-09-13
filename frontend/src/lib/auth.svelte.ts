@@ -1,4 +1,5 @@
 import { pb } from './pb';
+import { TERMS_VERSION } from './legal';
 
 // Reactive auth state backed by PocketBase's authStore. Svelte 5 runes class;
 // a single shared instance is exported below.
@@ -14,6 +15,10 @@ class Auth {
 		role: string; // "owner" | "admin" | "bot"; empty => normal member
 		// Per-event email toggles; absent/missing entries default to ON.
 		notifyPrefs: Record<string, { email?: boolean }>;
+		// Which terms/privacy version the person accepted ('' = none yet).
+		termsVersion: string;
+		// UI + mail language ('' = follow the device).
+		lang: string;
 	} | null>(null);
 
 	constructor() {
@@ -41,7 +46,9 @@ class Auth {
 			avatarUrl,
 			role: (r.role as string) || 'member',
 			notifyPrefs:
-				(r.notifyPrefs as Record<string, { email?: boolean }>) || {}
+				(r.notifyPrefs as Record<string, { email?: boolean }>) || {},
+			termsVersion: (r.termsVersion as string) || '',
+			lang: (r.lang as string) || ''
 		};
 	}
 
@@ -142,12 +149,16 @@ class Auth {
 		await pb.collection('users').confirmEmailChange(token, password);
 	}
 
+	// Register with email + password. The form has the terms checkbox, so the
+	// acceptance rides along with the create call.
 	async register(name: string, email: string, password: string) {
 		await pb.collection('users').create({
 			name,
 			email,
 			password,
-			passwordConfirm: password
+			passwordConfirm: password,
+			termsAcceptedAt: new Date().toISOString(),
+			termsVersion: TERMS_VERSION
 		});
 		await this.login(email, password);
 		// Kick off email verification right away; fire-and-forget so a mail
@@ -156,6 +167,18 @@ class Auth {
 		pb.collection('users')
 			.requestVerification(email)
 			.catch(() => {});
+	}
+
+	// Record acceptance of the current terms on the signed-in account (the
+	// /accept-terms interstitial), then re-pull the record so the layout
+	// guard lets the person through.
+	async acceptTerms() {
+		if (!this.user) throw new Error('Not signed in.');
+		await pb.collection('users').update(this.user.id, {
+			termsAcceptedAt: new Date().toISOString(),
+			termsVersion: TERMS_VERSION
+		});
+		await pb.collection('users').authRefresh();
 	}
 
 	logout() {

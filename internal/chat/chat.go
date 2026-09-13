@@ -268,6 +268,9 @@ func authorize(app core.App, e *core.RequestEvent, leagueID string) (*core.Recor
 	if lg.GetString("inviteCode") == "GLOBAL" {
 		return nil, apis.NewForbiddenError("chat is not available in the Global pool", nil)
 	}
+	if !users.Verified(e) {
+		return nil, apis.NewForbiddenError("verify your email address to use pool chat", nil)
+	}
 	if !isMember(app, leagueID, e.Auth.Id) {
 		return nil, apis.NewForbiddenError("you are not a member of this pool", nil)
 	}

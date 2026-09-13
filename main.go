@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -60,8 +62,10 @@ func main() {
 		if err := seed.Run(e.App); err != nil {
 			return err
 		}
+		applyMeta(e.App)
 		oauth.Register(e.App)
 		users.Register(e.App)
+		users.RegisterPurge(e.App)
 		tournaments.Register(e.App, e)
 		players.Register(e.App, e)
 		feed.Register(e.App, e)
@@ -117,6 +121,32 @@ func main() {
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// applyMeta pins the application name and, when APP_URL is set, the public
+// origin PocketBase builds mail links from (verification, password reset,
+// email change). Both live in the settings row of the database, so a fresh
+// database would otherwise ship with PocketBase's "Acme" / localhost
+// defaults — which is exactly what the WC26 run did.
+func applyMeta(app core.App) {
+	s := app.Settings()
+	changed := false
+	if s.Meta.AppName != "Matchowl" {
+		s.Meta.AppName = "Matchowl"
+		changed = true
+	}
+	if u := strings.TrimRight(strings.TrimSpace(os.Getenv("APP_URL")), "/"); u != "" && s.Meta.AppURL != u {
+		s.Meta.AppURL = u
+		changed = true
+	}
+	if !changed {
+		return
+	}
+	if err := app.Save(s); err != nil {
+		log.Printf("[meta] could not save app settings: %v", err)
+		return
+	}
+	log.Printf("[meta] app name %q, app url %q", s.Meta.AppName, s.Meta.AppURL)
 }
 
 // devManifest rewrites the PWA manifest for the dev build so it installs as a

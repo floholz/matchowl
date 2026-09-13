@@ -2,6 +2,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import AuthShell from '$lib/components/AuthShell.svelte';
 
 	let token = $derived($page.params.token ?? '');
 	// The new address rides in the token payload — decode it for display so
@@ -41,12 +42,11 @@
 	}
 </script>
 
-<div class="auth">
-	<h1>Confirm new email</h1>
-	<p class="muted">
+<AuthShell title="Confirm new email">
+	<p class="muted lead">
 		{#if newEmail}
-			Confirm <strong>{newEmail}</strong> as your new address by entering
-			your account password.
+			Confirm <strong>{newEmail}</strong> as your new address by entering your
+			account password.
 		{:else}
 			Enter your account password to confirm the email change.
 		{/if}
@@ -76,19 +76,11 @@
 			<p class="muted switch"><a href="/login">Back to sign in</a></p>
 		</form>
 	{/if}
-</div>
+</AuthShell>
 
 <style>
-	.auth {
-		max-width: 380px;
-		margin: 12dvh auto 0;
-	}
-	h1 {
-		margin: 0;
-		font-size: 1.8rem;
-	}
-	.muted {
-		margin: 0.25rem 0 1.5rem;
+	.lead {
+		margin: 0.25rem 0 0;
 	}
 	.ok {
 		color: var(--success);

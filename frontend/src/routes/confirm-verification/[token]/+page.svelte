@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
 	import { page } from '$app/stores';
+	import AuthShell from '$lib/components/AuthShell.svelte';
 
 	let token = $derived($page.params.token ?? '');
 	let status = $state<'working' | 'done' | 'failed'>('working');
@@ -25,17 +26,15 @@
 	});
 </script>
 
-<div class="auth">
-	<h1>Email verification</h1>
-
+<AuthShell title="Email verification">
 	{#if status === 'working'}
 		<div class="card"><p class="muted wait">Verifying your email…</p></div>
 	{:else if status === 'done'}
 		<div class="card">
 			<p class="ok">Your email is verified ✓</p>
 			<p class="muted note">
-				You'll now receive the notifications you've enabled — fine-tune them
-				anytime in Settings.
+				Friends and pools are open to you now, and the notifications you
+				enable will reach this address — fine-tune them anytime in Settings.
 			</p>
 			<a class="btn" href={auth.isAuthed ? '/' : '/login'}>
 				{auth.isAuthed ? 'Back to the app' : 'Sign in'}
@@ -45,24 +44,16 @@
 		<div class="card">
 			<p class="error">{error}</p>
 			<p class="muted note">
-				You can request a fresh link from Settings → Notifications.
+				Links expire after a while. You can request a fresh one from Settings.
 			</p>
 			<a class="btn secondary" href={auth.isAuthed ? '/settings' : '/login'}>
 				{auth.isAuthed ? 'Open Settings' : 'Sign in'}
 			</a>
 		</div>
 	{/if}
-</div>
+</AuthShell>
 
 <style>
-	.auth {
-		max-width: 380px;
-		margin: 12dvh auto 0;
-	}
-	h1 {
-		margin: 0 0 1.5rem;
-		font-size: 1.8rem;
-	}
 	.wait {
 		margin: 0;
 	}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
+	import AuthShell from '$lib/components/AuthShell.svelte';
 
 	let email = $state('');
 	let busy = $state(false);
@@ -14,21 +15,17 @@
 			await auth.requestPasswordReset(email.trim());
 			sent = true;
 		} catch (err: unknown) {
-			error =
-				(err as { message?: string })?.message ??
-				'Could not send reset email.';
+			error = (err as { message?: string })?.message ?? 'Could not send reset email.';
 		} finally {
 			busy = false;
 		}
 	}
 </script>
 
-<div class="auth">
-	<h1>Reset password</h1>
-	<p class="muted">
-		Enter the email you signed up with — we'll send you a reset link.
-	</p>
-
+<AuthShell
+	title="Reset password"
+	lead="Enter the email you signed up with — we'll send you a reset link."
+>
 	{#if sent}
 		<div class="card">
 			<p class="ok">If that email is registered, a reset link is on its way.</p>
@@ -54,20 +51,9 @@
 			<p class="muted switch"><a href="/login">Back to sign in</a></p>
 		</form>
 	{/if}
-</div>
+</AuthShell>
 
 <style>
-	.auth {
-		max-width: 380px;
-		margin: 12dvh auto 0;
-	}
-	h1 {
-		margin: 0;
-		font-size: 1.8rem;
-	}
-	.muted {
-		margin: 0.25rem 0 1.5rem;
-	}
 	.ok {
 		color: var(--success);
 		font-size: 0.95rem;

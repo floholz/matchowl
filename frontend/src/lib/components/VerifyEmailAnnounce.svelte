@@ -70,9 +70,9 @@
 		<div class="icon"><MailCheck size={22} /></div>
 		<h3>Verify your email 📬</h3>
 		<p class="body">
-			Kickoff reminders, matchday recaps and league alerts only go to
-			<strong>verified</strong> addresses. Confirm
-			<strong>{auth.user?.email}</strong> to keep receiving them — check your
+			Friends and pools open up once your address is confirmed, and kickoff
+			reminders, recaps and pool alerts only go to <strong>verified</strong>
+			addresses. Confirm <strong>{auth.user?.email}</strong> — check your
 			inbox for the link, or send a fresh one below.
 		</p>
 

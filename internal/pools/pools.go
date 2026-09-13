@@ -20,6 +20,7 @@ import (
 	"github.com/floholz/matchowl/internal/friends"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/tournaments"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 const codeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no ambiguous chars
@@ -298,14 +299,28 @@ func ownedOpenLeague(app core.App, e *core.RequestEvent, id string) (*core.Recor
 // Register wires the League endpoints. Most require an authenticated user;
 // the invite-preview route below is intentionally public.
 func Register(app core.App, se *core.ServeEvent) {
-	// Auto-managed "Global" league: ensure it exists, backfill existing users,
-	// and add every new user as a member when their account is created.
+	// Auto-managed "Global" pool — the everyone board. Verified accounts
+	// only (an unverified account is invisible to others): ensure the pool
+	// exists, backfill existing users, add a new account on creation when it
+	// is already verified (Google sign-in), else the moment it verifies.
 	if err := backfillGlobal(app); err != nil {
 		log.Printf("[pools] global backfill failed: %v", err)
 	}
 	app.OnRecordAfterCreateSuccess("users").BindFunc(func(e *core.RecordEvent) error {
-		if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
-			log.Printf("[pools] auto-join global failed for %s: %v", e.Record.Id, err)
+		if e.Record.Verified() {
+			if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
+				log.Printf("[pools] auto-join global failed for %s: %v", e.Record.Id, err)
+			}
+		}
+		return e.Next()
+	})
+	app.OnRecordAfterUpdateSuccess("users").BindFunc(func(e *core.RecordEvent) error {
+		if e.Record.Verified() && !users.IsBot(e.Record) {
+			if orig := e.Record.Original(); orig == nil || !orig.Verified() {
+				if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
+					log.Printf("[pools] join global on verify failed for %s: %v", e.Record.Id, err)
+				}
+			}
 		}
 		return e.Next()
 	})
@@ -326,11 +341,16 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		return e.JSON(http.StatusOK, map[string]any{
 			"id": league.Id, "name": league.GetString("name"),
+			"finished": Finished(app, league),
 		})
 	})
 
 	g := se.Router.Group("/api/pools")
 	g.Bind(apis.RequireAuth())
+	// Pools are a social feature: verified accounts only. The two list reads
+	// stay open so Home and the Friends page simply see nothing for an
+	// unverified account (it is in no pool and gets no invites anyway).
+	g.Bind(users.RequireVerified("/api/pools/mine", "/api/pools/invites"))
 
 	// POST /api/leagues/create  { "name": "..." }
 	g.POST("/create", func(e *core.RequestEvent) error {
@@ -944,19 +964,31 @@ func ensureGlobalMember(app core.App, userID string) error {
 	return addMember(app, leagueID, userID, "member")
 }
 
-// backfillGlobal ensures every existing user is a member of the Global league.
+// backfillGlobal ensures every verified user is a member of the Global pool
+// and no unverified one is (accounts from before the verification tiers).
 // Cheap on subsequent boots: the per-user membership check short-circuits.
 func backfillGlobal(app core.App) error {
-	if _, err := ensureGlobal(app); err != nil {
-		return err
-	}
-	users, err := app.FindRecordsByFilter("users", "id != ''", "", 0, 0)
+	globalID, err := ensureGlobal(app)
 	if err != nil {
 		return err
 	}
-	for _, u := range users {
-		if err := ensureGlobalMember(app, u.Id); err != nil {
-			return err
+	all, err := app.FindRecordsByFilter("users", "id != ''", "", 0, 0)
+	if err != nil {
+		return err
+	}
+	for _, u := range all {
+		if u.Verified() || users.IsBot(u) {
+			if err := ensureGlobalMember(app, u.Id); err != nil {
+				return err
+			}
+			continue
+		}
+		if m, _ := app.FindFirstRecordByFilter("pool_members",
+			"pool = {:l} && user = {:u}",
+			map[string]any{"l": globalID, "u": u.Id}); m != nil {
+			if err := app.Delete(m); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

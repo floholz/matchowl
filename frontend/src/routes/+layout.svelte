@@ -11,6 +11,8 @@
 	import NotifyAnnounce from '$lib/components/NotifyAnnounce.svelte';
 	import VerifyEmailAnnounce from '$lib/components/VerifyEmailAnnounce.svelte';
 	import AnnounceBanner from '$lib/components/AnnounceBanner.svelte';
+	import UpdateToast from '$lib/components/UpdateToast.svelte';
+	import { termsCurrent } from '$lib/legal';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { theme } from '$lib/theme.svelte';
 	import { shell } from '$lib/shell.svelte';
@@ -45,7 +47,7 @@
 	const authPages = ['/login', '/register', '/forgot-password'];
 	let path = $derived($page.url.pathname);
 	let isAuthPage = $derived(authPages.includes(path));
-	// Public routes — anyone can land here regardless of auth state:
+	// Bare public routes — anyone can land here, no app chrome:
 	//   /join/<code>                 invite landing
 	//   /confirm-password-reset/<t>  email reset target (must work even for
 	//                                a still-signed-in user whose token was
@@ -53,30 +55,42 @@
 	//   /confirm-verification/<t>    email verification target (same reasoning)
 	//   /confirm-email-change/<t>    email-change target (lands on the NEW
 	//                                address, possibly on a signed-out device)
-	//   /welcome                     chrome-less landing/help page (any auth state)
-	let isPublic = $derived(
+	let isBare = $derived(
 		path.startsWith('/join') ||
 			path.startsWith('/confirm-password-reset/') ||
 			path.startsWith('/confirm-verification/') ||
-			path.startsWith('/confirm-email-change/') ||
-			path === '/welcome'
+			path.startsWith('/confirm-email-change/')
 	);
-	// The home route doubles as the public landing page for signed-out
-	// visitors (app home once authed) — never bounce anon users away from it.
-	let isLanding = $derived(path === '/');
+	// Public info routes — help and the legal pages: reachable signed out
+	// (bare), with the normal chrome once signed in.
+	let isInfo = $derived(path === '/help' || path === '/welcome' || path.startsWith('/legal/'));
+	// The terms interstitial: signed in, no chrome, nothing else until accepted.
+	let isTerms = $derived(path === '/accept-terms');
 	// No app chrome on the standalone auth / invite / reset screens.
-	let chrome = $derived(auth.isAuthed && !isAuthPage && !isPublic);
+	let chrome = $derived(auth.isAuthed && !isAuthPage && !isBare && !isTerms);
 
 	// SPA auth guard.
 	$effect(() => {
 		const invite = $page.url.searchParams.get('invite');
-		if (!auth.isAuthed && !isAuthPage && !isPublic && !isLanding) {
+		if (!auth.isAuthed && !isAuthPage && !isBare && !isInfo) {
 			goto('/login', { replaceState: true });
 		}
 		// Already signed in: skip the auth pages. If they arrived via an
 		// invite, send them to the join flow so it auto-joins.
 		if (auth.isAuthed && isAuthPage) {
 			goto(invite ? `/join/${invite}` : '/', { replaceState: true });
+		}
+		// Legal acceptance: every account without a current acceptance
+		// (Google sign-ups, imported accounts, a bumped terms version) goes
+		// through /accept-terms before anything else in the app.
+		if (
+			auth.isAuthed &&
+			!termsCurrent(auth.user?.termsVersion) &&
+			!isTerms &&
+			!isBare &&
+			!isInfo
+		) {
+			goto('/accept-terms', { replaceState: true });
 		}
 	});
 </script>
@@ -102,7 +116,7 @@
 		<nav class="topbar-links"><NavLinks variant="top" /></nav>
 		<div class="spacer"></div>
 		<div class="topbar-right">
-			<a class="topbar-help" href="/welcome" aria-label="What is Matchowl?">
+			<a class="topbar-help" href="/help" aria-label="Help: how Matchowl works">
 				<CircleHelp size={20} />
 			</a>
 			<PwaInstallButton />
@@ -123,3 +137,4 @@
 	{/if}
 	{@render children()}
 </div>
+<UpdateToast />

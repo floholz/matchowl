@@ -83,7 +83,29 @@
 			.sort((a, b) => (a.status === 'active' ? -1 : 1) - (b.status === 'active' ? -1 : 1) || (a.startsAt < b.startsAt ? 1 : -1))
 	);
 
+	// Friends and pools are verified-only (the server refuses the rest);
+	// an unverified account sees the verify gate instead of the lists.
+	const verified = $derived(!!auth.user?.verified);
+	let verifyBusy = $state(false);
+	let verifySent = $state(false);
+	let verifyError = $state('');
+	async function sendVerify() {
+		verifyError = '';
+		verifyBusy = true;
+		try {
+			await auth.requestVerification();
+			verifySent = true;
+		} catch (err: unknown) {
+			verifyError = (err as { message?: string })?.message ?? 'Could not send the verification email.';
+		} finally {
+			verifyBusy = false;
+		}
+	}
 	async function load() {
+		if (!verified) {
+			loaded = true;
+			return;
+		}
 		try {
 			leagues = (await api.myPools()).pools;
 			leagues.forEach((l) => loadRank(l.id));
@@ -202,7 +224,7 @@
 	}
 	let friendsStarted = false;
 	$effect(() => {
-		if (view !== 'friends' || friendsStarted) return;
+		if (view !== 'friends' || friendsStarted || !verified) return;
 		friendsStarted = true;
 		loadFriends();
 		loadBoard('');
@@ -257,7 +279,24 @@
 	</div>
 </div>
 
-{#if view === 'pools'}
+{#if !verified}
+	<div class="card gate">
+		<p class="kicker">Verify your email</p>
+		<p>
+			Friends and pools open up once <strong>{auth.user?.email}</strong> is
+			confirmed. Tipping and playing competitions work already.
+		</p>
+		{#if verifySent}
+			<p class="ok">Verification email sent — check your inbox.</p>
+		{:else}
+			<button class="btn" onclick={sendVerify} disabled={verifyBusy}>
+				{verifyBusy ? 'Sending…' : 'Send verification email'}
+			</button>
+		{/if}
+		{#if verifyError}<p class="error">{verifyError}</p>{/if}
+		<p class="muted small">Wrong address? Change it under Settings.</p>
+	</div>
+{:else if view === 'pools'}
 	{#if invites.length}
 		<div class="sec2 first"><h2>Invites</h2><span class="pill ok">{invites.length}</span></div>
 		{#each invites as i (i.id)}
@@ -986,5 +1025,16 @@
 		color: var(--muted);
 		cursor: pointer;
 		flex: none;
+	}
+	.gate p {
+		margin: 0 0 0.75rem;
+		line-height: 1.45;
+	}
+	.gate .ok {
+		color: var(--success);
+	}
+	.gate .small {
+		font-size: 0.82rem;
+		margin: 0.75rem 0 0;
 	}
 </style>

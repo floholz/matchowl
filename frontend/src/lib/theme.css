@@ -95,8 +95,10 @@
 	--accent-2: #f26a00;
 	--peach: #ffd7b4;
 
-	--bg: #ffd7b4; /* the mark's plumage, full strength */
-	--surface: #fff6ec;
+	/* 2026-09-13: white-ish ground, peach surfaces — cleaner, less colour
+	   dense than the full-strength peach ground it had before. */
+	--bg: #fff6ec;
+	--surface: #ffd7b4; /* the mark's plumage, on cards */
 	--surface-2: #ffc999;
 	--border: #e8b98d;
 	--text: #141210;

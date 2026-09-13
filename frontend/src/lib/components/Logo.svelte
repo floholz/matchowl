@@ -1,8 +1,8 @@
 <script lang="ts">
-	let { compact = false }: { compact?: boolean } = $props();
+	let { compact = false, size = 30 }: { compact?: boolean; size?: number } = $props();
 </script>
 
-<a class="logo" href="/" aria-label="Matchowl home">
+<a class="logo" href="/" aria-label="Matchowl home" style:--mark="{size}px">
 	<!-- The Matchowl mark: an owl face built from football pitch markings
 	     (see docs/matchowl-icon.svg). Inlined so it ships with the bundle. -->
 	<svg
@@ -44,14 +44,14 @@
 		letter-spacing: -0.02em;
 	}
 	.mark {
-		height: 30px;
-		width: 30px;
+		height: var(--mark, 30px);
+		width: var(--mark, 30px);
 		display: block;
 	}
 	.word {
 		font-family: var(--font-display);
 		font-weight: 700;
-		font-size: 1.35rem;
+		font-size: calc(var(--mark, 30px) * 0.72);
 		letter-spacing: -0.015em;
 	}
 </style>

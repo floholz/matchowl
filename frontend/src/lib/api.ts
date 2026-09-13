@@ -325,9 +325,10 @@ export const api = {
 			'/api/pools/join',
 			{ code }
 		),
-	// Public — resolves an invite code to a league name for the /join page.
+	// Public — resolves an invite code to a pool name (and whether the pool
+	// is finished) for the /join page.
 	invitePreview: (code: string) =>
-		get<{ id: string; name: string }>(
+		get<{ id: string; name: string; finished: boolean }>(
 			`/api/invite/${encodeURIComponent(code)}`
 		),
 	myPools: () => get<{ pools: PoolSummary[] }>('/api/pools/mine'),
