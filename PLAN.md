@@ -295,9 +295,17 @@ work pending · ⏭ deliberately deferred
 - 🔨 Light theme: brown text, burnt-orange board tile (`--board-*` tokens)
 
 #### 3. Competitions
-- ⬜ Catalog `/competitions` — grouping by competition, Play buttons, archive
-- ⬜ Season hub `/competitions/{key}` — Overview / Matches / Standings tabs, season picker, swipe navigation
-- ⬜ Overview tab content: spotlight matches, personal stats, forecast card
+- 🔨 Catalog `/competitions` — verdict 2026-09-13: left out of the layout
+  rework, needs the pass: suggestions capped to a couple (expand for the
+  rest), Play from the list, sections (playing · available · finished), a
+  search field so the list can grow. Found: league badges never fetched
+  for the leagues because the leagues→pools rename had rewritten the
+  provider's badge URL (`football/pools/`) — fixed, missing badges are
+  backfilled at boot. La Liga's forecast call said "Religation" (data;
+  fixed in the dev DB, the prod import must not repeat it).
+- ✅ Season hub `/competitions/{key}` — verified 2026-09-13 as rebuilt
+  (compact header, underline tabs, season picker)
+- ✅ Overview tab content — verified 2026-09-13
 - ⬜ Play / Leave semantics, auto-subscribe on first tip
 - ⬜ Missing/unknown-slug handling (`?t=`, TournamentMissing)
 

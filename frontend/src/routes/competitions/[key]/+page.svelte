@@ -19,6 +19,7 @@
 	import { describeSeason, dateSpan } from '$lib/describe';
 	import PageChrome from '$lib/components/PageChrome.svelte';
 	import { shell } from '$lib/shell.svelte';
+	import { feedStore } from '$lib/feed.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import MatchList from '$lib/components/MatchList.svelte';
 	import Standings from '$lib/components/Standings.svelte';
@@ -125,6 +126,8 @@
 			if (was) playing.delete(season.id);
 			else playing.add(season.id);
 			playing = new Set(playing);
+			// Home and Matches read the feed; make them follow.
+			if (feedStore.loaded) feedStore.load().catch(() => {});
 		} finally {
 			busy = false;
 		}

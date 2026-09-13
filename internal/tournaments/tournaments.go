@@ -288,6 +288,8 @@ func validateSpec(rec *core.Record) error {
 // and an admin CRUD group. Fixture seeding for new tournaments is a separate
 // concern (internal/seed).
 func Register(app core.App, se *core.ServeEvent) {
+	BackfillLogos(app)
+
 	// GET /api/tournaments — non-draft tournaments plus the current pick,
 	// each with its competition embedded (the catalog groups by it).
 	se.Router.GET("/api/tournaments", func(e *core.RequestEvent) error {

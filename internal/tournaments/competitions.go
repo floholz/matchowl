@@ -48,7 +48,10 @@ func ByLeagueID(app core.App, leagueID int) (*core.Record, error) {
 
 // LeagueLogoURL is the provider's stable (public, key-less) league badge.
 func LeagueLogoURL(leagueID int) string {
-	return fmt.Sprintf("https://media.api-sports.io/football/pools/%d.png", leagueID)
+	// Provider vocabulary: "leagues" is API-Football's path, not ours (the
+	// 2026-09-13 leagues→pools rename had swept it up, so every league badge
+	// fetch after that 404ed).
+	return fmt.Sprintf("https://media.api-sports.io/football/leagues/%d.png", leagueID)
 }
 
 var compKeyJunk = regexp.MustCompile(`[^a-z0-9]+`)
@@ -132,6 +135,29 @@ func AttachLogo(ctx context.Context, app core.App, rec *core.Record, url string)
 		return false
 	}
 	return true
+}
+
+// BackfillLogos fetches the badge of every competition that has an
+// API-Football league id but no logo yet — best-effort, in the background,
+// so a fetch that failed at import time (or the broken URL of 2026-09-13)
+// heals itself on the next boot.
+func BackfillLogos(app core.App) {
+	recs, err := app.FindRecordsByFilter(compCollection,
+		"logo = '' && apiFootballLeague > 0", "", 0, 0)
+	if err != nil || len(recs) == 0 {
+		return
+	}
+	go func() {
+		n := 0
+		for _, rec := range recs {
+			if AttachLogo(context.Background(), app, rec, LeagueLogoURL(rec.GetInt("apiFootballLeague"))) {
+				n++
+			}
+		}
+		if n > 0 {
+			log.Printf("[competitions] fetched %d missing league badges", n)
+		}
+	}()
 }
 
 // competitionOf loads a tournament's competition record ("" relation → nil).
