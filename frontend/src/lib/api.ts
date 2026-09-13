@@ -174,6 +174,19 @@ export interface GifStatus {
 	health?: { ok: boolean; latencyMs?: number; error?: string };
 }
 
+/** A one-time registration link (closed test), as the admin list shows it. */
+export interface SignupLink {
+	id: string;
+	token: string;
+	label: string;
+	status: 'open' | 'used' | 'expired';
+	created: string; // RFC3339
+	expiresAt: string; // '' = never
+	usedAt: string; // '' = not yet
+	createdBy?: { id: string; name: string };
+	usedBy?: { id: string; name: string; email: string };
+}
+
 export interface OwnerStats {
 	users: number; // real users (bots excluded)
 	usersLast24h: number;
@@ -470,6 +483,18 @@ export const api = {
 
 	// Admin-only GIF-API dashboard: KLIPY health + GIFs-sent count.
 	gifStatus: () => get<GifStatus>('/api/admin/gif/status'),
+
+	// One-time registration links for the closed test (admin), plus the
+	// anonymous check the register page runs on the token it was opened with.
+	signupLinks: () => get<{ links: SignupLink[] }>('/api/admin/signup-links'),
+	createSignupLink: (label: string, expiresInDays = 0) =>
+		post<SignupLink>('/api/admin/signup-links', { label, expiresInDays }),
+	revokeSignupLink: (id: string) =>
+		del<{ ok: boolean }>(`/api/admin/signup-links/${encodeURIComponent(id)}`),
+	checkSignupLink: (token: string) =>
+		get<{ ok: boolean; label?: string; code?: string }>(
+			`/api/signup-links/${encodeURIComponent(token)}`
+		),
 
 	// Announcements: active list (any signed-in user, for the banner) + the
 	// owner/admin-only management endpoints.

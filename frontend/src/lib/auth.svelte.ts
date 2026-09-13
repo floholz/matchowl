@@ -73,9 +73,14 @@ class Auth {
 	}
 
 	// Google OAuth2 (popup flow). Creates or signs into the matching account;
-	// the avatar/name are pulled from the Google profile by the server.
-	async loginGoogle() {
-		await pb.collection('users').authWithOAuth2({ provider: 'google' });
+	// the avatar/name are pulled from the Google profile by the server. While
+	// sign-up is closed, a one-time registration link token lets the account
+	// be created (the SDK forwards the header on the auth call).
+	async loginGoogle(signupToken = '') {
+		await pb.collection('users').authWithOAuth2({
+			provider: 'google',
+			headers: signupHeaders(signupToken)
+		});
 	}
 
 	// Update the signed-in user's display name and (optionally) avatar.
@@ -150,16 +155,20 @@ class Auth {
 	}
 
 	// Register with email + password. The form has the terms checkbox, so the
-	// acceptance rides along with the create call.
-	async register(name: string, email: string, password: string) {
-		await pb.collection('users').create({
-			name,
-			email,
-			password,
-			passwordConfirm: password,
-			termsAcceptedAt: new Date().toISOString(),
-			termsVersion: TERMS_VERSION
-		});
+	// acceptance rides along with the create call. While sign-up is closed, a
+	// one-time registration link token opens the door for this one account.
+	async register(name: string, email: string, password: string, signupToken = '') {
+		await pb.collection('users').create(
+			{
+				name,
+				email,
+				password,
+				passwordConfirm: password,
+				termsAcceptedAt: new Date().toISOString(),
+				termsVersion: TERMS_VERSION
+			},
+			{ headers: signupHeaders(signupToken) }
+		);
 		await this.login(email, password);
 		// Kick off email verification right away; fire-and-forget so a mail
 		// hiccup never blocks account creation (the verify prompt and Settings
@@ -184,6 +193,12 @@ class Auth {
 	logout() {
 		pb.authStore.clear();
 	}
+}
+
+// The header the server's sign-up gate reads (internal/users). Empty when
+// there is no token, so open registration sends nothing extra.
+function signupHeaders(token: string): Record<string, string> {
+	return token ? { 'X-Signup-Token': token } : {};
 }
 
 export const auth = new Auth();

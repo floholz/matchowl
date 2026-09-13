@@ -14,7 +14,7 @@ cp .env.example .env
 |-----|--------|-------|
 | `HTTP_PORT` | no | Host port (default `8090`). |
 | `OPERATOR_NAME` / `OPERATOR_LOCATION` | **yes** / no | Who runs Matchowl, shown on the About & contact page (Austrian media-law disclosure: name and town, no street). Location defaults to `Vienna, Austria`. |
-| `REGISTRATION_OPEN` | no | `0` closes sign-up (email/password and new Google accounts) for a private test run; existing accounts sign in as usual. Default open. |
+| `REGISTRATION_OPEN` | no | `0` closes sign-up (email/password and new Google accounts) for a private test run; existing accounts sign in as usual, and admins hand out one-time registration links from Admin → Registration links. Default open. |
 | `UNVERIFIED_PURGE_DAYS` | no | Nightly purge of unverified accounts older than this (default `180`; `0` disables). |
 | `MATCHOWL_VERSION` | no | Image tag to run with `docker compose pull` (e.g. `1.0.0-alpha.1`; default `latest`). |
 | `APP_URL` | **yes** | Public origin of the app, e.g. `https://play.matchowl.app`. Applied to PocketBase's application URL at boot: every link in verification / reset / email-change mails is built from it. |

@@ -66,6 +66,7 @@ func main() {
 		oauth.Register(e.App)
 		users.Register(e.App)
 		users.RegisterSignupGate(e.App)
+		users.RegisterSignupLinks(e.App, e)
 		users.RegisterPurge(e.App)
 		tournaments.Register(e.App, e)
 		players.Register(e.App, e)

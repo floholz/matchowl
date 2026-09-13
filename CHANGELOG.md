@@ -11,6 +11,16 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.2] - 2026-09-13
+
+### Added
+
+- **One-time registration links.** While sign-up is closed
+  (`REGISTRATION_OPEN=0`), an admin mints links under Admin → Registration
+  links (a note on who it's for, optional expiry) and shares them; each link
+  creates exactly one account, email/password or Google, and the list shows
+  who came in through which one. Unused links can be revoked.
+
 ## [1.0.0-alpha.1] - 2026-09-13
 
 The first build of Matchowl as its own app, for private testing with a
@@ -69,5 +79,6 @@ handful of friends. It grew out of the World Cup 2026 game (wm-pickems, see
 - Mail subjects said "Acme" and links pointed at localhost on a fresh
   database (PocketBase defaults); the app name and URL are applied at boot.
 
-[Unreleased]: https://github.com/floholz/matchowl/compare/v1.0.0-alpha.1...HEAD
+[Unreleased]: https://github.com/floholz/matchowl/compare/v1.0.0-alpha.2...HEAD
+[1.0.0-alpha.2]: https://github.com/floholz/matchowl/releases/tag/v1.0.0-alpha.2
 [1.0.0-alpha.1]: https://github.com/floholz/matchowl/releases/tag/v1.0.0-alpha.1

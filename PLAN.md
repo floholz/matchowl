@@ -415,13 +415,17 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.2** (2026-09-13): one-time registration links — an admin
+  mints them under Admin → Registration links and each creates exactly one
+  account while sign-up stays closed. Migration 0041 (`signup_links`).
 - **v1.0.0-alpha.1** (2026-09-13): first build for private testing, live on
   the VPS at play.matchowl.app the same day (Traefik in front, own compose
   directory and volume next to the old WC app). Release flow: tag on `main` → CI pushes
   `ghcr.io/floholz/matchowl:<version>` and publishes the GitHub release
   (pre-release for alpha/beta/rc) from `CHANGELOG.md`; the host runs the
   image via compose with `MATCHOWL_VERSION`. `REGISTRATION_OPEN=0` keeps
-  sign-up closed; the version shows in the Home footer. The walkthrough
+  sign-up closed (testers get one-time registration links minted under
+  Admin → Registration links); the version shows in the Home footer. The walkthrough
   paused after §5 for this release and resumes at §6 (Forecast).
 
 ## Backlog
