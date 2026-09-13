@@ -44,8 +44,8 @@
 
 <style>
 	.board {
-		--led: var(--warning);
-		--led-glow: rgba(255, 180, 61, 0.55);
+		--led: var(--board-led, var(--warning));
+		--led-glow: var(--board-glow, rgba(255, 180, 61, 0.55));
 		display: inline-flex;
 		align-items: center;
 		flex: none;
@@ -55,7 +55,7 @@
 	}
 	.board.live {
 		--led: var(--live);
-		--led-glow: rgba(255, 61, 46, 0.6);
+		--led-glow: var(--board-live-glow, rgba(255, 61, 46, 0.6));
 	}
 	.tile {
 		display: flex;
@@ -64,11 +64,11 @@
 		gap: 6px;
 		min-width: 44px;
 		padding: 5px 4px;
-		background: #000;
+		background: var(--board-bg);
 		border-radius: 9px;
 		box-shadow:
-			inset 0 0 0 1px #221c14,
-			inset 0 2px 6px rgba(0, 0, 0, 0.8);
+			inset 0 0 0 1px var(--board-line),
+			inset 0 2px 6px var(--board-shade, rgba(0, 0, 0, 0.8));
 		position: relative;
 		z-index: 1;
 	}
@@ -122,12 +122,12 @@
 		width: 24px;
 		margin-right: -8px;
 		padding-right: 2px;
-		background: #000;
+		background: var(--board-bg);
 		border-radius: 7px 0 0 7px;
 		box-shadow:
-			inset 1px 0 0 #221c14,
-			inset 0 1px 0 #221c14,
-			inset 0 -1px 0 #221c14;
+			inset 1px 0 0 var(--board-line),
+			inset 0 1px 0 var(--board-line),
+			inset 0 -1px 0 var(--board-line);
 		line-height: 1;
 		font-family: var(--font);
 		font-size: 6.5px;

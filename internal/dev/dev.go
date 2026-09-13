@@ -319,6 +319,12 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 			u.SetRandomPassword()
 			u.Set("name", name)
 			u.Set("verified", true)
+			// Mark them as bots: everything that separates machines from
+			// people (no mail, no people search, bot pill on boards) keys on
+			// the role. Internal save, so the role-protection hook doesn't
+			// apply.
+			u.Set("role", "bot")
+			u.Set("botKind", "dev")
 			if err := tx.Save(u); err != nil {
 				return err
 			}

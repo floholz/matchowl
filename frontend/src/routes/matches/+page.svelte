@@ -47,9 +47,14 @@
 
 	$effect(() => {
 		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error) {
-			feedStore.load().then(scrollToToday).catch(() => {});
+			feedStore.load().catch(() => {});
 			tournamentStore.ready().catch(() => {});
 		}
+	});
+	// Land on today once the feed is there — whether this page loaded it or
+	// Home did before we navigated here (then it is loaded on arrival).
+	$effect(() => {
+		if (feedStore.loaded && !scrolled) scrollToToday();
 	});
 
 	let liveCount = $derived(feedStore.matches.filter((m) => m.status === 'live').length);
@@ -92,12 +97,21 @@
 		return days.find((d) => d.key > feedStore.todayKey)?.key ?? days[0]?.key ?? '';
 	});
 
-	// Land on today (or the first upcoming day) once, after first render.
+	// Land on today (or the first upcoming day) once, after first render:
+	// list and strip both jump, then `scrolled` switches the strip to smooth.
 	async function scrollToToday() {
 		if (scrolled) return;
-		scrolled = true;
 		await tick();
+		// SvelteKit resets the window to the top right after a client-side
+		// navigation has rendered; two frames later that has happened and
+		// our landing sticks (a fresh load never hit this — the fetch took
+		// longer than the reset).
+		await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 		goDay(anchorKey, 'instant');
+		stripEl
+			?.querySelector<HTMLElement>(`[data-key="${anchorKey}"]`)
+			?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
+		scrolled = true;
 	}
 	function goDay(key: string, behavior: ScrollBehavior = 'smooth') {
 		const el = document.getElementById(`day-${key}`);
@@ -154,11 +168,17 @@
 		onScroll();
 		return () => window.removeEventListener('scroll', onScroll);
 	});
-	// Keep the highlighted day visible in the strip.
+	// Keep the highlighted day visible in the strip. Until the list has
+	// landed on today the strip jumps (no animated scroll across weeks on
+	// first paint); afterwards it glides along with the list.
 	$effect(() => {
 		const key = activeKey;
 		const el = stripEl?.querySelector<HTMLElement>(`[data-key="${key}"]`);
-		el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+		el?.scrollIntoView({
+			block: 'nearest',
+			inline: 'center',
+			behavior: scrolled ? 'smooth' : 'instant'
+		});
 	});
 	// Today is the strip's anchor: once its button scrolls out of the strip,
 	// a "Today" chip pins to that edge so it is always one tap away.

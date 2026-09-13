@@ -360,7 +360,9 @@ work pending · ⏭ deliberately deferred
 - ⬜ Competitions admin (rename, logo, merge?)
 - ⬜ Sync dashboard + manual result override UX
 - ⬜ `/owner` page — purpose & contents
-- ⬜ `/dev` harness — clock, simulate, bots, reset
+- ⬜ `/dev` harness — clock, simulate, bots, reset. Found 2026-09-13: the
+  harness's bots were created without `role=bot`, so they counted as
+  humans (chat digest mailed them, people search found them) — fixed.
 
 #### 11. Backend pipelines (validate behavior, not UI)
 - ⬜ Importer: shape derivation coverage (WC, Euro, league, UCL-Swiss, pure cups), qualifier exclusion, warnings

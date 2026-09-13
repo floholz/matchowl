@@ -69,6 +69,12 @@
 	--font-mono: 'Red Hat Mono Variable', ui-monospace, monospace; /* scoreboard */
 	--font-led: 'DSEG7', 'Red Hat Mono Variable', ui-monospace, monospace; /* the LED board */
 
+	/* The stadium board: tile behind the LED digits, its inset ring, and
+	   (optionally, per theme) the digit colour and glow. Dark themes leave
+	   the digits at the amber default. */
+	--board-bg: #000;
+	--board-line: #221c14;
+
 	/* ---- Layout metrics ---- */
 	--maxw: 740px;
 	--maxw-wide: 1260px; /* desktop pages that spread out (Matches, Home) */
@@ -103,6 +109,16 @@
 	--border: #e8b98d;
 	--text: #141210;
 	--muted: #7a5a3c;
+
+	/* Board in daylight: a cream display with orange digits and no glow —
+	   an LCD rather than a lit stadium board, so no dark tile sits in the
+	   peach card. Live stays red. */
+	--board-bg: #fff8f0;
+	--board-line: #e8b98d;
+	--board-led: #cc5800;
+	--board-glow: transparent;
+	--board-live-glow: transparent;
+	--board-shade: rgba(120, 70, 20, 0.16);
 
 	--danger: #d92d27;
 	--success: #1e8a47;
