@@ -107,18 +107,18 @@
 	--surface: #ffd7b4; /* the mark's plumage, on cards */
 	--surface-2: #ffc999;
 	--border: #e8b98d;
-	--text: #141210;
+	--text: #452f1a; /* warm dark brown — softer than black against peach */
 	--muted: #7a5a3c;
 
-	/* Board in daylight: a cream display with orange digits and no glow —
-	   an LCD rather than a lit stadium board, so no dark tile sits in the
-	   peach card. Live stays red. */
-	--board-bg: #fff8f0;
-	--board-line: #e8b98d;
-	--board-led: #cc5800;
-	--board-glow: transparent;
-	--board-live-glow: transparent;
-	--board-shade: rgba(120, 70, 20, 0.16);
+	/* Board in daylight: a burnt-orange tile with lit orange digits — the
+	   stadium board, but in the palette rather than a black hole in a peach
+	   card. Live digits go red with a soft glow. */
+	--board-bg: #7f3b12;
+	--board-line: #9a4a19;
+	--board-led: #ff8427;
+	--board-glow: rgba(255, 132, 39, 0.35);
+	--board-live-glow: rgba(255, 61, 46, 0.5);
+	--board-shade: rgba(60, 25, 5, 0.45);
 
 	--danger: #d92d27;
 	--success: #1e8a47;

@@ -11,7 +11,7 @@
 	import { pageChrome } from '$lib/shell.svelte';
 	import { media } from '$lib/media.svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import MatchGroup from '$lib/components/MatchGroup.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import MatchDetail from '$lib/components/MatchDetail.svelte';
@@ -55,6 +55,20 @@
 	// Home did before we navigated here (then it is loaded on arrival).
 	$effect(() => {
 		if (feedStore.loaded && !scrolled) scrollToToday();
+	});
+	// Tapping the Matches nav item while already here: SvelteKit re-navigates
+	// to the same URL and resets the scroll to the top (the oldest loaded
+	// day). Treat it as "take me to today" instead.
+	afterNavigate((nav) => {
+		if (
+			nav.type === 'link' &&
+			nav.from?.url.pathname === '/matches' &&
+			nav.to?.url.pathname === '/matches' &&
+			!nav.to.url.search &&
+			scrolled
+		) {
+			requestAnimationFrame(() => requestAnimationFrame(() => goDay(anchorKey, 'instant')));
+		}
 	});
 
 	let liveCount = $derived(feedStore.matches.filter((m) => m.status === 'live').length);
@@ -113,11 +127,15 @@
 			?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'instant' });
 		scrolled = true;
 	}
+	/** Scroll so the day section starts right under the sticky chrome (top
+	 *  bar + subbar) — measured, not guessed, so the follow logic (which
+	 *  reads the same line) agrees on which day is current. */
 	function goDay(key: string, behavior: ScrollBehavior = 'smooth') {
 		const el = document.getElementById(`day-${key}`);
 		if (!el) return;
 		activeKey = key;
-		el.scrollIntoView({ block: 'start', behavior });
+		const line = (document.querySelector('.subbar')?.getBoundingClientRect().bottom ?? 120) + 4;
+		window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - line, behavior });
 	}
 	/** Strip tap: an unloaded day grows the window out to it first; a day
 	 *  without matches lands on the nearest day that has some. */
