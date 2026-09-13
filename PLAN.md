@@ -295,10 +295,11 @@ work pending · ⏭ deliberately deferred
 - 🔨 Light theme: brown text, burnt-orange board tile (`--board-*` tokens)
 
 #### 3. Competitions
-- 🔨 Catalog `/competitions` — verdict 2026-09-13: left out of the layout
-  rework, needs the pass: suggestions capped to a couple (expand for the
-  rest), Play from the list, sections (playing · available · finished), a
-  search field so the list can grow. Found: league badges never fetched
+- ✅ Catalog `/competitions` — pass done 2026-09-13 (`e8185d3`): search
+  field, suggestions capped to two (expand for the rest), Play from the
+  list, sections (playing · available · finished), Play toggles refresh the
+  feed. Older dev competitions lacked country/short name (pre-importer
+  records; filled by hand, prod imports fresh). Found: league badges never fetched
   for the leagues because the leagues→pools rename had rewritten the
   provider's badge URL (`football/pools/`) — fixed, missing badges are
   backfilled at boot. La Liga's forecast call said "Religation" (data;
