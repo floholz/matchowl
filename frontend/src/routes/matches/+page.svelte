@@ -184,24 +184,35 @@
 	function chromeLine() {
 		return (document.querySelector('.subbar')?.getBoundingClientRect().bottom ?? 120) + 4;
 	}
+	/** One upward load at a time, compensation included: the store's own
+	 *  `loading` flag drops before the scroll is put back, and a second load
+	 *  started in that gap measured its anchor against a half-moved page. */
+	let earlierBusy = false;
 	async function loadEarlier() {
-		if (feedStore.loading || !feedStore.canEarlier) return;
-		// Anchor on the first day section still on screen: after the load it
-		// is put back exactly where it was, whatever got inserted above.
-		const line = chromeLine();
-		const anchor = Array.from(document.querySelectorAll<HTMLElement>('section.day')).find(
-			(s) => s.getBoundingClientRect().bottom > line
-		);
-		const key = anchor?.dataset.key;
-		const top = anchor?.getBoundingClientRect().top ?? 0;
-		await feedStore.earlier().catch(() => {});
-		await tick();
-		const el = key ? document.getElementById(`day-${key}`) : null;
-		if (el) window.scrollBy({ top: el.getBoundingClientRect().top - top, behavior: 'instant' });
+		if (earlierBusy || feedStore.loading || !feedStore.canEarlier) return;
+		earlierBusy = true;
+		try {
+			// Anchor on the first day section still on screen: after the load
+			// it is put back exactly where it was, whatever got inserted above.
+			const line = chromeLine();
+			const anchor = Array.from(document.querySelectorAll<HTMLElement>('section.day')).find(
+				(s) => s.getBoundingClientRect().bottom > line
+			);
+			const key = anchor?.dataset.key;
+			const top = anchor?.getBoundingClientRect().top ?? 0;
+			await feedStore.earlier().catch(() => {});
+			await tick();
+			const el = key ? document.getElementById(`day-${key}`) : null;
+			if (el) window.scrollBy({ top: el.getBoundingClientRect().top - top, behavior: 'instant' });
+		} finally {
+			earlierBusy = false;
+		}
+		// Still in reach after the page was put back? Keep filling.
+		maybeLoadEarlier();
 	}
 	function maybeLoadEarlier() {
 		const el = topEl;
-		if (!el || !scrolled || feedStore.loading || !feedStore.canEarlier) return;
+		if (!el || !scrolled || earlierBusy || feedStore.loading || !feedStore.canEarlier) return;
 		if (el.getBoundingClientRect().bottom > chromeLine()) loadEarlier();
 	}
 	// The loader counts as "in view" only below the sticky chrome (a negative
@@ -230,8 +241,9 @@
 	// Follow the scroll: the topmost day section below the sticky chrome.
 	$effect(() => {
 		if (!feedStore.loaded) return;
-		const sections = Array.from(document.querySelectorAll<HTMLElement>('section.day'));
 		const onScroll = () => {
+			// Query every time: days get inserted above and below as you scroll.
+			const sections = Array.from(document.querySelectorAll<HTMLElement>('section.day'));
 			const top = (document.querySelector('.subbar')?.getBoundingClientRect().bottom ?? 120) + 8;
 			let cur = sections[0];
 			for (const s of sections) if (s.getBoundingClientRect().top <= top) cur = s;
