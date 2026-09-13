@@ -174,12 +174,58 @@
 		io.observe(el);
 		return () => io.disconnect();
 	});
+	// Infinite scroll backwards, the same way, once the list has landed on
+	// today. Days get inserted above the viewport, which would shift what
+	// you are looking at; the scroll is compensated by the added height by
+	// hand (Chrome's scroll anchoring would do it, Safari has none — see the
+	// overflow-anchor rule on the column).
+	let topEl = $state<HTMLElement | null>(null);
+	/** Bottom edge of the sticky chrome in viewport coordinates. */
+	function chromeLine() {
+		return (document.querySelector('.subbar')?.getBoundingClientRect().bottom ?? 120) + 4;
+	}
+	async function loadEarlier() {
+		if (feedStore.loading || !feedStore.canEarlier) return;
+		// Anchor on the first day section still on screen: after the load it
+		// is put back exactly where it was, whatever got inserted above.
+		const line = chromeLine();
+		const anchor = Array.from(document.querySelectorAll<HTMLElement>('section.day')).find(
+			(s) => s.getBoundingClientRect().bottom > line
+		);
+		const key = anchor?.dataset.key;
+		const top = anchor?.getBoundingClientRect().top ?? 0;
+		await feedStore.earlier().catch(() => {});
+		await tick();
+		const el = key ? document.getElementById(`day-${key}`) : null;
+		if (el) window.scrollBy({ top: el.getBoundingClientRect().top - top, behavior: 'instant' });
+	}
+	function maybeLoadEarlier() {
+		const el = topEl;
+		if (!el || !scrolled || feedStore.loading || !feedStore.canEarlier) return;
+		if (el.getBoundingClientRect().bottom > chromeLine()) loadEarlier();
+	}
+	// The loader counts as "in view" only below the sticky chrome (a negative
+	// top margin): on landing it sits right above today, under the bar, and
+	// must not fire until you actually scroll up into it.
+	$effect(() => {
+		const el = topEl;
+		if (!el || !scrolled) return;
+		const io = new IntersectionObserver(() => maybeLoadEarlier(), {
+			rootMargin: `-${Math.round(chromeLine())}px 0px 0px 0px`
+		});
+		io.observe(el);
+		return () => io.disconnect();
+	});
 	// An intersection that happened while another load was running (a scope
 	// switch, a far strip tap) was swallowed — the observer only reports
 	// crossings. Look again whenever a load settles; that also keeps filling
-	// until the loader is out of reach.
+	// until both loaders are out of reach.
 	$effect(() => {
-		if (!feedStore.loading) untrack(() => maybeLoadLater());
+		if (!feedStore.loading)
+			untrack(() => {
+				maybeLoadLater();
+				maybeLoadEarlier();
+			});
 	});
 	// Follow the scroll: the topmost day section below the sticky chrome.
 	$effect(() => {
@@ -347,7 +393,7 @@
 		</div>
 	{:else if feedStore.loaded}
 		{#if feedStore.canEarlier}
-			<button class="btn ghost more" onclick={() => feedStore.earlier()} disabled={feedStore.loading}>
+			<button class="btn ghost more" bind:this={topEl} onclick={loadEarlier} disabled={feedStore.loading}>
 				<ChevronUp size={16} /> {feedStore.loading ? 'Loading…' : 'Earlier results'}
 			</button>
 		{/if}
@@ -414,6 +460,9 @@
 	}
 	.col {
 		min-width: 0;
+		/* Earlier days are inserted above the viewport; the page compensates
+		   the scroll itself (loadEarlier), so the browser must not also. */
+		overflow-anchor: none;
 	}
 	@media (min-width: 900px) {
 		.layout {
