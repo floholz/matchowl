@@ -486,6 +486,12 @@ func Derive(league football.League, season football.Season, fixtures []football.
 	default:
 		p.Shape = "knockout"
 	}
+	// A single table's zones (European places, play-offs, relegation, the
+	// championship / relegation split) come from the provider's per-rank
+	// labels; the admin can still edit them.
+	if hasTable && !hasGroups {
+		p.Structure.Zones = zonesFromStandings(standings, p.Structure.GroupSize)
+	}
 	// The full forecast builder (group tables + bracket) fits WC/Euro
 	// shapes; everything else starts without a forecast until the admin
 	// defines calls.
@@ -562,6 +568,78 @@ func groupsFromStandings(standings []football.StandingGroup, fixtures []football
 		}
 	}
 	return out
+}
+
+// zonesFromStandings turns a single table's per-rank labels into contiguous
+// zones: ranks 1–4 "Promotion - Champions League (League phase)" become one
+// zone {ucl, "Champions League", 1, 4}. Canonical keys (ucl, uel, uecl, po,
+// rel, champ, relgroup, promo) so forecast calls can target them across
+// seasons; anything else gets a key from its label. Nothing for "None".
+func zonesFromStandings(standings []football.StandingGroup, groupSize int) []tournaments.Zone {
+	if len(standings) != 1 || groupSize == 0 {
+		return nil
+	}
+	rows := append([]football.StandingRow(nil), standings[0].Rows...)
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Rank < rows[j].Rank })
+	var out []tournaments.Zone
+	used := map[string]int{}
+	for _, r := range rows {
+		key, name := zoneLabel(r.Description)
+		if key == "" || r.Rank < 1 || r.Rank > groupSize {
+			continue
+		}
+		if n := len(out); n > 0 && out[n-1].Name == name && out[n-1].To == r.Rank-1 {
+			out[n-1].To = r.Rank
+			continue
+		}
+		k := key
+		if used[key] > 0 {
+			k = fmt.Sprintf("%s%d", key, used[key]+1)
+		}
+		used[key]++
+		out = append(out, tournaments.Zone{Key: k, Name: name, From: r.Rank, To: r.Rank})
+	}
+	return out
+}
+
+var zoneKeyJunk = regexp.MustCompile(`[^a-z0-9]+`)
+
+// zoneLabel maps a provider standings description to a zone key and a
+// display name; "" for no zone.
+func zoneLabel(desc string) (key, name string) {
+	d := strings.TrimSpace(desc)
+	l := strings.ToLower(d)
+	switch {
+	case d == "" || l == "none":
+		return "", ""
+	case strings.Contains(l, "champions league"):
+		return "ucl", "Champions League"
+	case strings.Contains(l, "europa league"):
+		return "uel", "Europa League"
+	case strings.Contains(l, "conference"):
+		return "uecl", "Conference League"
+	case strings.Contains(l, "relegation group"):
+		return "relgroup", "Relegation group"
+	case strings.Contains(l, "championship group"):
+		return "champ", "Championship group"
+	case strings.Contains(l, "relegation"):
+		return "rel", "Relegation"
+	case strings.Contains(l, "play-off") || strings.Contains(l, "playoff"):
+		return "po", "Play-offs"
+	case strings.Contains(l, "promotion"):
+		return "promo", "Promotion"
+	}
+	k := strings.Trim(zoneKeyJunk.ReplaceAllString(l, "-"), "-")
+	if len(k) > 12 {
+		k = k[:12]
+	}
+	if len(k) < 1 {
+		return "", ""
+	}
+	if len(d) > 64 {
+		d = d[:64]
+	}
+	return k, d
 }
 
 // groupsFromComponents infers groups as connected components of the

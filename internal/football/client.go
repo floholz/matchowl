@@ -323,10 +323,21 @@ func (c *Client) Teams(ctx context.Context, yr int) ([]Team, error) {
 }
 
 // StandingGroup is one table of /standings: a league season has one, a
-// group-stage cup has one per group ("Group A", ...).
+// group-stage cup has one per group ("Group A", ...). Rows carry the
+// provider's per-rank label ("Promotion - Champions League (League phase)",
+// "Relegation - Championship", "Play-offs", "None") — the importer turns
+// those into table zones.
 type StandingGroup struct {
-	Name    string `json:"name"`
-	TeamIDs []int  `json:"teamIds"`
+	Name    string        `json:"name"`
+	TeamIDs []int         `json:"teamIds"`
+	Rows    []StandingRow `json:"rows,omitempty"`
+}
+
+// StandingRow is one line of a standings table.
+type StandingRow struct {
+	Rank        int    `json:"rank"`
+	TeamID      int    `json:"teamId"`
+	Description string `json:"description,omitempty"`
 }
 
 type standingsResponse struct {
@@ -334,8 +345,10 @@ type standingsResponse struct {
 	Response []struct {
 		League struct {
 			Standings [][]struct {
-				Group string `json:"group"`
-				Team  struct {
+				Rank        int    `json:"rank"`
+				Group       string `json:"group"`
+				Description string `json:"description"`
+				Team        struct {
 					ID int `json:"id"`
 				} `json:"team"`
 			} `json:"standings"`
@@ -361,6 +374,7 @@ func (c *Client) Standings(ctx context.Context, yr int) ([]StandingGroup, error)
 			g := StandingGroup{Name: tbl[0].Group}
 			for _, row := range tbl {
 				g.TeamIDs = append(g.TeamIDs, row.Team.ID)
+				g.Rows = append(g.Rows, StandingRow{Rank: row.Rank, TeamID: row.Team.ID, Description: row.Description})
 			}
 			out = append(out, g)
 		}
