@@ -24,6 +24,7 @@
 	import MatchList from '$lib/components/MatchList.svelte';
 	import Standings from '$lib/components/Standings.svelte';
 	import KnockoutTies from '$lib/components/KnockoutTies.svelte';
+	import TabPager from '$lib/components/TabPager.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { Check, Plus, Target, ChevronDown, ChevronRight, ChevronLeft, Lock } from '@lucide/svelte';
 
@@ -101,83 +102,6 @@
 	function pickSeason(slug: string) {
 		goto(href(slug, tab), { noScroll: true, keepFocus: true });
 	}
-	// Swipe between tabs (touch only): the pane follows the finger and the
-	// neighbouring tab slides in beside it, like a native pager. A touch that
-	// starts on something that scrolls sideways itself — the knockout round
-	// pills, a wide table — belongs to that element; a vertical-ish gesture
-	// is the page's scroll and never starts a drag.
-	let sx = 0;
-	let sy = 0;
-	let st = 0;
-	let swipeOwned = false;
-	let decided = false;
-	let dragging = false;
-	let dragX = $state(0);
-	let settling = $state(false);
-	let neighbour = $state<Tab | ''>('');
-	let neighbourSide = $state<'left' | 'right'>('right');
-	let paneEl = $state<HTMLElement | null>(null);
-	function insideHorizontalScroller(el: Element | null): boolean {
-		for (let n = el; n && !(n as HTMLElement).classList?.contains('pane'); n = n.parentElement) {
-			const h = n as HTMLElement;
-			if (h.scrollWidth > h.clientWidth + 1) {
-				const ox = getComputedStyle(h).overflowX;
-				if (ox === 'auto' || ox === 'scroll') return true;
-			}
-		}
-		return false;
-	}
-	function touchStart(e: TouchEvent) {
-		if (settling) return;
-		sx = e.touches[0].clientX;
-		sy = e.touches[0].clientY;
-		st = Date.now();
-		decided = false;
-		dragging = false;
-		swipeOwned = insideHorizontalScroller(e.target as Element | null);
-	}
-	function touchMove(e: TouchEvent) {
-		if (swipeOwned || settling) return;
-		const dx = e.touches[0].clientX - sx;
-		const dy = e.touches[0].clientY - sy;
-		if (!decided) {
-			if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-			decided = true;
-			if (Math.abs(dx) < Math.abs(dy) * 1.2) return; // a scroll, not a swipe
-			dragging = true;
-			const i = tabs.findIndex((x) => x.id === tab);
-			neighbour = tabs[i + (dx < 0 ? 1 : -1)]?.id ?? '';
-			neighbourSide = dx < 0 ? 'right' : 'left';
-		}
-		if (!dragging) return;
-		// No tab that way: give a little, with resistance.
-		dragX = neighbour ? dx : dx / 4;
-	}
-	function touchEnd() {
-		if (!dragging) return;
-		dragging = false;
-		const w = paneEl?.clientWidth ?? 1;
-		const dx = dragX;
-		const flick = Date.now() - st < 300 && Math.abs(dx) > 40;
-		const target = neighbour && (Math.abs(dx) > w * 0.28 || flick) ? neighbour : '';
-		settling = true;
-		if (target) {
-			dragX = dx < 0 ? -w : w;
-			setTimeout(() => {
-				settling = false;
-				dragX = 0;
-				neighbour = '';
-				setTab(target);
-			}, 230);
-		} else {
-			dragX = 0;
-			setTimeout(() => {
-				settling = false;
-				neighbour = '';
-			}, 230);
-		}
-	}
-
 	async function togglePlay() {
 		if (!season) return;
 		busy = true;
@@ -405,14 +329,7 @@
 				{/if}
 			{/if}
 		{/snippet}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="pane" bind:this={paneEl} ontouchstart={touchStart} ontouchmove={touchMove} ontouchend={touchEnd} ontouchcancel={touchEnd}>
-			<div class="track" class:anim={settling} style:transform={dragX || settling ? `translateX(${dragX}px)` : undefined}>
-				{#if neighbour && neighbourSide === 'left'}<div class="slide side left">{@render paneFor(neighbour)}</div>{/if}
-				<div class="slide">{@render paneFor(tab)}</div>
-				{#if neighbour && neighbourSide === 'right'}<div class="slide side right">{@render paneFor(neighbour)}</div>{/if}
-			</div>
-		</div>
+		<TabPager tabs={tabs.map((t) => t.id)} current={tab} onchange={setTab} pane={paneFor} />
 	</div>
 {:else}
 	<p class="muted">Loading…</p>
@@ -553,28 +470,6 @@
 	}
 
 	/* ---- panes ---- */
-	.pane {
-		min-height: 40vh;
-		position: relative;
-		overflow: clip; /* no scroll container: sticky rows inside keep working */
-	}
-	.track {
-		position: relative;
-	}
-	.track.anim {
-		transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
-	}
-	.slide.side {
-		position: absolute;
-		top: 0;
-		width: 100%;
-	}
-	.slide.left {
-		left: -100%;
-	}
-	.slide.right {
-		left: 100%;
-	}
 	.sec {
 		display: flex;
 		align-items: baseline;

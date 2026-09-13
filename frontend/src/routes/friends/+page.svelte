@@ -11,11 +11,13 @@
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import TabPager from '$lib/components/TabPager.svelte';
 	import { Globe, ChevronRight, ChevronDown, MessageSquare, Check, X, UserPlus, Search, Plus, Copy, Share2 } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Friends' }));
 
-	let view = $derived($page.url.searchParams.get('tab') === 'friends' ? 'friends' : 'pools');
+	const views = ['pools', 'friends'] as const;
+	let view = $derived<'pools' | 'friends'>($page.url.searchParams.get('tab') === 'friends' ? 'friends' : 'pools');
 	function setView(v: 'pools' | 'friends') {
 		goto(v === 'friends' ? '/friends?tab=friends' : '/friends', { replaceState: true, noScroll: true, keepFocus: true });
 	}
@@ -296,7 +298,10 @@
 		{#if verifyError}<p class="error">{verifyError}</p>{/if}
 		<p class="muted small">Wrong address? Change it under Settings.</p>
 	</div>
-{:else if view === 'pools'}
+{:else}
+	<TabPager tabs={views} current={view} onchange={setView}>
+		{#snippet pane(id)}
+			{#if id === 'pools'}
 	{#if invites.length}
 		<div class="sec2 first"><h2>Invites</h2><span class="pill ok">{invites.length}</span></div>
 		{#each invites as i (i.id)}
@@ -386,7 +391,7 @@
 		<button class="btn secondary" onclick={() => openSheet('join')}>Join with code</button>
 	</div>
 	<div class="actpad"></div>
-{:else}
+			{:else}
 	<label class="search">
 		<Search size={16} />
 		<input class="input" placeholder="Find people by name" bind:value={q} oninput={onSearch} />
@@ -491,6 +496,9 @@
 			{/each}
 		</div>
 	{/if}
+			{/if}
+		{/snippet}
+	</TabPager>
 {/if}
 
 {#if sheet}
