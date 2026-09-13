@@ -310,12 +310,27 @@ work pending · ⏭ deliberately deferred
 - ⬜ Play / Leave semantics, auto-subscribe on first tip
 - ⬜ Missing/unknown-slug handling (`?t=`, TournamentMissing)
 
-#### 4. Tipping (TipCard — the core interaction)
-- ⬜ Card states: upcoming / countdown / live / played / locked; points pills
-- ⬜ Group-match entry (steppers), KO phased entry (FT → ET → pens)
-- ⬜ Two-legged ties: leg chips, other-leg row, aggregate, cross-leg links (new — needs a UI eyeball once real legs exist or via dev sim)
-- ⬜ Friends' picks post-kickoff, bot tips list, perfect-tips stat
-- ⬜ Scoring rules for tips (tendency/exact/total/diff, ET bonus, advancer) — confirm the config is still what we want across shapes
+#### 4. Tipping (the match row + match page) — walked 2026-09-13
+- ✅ Row states: upcoming / live / played / locked; points after FT. "Live"
+  without the minute for now — the minute comes with the sync rework.
+- ✅ Group-match entry (steppers, inline drawer + match page)
+- ⏭ KO phased entry (FT → ET → pens) — no upcoming knockout fixture until
+  the CL draw; check then (dev sim otherwise)
+- ✅ Two-legged ties: tie strip, aggregate, cross-leg link (CL 2025-26)
+- ✅ Friends' picks, bots, mini table on the match page
+- 🔨 **Scoring** — verdict 2026-09-13, backed by the WC26 analysis
+  (floholz.com/wm2026): the total-goals point was a coin flip (34% of
+  those points went to tips with the wrong winner) → **dropped**; a
+  perfect tip must stand out → **exact 1 → 3**. New default: result 3 ·
+  goal difference +1 · exact +3 (perfect 7, right result + GD 4, result
+  only 3). Applied to the dev default config; the seeded default follows.
+  **Scoring v2** (backlog): lean into configurability — the tiebreaker
+  order the leaderboard actually honours (today it ignores the config),
+  per-stage multipliers (knockout, final), an extra-time / penalties
+  bonus, additive vs tiered mode, exact-score rarity weighting (article:
+  base / ×2 under 15% of the field / ×3 under 5%), an admin editor for
+  named presets and a preset picker for pool owners (shown behind the
+  pool's rules icon).
 
 #### 5. Standings & tables
 - ⬜ Group tables / single-table league view, zones coloring + legend

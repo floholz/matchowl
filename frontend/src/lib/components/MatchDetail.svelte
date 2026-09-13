@@ -436,11 +436,12 @@
 					<div class="tiptxt">
 						<span class="tipline">{tipLine}</span>
 						{#if breakdown}
+							<!-- Only the components the rules pay for (a 0-point rule is off). -->
 							<span class="muted small"
-								>tendency <b class:ok={breakdown.tendency > 0}>{breakdown.tendency > 0 ? '+' : ''}{breakdown.tendency}</b>
-								· exact <b class:ok={breakdown.exact > 0}>{breakdown.exact > 0 ? '+' : ''}{breakdown.exact}</b>
-								· total goals <b class:ok={breakdown.totalGoals > 0}>{breakdown.totalGoals > 0 ? '+' : ''}{breakdown.totalGoals}</b>
-								· goal difference <b class:ok={breakdown.goalDiff > 0}>{breakdown.goalDiff > 0 ? '+' : ''}{breakdown.goalDiff}</b></span
+								>result <b class:ok={breakdown.tendency > 0}>{breakdown.tendency > 0 ? '+' : ''}{breakdown.tendency}</b>
+								{#if !cfg || cfg.match.goalDiff}· goal difference <b class:ok={breakdown.goalDiff > 0}>{breakdown.goalDiff > 0 ? '+' : ''}{breakdown.goalDiff}</b>{/if}
+								{#if !cfg || cfg.match.totalGoals}· total goals <b class:ok={breakdown.totalGoals > 0}>{breakdown.totalGoals > 0 ? '+' : ''}{breakdown.totalGoals}</b>{/if}
+								{#if !cfg || cfg.match.exact}· exact <b class:ok={breakdown.exact > 0}>{breakdown.exact > 0 ? '+' : ''}{breakdown.exact}</b>{/if}</span
 							>
 						{:else if played}
 							<span class="muted small">points pending</span>

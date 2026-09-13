@@ -159,15 +159,19 @@ func slug(s string) string {
 }
 
 // DefaultScoringConfig — the agreed rules; tunable without code changes
-// (per-League overrides reference a different scoring_configs record).
-// Max 6 per game (group 1/X/2, KO = who advances; no separate advancer / ET
-// bonus). Forecast: exact group position (+ perfect bonus), +advance per
-// correctly-predicted advancer, escalating KO rounds.
+// (per-pool overrides reference a different scoring_configs record).
+// Match: result 3 · goal difference +1 · exact +3 = max 7 (group 1/X/2, KO =
+// who advances; no separate advancer / ET bonus). The total-goals point of
+// the WC26 rules is gone — the post-tournament analysis showed it was a coin
+// flip (a third of those points went to tips with the wrong winner) — and
+// the exact score pays more so a perfect tip stands out from an almost
+// right one (2026-09-13). Forecast: exact group position (+ perfect bonus),
+// +advance per correctly-predicted advancer, escalating KO rounds.
 const DefaultScoringConfig = `{
   "match": {
     "tendency": 3,
-    "exact": 1,
-    "totalGoals": 1,
+    "exact": 3,
+    "totalGoals": 0,
     "goalDiff": 1
   },
   "forecast": {

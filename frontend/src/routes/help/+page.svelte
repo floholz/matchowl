@@ -88,9 +88,9 @@
 				<table>
 					<tbody>
 						<tr><td>Correct result (home win, draw, away win)</td><td class="digits">{scoring.match.tendency}</td></tr>
-						<tr><td>Correct goal difference</td><td class="digits">+{scoring.match.goalDiff}</td></tr>
-						<tr><td>Correct total goals</td><td class="digits">+{scoring.match.totalGoals}</td></tr>
-						<tr><td>Exact score</td><td class="digits">+{scoring.match.exact}</td></tr>
+						{#if scoring.match.goalDiff}<tr><td>Correct goal difference</td><td class="digits">+{scoring.match.goalDiff}</td></tr>{/if}
+						{#if scoring.match.totalGoals}<tr><td>Correct total goals</td><td class="digits">+{scoring.match.totalGoals}</td></tr>{/if}
+						{#if scoring.match.exact}<tr><td>Exact score</td><td class="digits">+{scoring.match.exact}</td></tr>{/if}
 					</tbody>
 				</table>
 				<p class="muted small">
