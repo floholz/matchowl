@@ -102,13 +102,29 @@
 		goto(href(slug, tab), { noScroll: true, keepFocus: true });
 	}
 	// Swipe between tabs (touch only; a horizontal flick wider than it is tall).
+	// A touch that starts on something that scrolls sideways itself — the
+	// knockout round pills, a wide table — belongs to that element, not to
+	// the tab swipe.
 	let sx = 0;
 	let sy = 0;
+	let swipeOwned = false;
+	function insideHorizontalScroller(el: Element | null): boolean {
+		for (let n = el; n && !(n as HTMLElement).classList?.contains('pane'); n = n.parentElement) {
+			const h = n as HTMLElement;
+			if (h.scrollWidth > h.clientWidth + 1) {
+				const ox = getComputedStyle(h).overflowX;
+				if (ox === 'auto' || ox === 'scroll') return true;
+			}
+		}
+		return false;
+	}
 	function touchStart(e: TouchEvent) {
 		sx = e.touches[0].clientX;
 		sy = e.touches[0].clientY;
+		swipeOwned = insideHorizontalScroller(e.target as Element | null);
 	}
 	function touchEnd(e: TouchEvent) {
+		if (swipeOwned) return;
 		const dx = e.changedTouches[0].clientX - sx;
 		const dy = e.changedTouches[0].clientY - sy;
 		if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
