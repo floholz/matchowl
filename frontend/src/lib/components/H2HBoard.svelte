@@ -94,6 +94,7 @@
 		}
 	}
 	const logo = (t: H2HPickTeam | null) => (t ? teamLogoUrl(t.id, t.logo) : '');
+	let untipped = $derived(picks ? picks.matches.filter((m) => !m.tip && !m.locked).length : 0);
 	const kick = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 </script>
 
@@ -275,12 +276,12 @@
 				<p class="muted small">Loading your calls…</p>
 			{:else}
 				<div class="rhead">
-					<b>Your calls · {roundName(picks.round)}</b>
+					<b>Your matchday · {roundName(picks.round)}</b>
 					<span class="muted small">
 						{#if picks.closed}
 							closed
 						{:else}
-							<Star size={12} /> {picks.saveCallsLeft} of {picks.saveCalls} left · <Ban size={12} /> {picks.ghost ? 'no rival' : picks.mine.ban ? 'placed' : 'open'}
+							{#if untipped}<span class="todo">{untipped} to tip</span> · {/if}<Star size={12} /> {picks.saveCallsLeft} of {picks.saveCalls} left · <Ban size={12} /> {picks.ghost ? 'no rival' : picks.mine.ban ? 'placed' : 'open'}
 						{/if}
 					</span>
 				</div>
@@ -297,15 +298,16 @@
 				<ul class="cmatches">
 					{#each picks.matches as m (m.id)}
 						<li class:locked={m.locked}>
-							<span class="cteams">
+							<a class="cteams" href={`/m/${m.id}`}>
 								<span class="ct"><img src={logo(m.home)} alt="" class="crest" />{m.home?.name ?? '?'}</span>
 								<span class="ct"><img src={logo(m.away)} alt="" class="crest" />{m.away?.name ?? '?'}</span>
-							</span>
-							<span class="cwhen muted small">
+							</a>
+							<a class="cwhen muted small" href={`/m/${m.id}`}>
 								{#if m.ftHome !== undefined}<span class="digits">{m.ftHome}–{m.ftAway}</span>{:else}{kick(m.kickoff)}{/if}
+								{#if m.tip}<span class="capsule digits" class:dim={m.locked}>{m.tip.ftHome}–{m.tip.ftAway}</span>{:else if !m.locked}<span class="capsule todo">no tip</span>{:else}<span class="capsule dim">–</span>{/if}
 								{#if m.rivalSaved}<span class="mark" title="{picks.rival?.name} saved this"><Star size={11} /> {picks.rival?.name}</span>{/if}
 								{#if m.rivalBanned}<span class="mark ban" title="{picks.rival?.name} banned this for you"><Ban size={11} /> banned</span>{/if}
-							</span>
+							</a>
 							<span class="cbtns">
 								<button class="pk" class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the save call back' : 'Save call'} title={m.saved ? 'Take the save call back' : 'Save call: counts double for you'} onclick={() => setPick(m, 'save')}><Star size={15} /></button>
 								{#if !picks.ghost && picks.paired}
@@ -614,6 +616,34 @@
 		min-width: 0;
 		font-size: 0.82rem;
 		font-weight: 600;
+		color: inherit;
+		text-decoration: none;
+	}
+	.cwhen {
+		text-decoration: none;
+	}
+	.capsule {
+		display: inline-flex;
+		align-items: center;
+		height: 20px;
+		padding: 0 0.45rem;
+		border-radius: var(--radius-pill);
+		border: 1px solid var(--accent);
+		color: var(--accent);
+		font-size: 0.72rem;
+		font-weight: 700;
+	}
+	.capsule.dim {
+		border-color: var(--border);
+		color: var(--muted);
+	}
+	.capsule.todo,
+	.todo {
+		color: var(--accent);
+		font-weight: 700;
+	}
+	.capsule.todo {
+		border-style: dashed;
 	}
 	.ct {
 		display: flex;

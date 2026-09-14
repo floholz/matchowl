@@ -29,6 +29,7 @@
 	import LedBoard from './LedBoard.svelte';
 	import TipCapsule from './TipCapsule.svelte';
 	import Stepper from './Stepper.svelte';
+	import H2HPickButtons from './H2HPickButtons.svelte';
 	import { ChevronRight, Check } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
@@ -352,6 +353,7 @@
 					>
 				</div>
 			{/if}
+			<H2HPickButtons matchId={match.id} />
 			<div class="foot">
 				{#if msg}
 					<span class="error">{msg}</span>

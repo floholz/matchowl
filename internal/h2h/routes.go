@@ -134,6 +134,12 @@ func picksView(app core.App, lg *core.Record, uid string, r tournaments.Round, p
 			continue
 		}
 		v := matchView(app, m, now)
+		if t, err := app.FindFirstRecordByFilter("tips", "user = {:u} && match = {:m}",
+			map[string]any{"u": uid, "m": id}); err == nil {
+			v["tip"] = map[string]any{"ftHome": t.GetInt("ftHome"), "ftAway": t.GetInt("ftAway")}
+		} else {
+			v["tip"] = nil
+		}
 		v["saved"] = mine.saved(id)
 		v["banned"] = mine.Ban == id
 		v["rivalSaved"] = rivalPicks != nil && rivalPicks.saved(id)
@@ -186,9 +192,80 @@ func nextView(app core.App, lg *core.Record, rows []*core.Record, pp *people) ma
 	return nil
 }
 
+// matchPoolView is one head-to-head pool's take on one match for a
+// member: the allowance left, the member's own picks on it, and who the
+// rival is — what the tip drawer needs to offer the star and the ban.
+func matchPoolView(app core.App, lg *core.Record, uid string, m *core.Record, r tournaments.Round, pp *people) map[string]any {
+	now := clock.Now(app)
+	all := picksFor(app, lg.Id, r.Key)
+	mine := all[uid]
+	if mine == nil {
+		mine = &UserPicks{Saves: []string{}}
+	}
+	rival, in := rivalOf(app, lg, r.Key, uid)
+	closed := false
+	if row, _ := app.FindFirstRecordByFilter("h2h_rounds", "pool = {:p} && key = {:k}",
+		map[string]any{"p": lg.Id, "k": r.Key}); row != nil {
+		closed = row.GetString("status") == "closed"
+	}
+	allow := lg.GetInt("saveCalls")
+	if allow < 1 {
+		allow = 1
+	}
+	locked := !now.Before(m.GetDateTime("kickoff").Time())
+	v := map[string]any{
+		"poolId":        lg.Id,
+		"name":          lg.GetString("name"),
+		"round":         RoundName(r.Label, r.Num),
+		"saveCalls":     allow,
+		"saveCallsLeft": allow - len(mine.Saves),
+		"saved":         mine.saved(m.Id),
+		"banned":        mine.Ban == m.Id,
+		"banElsewhere":  mine.Ban != "" && mine.Ban != m.Id,
+		"paired":        in,
+		"ghost":         in && rival == Ghost,
+		"rival":         pp.get(rival),
+		"locked":        locked,
+		"closed":        closed,
+	}
+	if locked && in && rival != Ghost {
+		if rp := revealed(app, all, closed)[rival]; rp != nil {
+			v["rivalSaved"] = rp.saved(m.Id)
+			v["rivalBanned"] = rp.Ban == m.Id
+		}
+	}
+	return v
+}
+
 // Register wires the head-to-head routes and the job.
 func Register(app core.App, se *core.ServeEvent) {
 	app.Cron().MustAdd("h2h-tick", "*/5 * * * *", func() { Tick(app) })
+
+	// GET /api/h2h/match/{id} — the caller's head-to-head pools that play
+	// this match's season, each with the caller's picks on the match. Empty
+	// when none: the tip drawer then shows nothing extra.
+	se.Router.GET("/api/h2h/match/{id}", func(e *core.RequestEvent) error {
+		m, err := app.FindRecordById("matches", e.Request.PathValue("id"))
+		if err != nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "no such match"})
+		}
+		mems, _ := app.FindRecordsByFilter("pool_members", "user = {:u}", "", 0, 0,
+			map[string]any{"u": e.Auth.Id})
+		pp := &people{app: app, cache: map[string]*person{}}
+		out := make([]map[string]any, 0)
+		for _, mem := range mems {
+			lg, err := app.FindRecordById("pools", mem.GetString("pool"))
+			if err != nil || lg.GetString("mode") != pools.ModeH2H || pools.Season(lg) != m.GetString("tournament") {
+				continue
+			}
+			r, err := roundOf(app, lg, m)
+			if err != nil {
+				continue // a matchday this pool does not play
+			}
+			out = append(out, matchPoolView(app, lg, e.Auth.Id, m, *r, pp))
+		}
+		return e.JSON(http.StatusOK, map[string]any{"pools": out})
+	}).Bind(apis.RequireAuth())
 
 	member := func(e *core.RequestEvent) (*core.Record, error) {
 		id := e.Request.PathValue("id")

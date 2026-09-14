@@ -314,9 +314,12 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
    applies ×2 / ×0 / cancel per duel, picks revealed at kick-off (round
    views carry revealed save counts and the ban flag). UI: "Your calls"
    panel under the round browser for the open round and the next one
-   (dashed chip), marks on the pairs. Not done: a marker on the match row
-   itself — picks are per pool, the row is global; revisit with step 4's
-   Home card.
+   (dashed chip), marks on the pairs. **2026-09-14 (floholz):** tip and
+   picks must live in one place — the tip drawer (match row and match
+   page) now carries the star and the ban per h2h pool of that season
+   (`GET /api/h2h/match/{id}`; the pool name shows only when there are
+   several), and the board's panel is a matchday checklist ("8 to tip",
+   tip state per match, rows link to the match). Picks stay per pool.
 4. ✅ 2026-09-14 — Surfaces: Home's pool line shows the duel for h2h
    pools (score, rival, matches in; or the next rival), the round
    browser on the pool page is the round view, a **system chat message**

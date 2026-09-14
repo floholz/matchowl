@@ -28,6 +28,7 @@
 	import LedBoard from './LedBoard.svelte';
 	import TipCapsule from './TipCapsule.svelte';
 	import Stepper from './Stepper.svelte';
+	import H2HPickButtons from './H2HPickButtons.svelte';
 	import Avatar from './Avatar.svelte';
 	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
 	import { untrack } from 'svelte';
@@ -419,6 +420,7 @@
 				<button class="btn" onclick={save} disabled={busy || incomplete || (!dirty && !!existing)}>
 					{#if busy}Saving…{:else if !dirty && existing}<Check size={16} /> Saved{:else}Save tip{/if}
 				</button>
+				<H2HPickButtons matchId={match.id} size="lg" />
 			</div>
 		{:else if existing}
 			<div class="card scored">

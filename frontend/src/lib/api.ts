@@ -102,10 +102,31 @@ export interface H2HPickMatch {
 	locked: boolean;
 	ftHome?: number;
 	ftAway?: number;
+	/** My tip on it, if placed. */
+	tip: { ftHome: number; ftAway: number } | null;
 	saved: boolean;
 	banned: boolean;
 	rivalSaved: boolean;
 	rivalBanned: boolean;
+}
+/** One of my head-to-head pools' take on one match: what the tip drawer offers. */
+export interface H2HMatchPool {
+	poolId: string;
+	name: string;
+	round: string;
+	saveCalls: number;
+	saveCallsLeft: number;
+	saved: boolean;
+	banned: boolean;
+	/** My ban this matchday sits on another match (placing here moves it). */
+	banElsewhere: boolean;
+	paired: boolean;
+	ghost: boolean;
+	rival: H2HPerson | null;
+	locked: boolean;
+	closed: boolean;
+	rivalSaved?: boolean;
+	rivalBanned?: boolean;
 }
 /** The picks panel for one member and matchday. */
 export interface H2HPicks {
@@ -510,6 +531,7 @@ export const api = {
 		get<H2HPicks>(`/api/pools/${poolId}/h2h/picks${round ? `?round=${encodeURIComponent(round)}` : ''}`),
 	h2hSetPick: (poolId: string, match: string, kind: 'save' | 'ban', on: boolean) =>
 		post<H2HPicks>(`/api/pools/${poolId}/h2h/picks`, { match, kind, on }),
+	h2hMatch: (matchId: string) => get<{ pools: H2HMatchPool[] }>(`/api/h2h/match/${matchId}`),
 	/** Owner: the season the pool plays and how — until its first round kicks off. */
 	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
 		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),
