@@ -194,6 +194,112 @@ the Screens page: `HubOverview`, `HubTable`, `HubKnockout`, `HubForecast`,
 
 ---
 
+## Next: head-to-head pools (decided 2026-09-14)
+
+Season-long tip games bleed engagement: by matchday 12 the table stops
+mattering for everyone outside the top three. The pool is the engine of
+the app, and banter is its fuel, so pools get a **mode**. Head-to-head
+gives every member a fresh, winnable duel each matchday, plus two moves
+aimed at a person: the *save call* and the *ban*. No players, no
+transfers, nothing beyond the tips people already place. Built before the
+walkthrough continues, because it shapes the Friends section and the alpha
+run is the best place to learn how it feels. Needs a running domestic
+league season in the app as the test bed.
+
+### Decisions
+
+**Pool = one season + a mode**
+- A pool binds exactly **one season** (`leagues.tournaments` goes from up to
+  20 to 1). Bundesliga and UCL with the same friends are two pools. The
+  lifecycle stays as built: upcoming → live → finished (read-only, chat
+  grace 30 days) → "Set up next season" clones members, settings and mode.
+- `mode` is `classic` (the points table, as today) or `h2h`. Chosen in the
+  create sheet with a one-line explanation of each; the default comes from
+  the season's shape: round-robin with no knockout after it → h2h, cups
+  and tournaments (WC, Euro, UCL) → classic.
+- The **first round** of a pool is the first matchday whose first kick-off
+  is after the pool was created. Mode and h2h settings are editable until
+  that kick-off, then locked (wrong mode after that: make a new pool).
+  Tips are global per user and match, so a pool created mid-season has
+  points at once; the h2h table simply starts at the first round while the
+  Points tab shows the whole season.
+
+**Rounds = matchdays**
+- A round is the matchday key the hub already filters on
+  (`stage|roundLabel`). Knockout stages of a league season (relegation
+  play-off) are rounds too.
+- A round **closes 24 h after the last scheduled kick-off** of its matches,
+  as scheduled at that moment. A match that kicks off later (postponed,
+  rescheduled) is ignored for the h2h and still counts for points.
+
+**Pairing**
+- Circle-method rotation over the roster as it stands at the round's first
+  kick-off, indexed by round, so everyone can see in advance who they play
+  and pairings repeat in the same order when the season is longer than the
+  roster. Past rounds never change; late joiners enter at the next round
+  with an empty record.
+- Odd roster: one member plays the **Ghost**, the rounded mean of the other
+  members' round scores. Every member plays every round.
+
+**Round result and table**
+- Round score = the member's tip points over the round's matches, after
+  save calls and bans. Win 3, draw 1 each, loss 0.
+- The h2h table is W-D-L + h2h points, tiebreak by season tip points, then
+  the classic tiebreakers. In h2h pools it is the leaderboard; the points
+  table is the second tab (Head-to-head · Points).
+
+**Save calls** (`saveCalls` per pool, default 1 when a matchday has 6 or
+fewer matches, else 2)
+- A saved match counts **double** for its owner in that round. Placed
+  until that match's kick-off, hidden from everyone until then, edits
+  allowed like a tip. Saves apply in Ghost rounds too.
+
+**Ban** (one per round, aimed at the current rival)
+- Removes the banned match from the rival's round score. Placed until the
+  match's kick-off, revealed to the rival at kick-off, not before. A ban on
+  a save call cancels the double and the match counts normal (the save
+  call saves it). A ban on a match the rival never tipped is wasted. No
+  ban in a Ghost round. Season points are never touched by a ban.
+- With two saves and one ban a member always keeps one guaranteed double.
+
+**Surfaces**
+- Home: "Matchday 5 · you vs Anna · 14–9 · 3 matches left" card (before
+  the round: the rival and your open picks; after: the result).
+- Pool page: the h2h table, and a **round view** with the two members side
+  by side, per-match points, saves marked, bans revealed after kick-off.
+  Members can browse past rounds.
+- Match row / match page: a save marker on the capsule (star), the ban on
+  the rival's picks after kick-off. Friends' picks show saves after
+  kick-off.
+- Pool chat: an automatic post when a round closes ("Anna beat Flo 14–9").
+  Notifications: round result; "your rival banned X" at that kick-off.
+
+**Data (sketch)**
+- `leagues.mode` (select), `leagues.saveCalls` (number).
+- `h2h_picks`: pool, user, round key, match, kind (`save` | `ban`). Per
+  pool, since the rival and the allowance are the pool's.
+- `h2h_rounds`: pool, round key, closesAt, pairings, results (written by
+  the close job, so history is frozen). Round scores reuse the per-tip
+  scoring; the multipliers live in the h2h layer, never in `tips`.
+
+**Parked:** autopilot tips (auto 1-0 / 1-1 / 0-1 from the table for untipped
+matches) — the flood of meaningless tips outweighs the inactivity fix for
+now; see the backlog. Inactive members are free wins, as in fantasy.
+
+### Implementation order
+
+1. Pools: one season per pool, `mode` + `saveCalls`, create sheet with the
+   mode choice, first-round lock, clone carries the mode. Migration.
+2. Core h2h: round keys + close time, rotation + Ghost, the close job,
+   `h2h_rounds`, the h2h table and Points tab on the pool page.
+3. Save calls + bans: `h2h_picks`, placement UI on the row and match page,
+   visibility rules, round scoring with multipliers, reveal at kick-off.
+4. Surfaces: Home card, round view, chat auto-post, notifications.
+5. Verify a whole league season in the dev simulator (odd roster, late
+   joiner, postponed match, ban-on-save), then hand it to the alpha pools.
+
+---
+
 ## Next: full app validation walkthrough
 
 The app accreted from the WC26-only base through three reworks. Before
@@ -351,10 +457,10 @@ work pending · ⏭ deliberately deferred
   season (the chips the league page has today), Global is the same board
   with everyone. No chat, no invites, no owner.
 - 🔨 **Pools** = the former leagues, renamed: members, invite code, chat,
-  owner tools, scoring config, **bound to a set of seasons** (one is the
-  common case; several allowed). The board sums the bound seasons and keeps
-  the competition/season chips as a filter ("in this pool I'd be first if
-  only Serie A counted"). No auto-repeat: a manual "Set up next season"
+  owner tools, scoring config, **bound to one season** (2026-09-14: was a
+  set of up to 20; one season per pool since the h2h decision, a second
+  competition is a second pool) and a **mode** (classic or head-to-head,
+  see "Next: head-to-head pools"). No auto-repeat: a manual "Set up next season"
   clones members + settings into a new pool for the next season and
   re-invites; the old pool stays as history.
 - 🔨 Migration: existing leagues become pools bound to WC 2026; Global
@@ -488,6 +594,11 @@ add more):
   language (system-mail hook chooses the template). Admin-authored content
   (descriptions, announcements) stays single-language. One extraction pass
   after the walkthrough, when the wording is settled.
+- **Autopilot tips** (parked 2026-09-14): opt-in auto tips at kick-off for
+  untipped matches (1-1 within 20 % of the table, else 1-0 / 0-1 for the
+  higher team; last season's table before matchday 3, else 1-1), flagged
+  as auto, full points, no save calls or bans. Parked: it floods the game
+  with meaningless tips; revisit if inactivity becomes a real problem.
 - **Sync cadence** (2026-09-12): fit result syncs to the known fixtures
   (poll around kick-offs, idle otherwise) instead of a flat cron; the sync
   now also follows kick-off changes, so the schedule is trustworthy.
@@ -497,6 +608,13 @@ add more):
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
 
+- 2026-09-14 — Head-to-head pools: pools bind one season and get a mode
+  (classic / h2h, default from the season's shape, locked at the pool's
+  first round); h2h = matchday duels by rotation with a Ghost for odd
+  rosters, 3/1/0, season points as tiebreak, save calls (double) and one
+  ban per round aimed at the rival; rounds close 24 h after the last
+  scheduled kick-off. Built next, before the walkthrough resumes.
+  Autopilot tips parked.
 - 2026-09-13 — §1 register/login: verification tiers (unverified = play
   only, no mail, no social), terms + privacy acceptance at register, Google
   on both pages, owl mark, real help page replaces `/welcome`.
