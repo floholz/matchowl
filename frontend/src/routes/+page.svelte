@@ -24,6 +24,19 @@
 	});
 
 	// ---- pools: where am I, who leads ----
+	/** A head-to-head pool's line: my duel this matchday (or the next one). */
+	interface DuelLine {
+		round: string;
+		open: boolean;
+		rival: string;
+		mine: number;
+		theirs: number;
+		pts: number;
+		counted: number;
+		matches: number;
+		/** Not paired in the headline round: the next matchday and rival. */
+		next?: { round: string; rival: string; when: string };
+	}
 	interface LeagueLine {
 		league: PoolSummary;
 		rank: number;
@@ -31,6 +44,34 @@
 		points: number;
 		leader: string;
 		leaderPoints: number;
+		duel?: DuelLine | null;
+	}
+	const roundName = (r: { label: string; num: number }) => (r.num > 0 && /\d+\s*$/.test(r.label) ? `Matchday ${r.num}` : r.label);
+	async function duelLine(poolId: string): Promise<DuelLine | null> {
+		const d = await api.h2h(poolId).catch(() => null);
+		if (!d) return null;
+		const me = auth.user?.id;
+		const nextPair = d.next?.pairs.find((p) => p.a.userId === me || p.b?.userId === me);
+		const next = d.next && nextPair
+			? { round: roundName(d.next), rival: (nextPair.a.userId === me ? nextPair.b : nextPair.a)?.name ?? 'the Ghost', when: d.next.firstKickoff }
+			: undefined;
+		const r = d.rounds.find((x) => x.key === d.current);
+		const p = r?.pairs.find((p) => p.a.userId === me || p.b?.userId === me);
+		if (!r || !p) {
+			return next ? { round: '', open: false, rival: '', mine: 0, theirs: 0, pts: 0, counted: 0, matches: 0, next } : null;
+		}
+		const meA = p.a.userId === me;
+		return {
+			round: roundName(r),
+			open: r.status === 'open',
+			rival: (meA ? p.b : p.a)?.name ?? 'the Ghost',
+			mine: meA ? p.scoreA : p.scoreB,
+			theirs: meA ? p.scoreB : p.scoreA,
+			pts: meA ? p.ptsA : p.ptsB,
+			counted: r.counted,
+			matches: r.matches,
+			next
+		};
 	}
 	let leagues = $state<LeagueLine[]>([]);
 	let leaguesLoaded = $state(false);
@@ -50,7 +91,8 @@
 							total: rows.length,
 							points: i >= 0 ? rows[i].total : 0,
 							leader: rows[0]?.name ?? '',
-							leaderPoints: rows[0]?.total ?? 0
+							leaderPoints: rows[0]?.total ?? 0,
+							duel: league.mode === 'h2h' ? await duelLine(league.id) : null
 						};
 					})
 				);
@@ -191,6 +233,23 @@
 				<div class="card rows">
 					{#each leagues as l (l.league.id)}
 						<a class="lrow" href={`/pools/${l.league.id}`}>
+							{#if l.duel && l.duel.round}
+								<span class="duel digits" class:win={l.duel.pts === 3} class:loss={l.duel.pts === 0 && (l.duel.mine > 0 || l.duel.theirs > 0)}>{l.duel.mine}<i>–</i>{l.duel.theirs}</span>
+								<span class="ltxt">
+									<b>{l.league.name}</b>
+									<span class="muted">{l.duel.round} · {l.duel.open ? `vs ${l.duel.rival} · ${l.duel.counted} of ${l.duel.matches} in` : `${l.duel.pts === 3 ? 'you beat' : l.duel.pts === 1 ? 'you drew with' : 'you lost to'} ${l.duel.rival}`}{#if !l.duel.open && l.duel.next} · next {l.duel.next.rival}{/if}</span>
+								</span>
+								<span class="lpts">
+									<span class="pill h2h">h2h</span>
+								</span>
+							{:else if l.duel?.next}
+								<span class="duel digits muted">–</span>
+								<span class="ltxt">
+									<b>{l.league.name}</b>
+									<span class="muted">{l.duel.next.round} · you vs {l.duel.next.rival}</span>
+								</span>
+								<span class="lpts"><span class="pill h2h">h2h</span></span>
+							{:else}
 							<span class="rank digits"
 								>{l.rank > 0 ? `#${l.rank}` : '–'}<small>/{l.total}</small></span
 							>
@@ -212,6 +271,7 @@
 									<span class="gap up"><ChevronUp size={11} />lead</span>
 								{/if}
 							</span>
+							{/if}
 						</a>
 					{/each}
 				</div>
@@ -325,6 +385,28 @@
 	}
 	.lrow:last-child {
 		border-bottom: none;
+	}
+	.duel {
+		min-width: 3.2rem;
+		font-size: 1.05rem;
+		font-weight: 800;
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.1rem;
+	}
+	.duel i {
+		font-style: normal;
+		color: var(--muted);
+	}
+	.duel.win {
+		color: var(--accent);
+	}
+	.duel.loss {
+		color: var(--muted);
+	}
+	.pill.h2h {
+		color: var(--accent);
+		border-color: var(--accent);
 	}
 	.rank {
 		font-size: 1.35rem;

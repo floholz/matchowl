@@ -210,6 +210,8 @@ export interface ChatMessage {
 	gif?: string; // hosted GIF url (a message is text OR a gif)
 	created: string; // RFC3339
 	deleted?: boolean;
+	/** Posted by the app (a matchday's head-to-head results); no user. */
+	system?: boolean;
 	// Moderation fields, returned only to app-admins for deleted messages:
 	original?: string;
 	originalGif?: string;

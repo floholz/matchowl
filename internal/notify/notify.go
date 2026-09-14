@@ -129,6 +129,24 @@ func Register(app core.App, se *core.ServeEvent) {
 		registerChatDigestCron(app, r)
 	}
 
+	// Head-to-head rounds: the moment a round closes (internal/h2h), every
+	// paired member hears how their duel went — event "h2h_round".
+	app.OnRecordAfterUpdateSuccess("h2h_rounds").BindFunc(func(e *core.RecordEvent) error {
+		if disabled() || e.Record.GetString("status") != "closed" {
+			return e.Next()
+		}
+		if orig := e.Record.Original(); orig != nil && orig.GetString("status") == "closed" {
+			return e.Next()
+		}
+		row := e.Record
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			r.h2hRoundClosed(ctx, row)
+		}()
+		return e.Next()
+	})
+
 	// Pool invites go out the moment they are written (internal/pools), as
 	// push + email to the invitee — event "pool_invite".
 	app.OnRecordAfterCreateSuccess("pool_invites").BindFunc(func(e *core.RecordEvent) error {
@@ -282,6 +300,9 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 	// (or with an unreadable structure) only the league-lead detector runs.
 	tinfo, tErr := r.currentTournament()
 	if tErr != nil {
+		if err := r.detectH2HBans(ctx, res, recipients, base); err != nil {
+			log.Printf("[notify] h2h bans: %v", err)
+		}
 		if err := r.detectLeagueLead(ctx, res, recipients, base); err != nil {
 			log.Printf("[notify] pool_lead: %v", err)
 		}
@@ -316,6 +337,9 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 		if err := r.detectResultsRecap(ctx, res, now, matches, playerRecipients, base); err != nil {
 			log.Printf("[notify] results_recap: %v", err)
 		}
+	}
+	if err := r.detectH2HBans(ctx, res, recipients, base); err != nil {
+		log.Printf("[notify] h2h bans: %v", err)
 	}
 	if err := r.detectLeagueLead(ctx, res, recipients, base); err != nil {
 		log.Printf("[notify] pool_lead: %v", err)
@@ -710,6 +734,13 @@ func (r *Runner) sampleData(event string) tplData {
 		d.From = "Lena"
 		d.League = "Bürocup"
 		d.CTAText, d.CTAUrl = "See the invite", base.url+"/friends"
+	case "h2h_round":
+		d.League, d.Round, d.Rival = "Bürocup", "Matchday 12", "Lena"
+		d.Mine, d.Theirs, d.Verdict = 14, 9, "beat"
+		d.CTAText, d.CTAUrl = "See the table", base.url+"/pools"
+	case "h2h_ban":
+		d.League, d.Round, d.Rival, d.Match = "Bürocup", "Matchday 12", "Lena", "Sevilla – Valencia"
+		d.CTAText, d.CTAUrl = "See your duel", base.url+"/pools"
 	case "pool_chat":
 		d.ChatTotal = 5
 		d.ChatLeagues = []chatLine{{League: "Squad", Count: 3}, {League: "Office Pool", Count: 2}}

@@ -1,0 +1,16 @@
+{{define "subject"}}{{if eq .Verdict "beat"}}You beat {{.Rival}} on {{.Round}}{{else if eq .Verdict "drew with"}}You drew with {{.Rival}} on {{.Round}}{{else}}{{.Rival}} beat you on {{.Round}}{{end}}{{end}}
+{{define "preheader"}}{{.Mine}}–{{.Theirs}} in {{.League}}.{{end}}
+{{define "pushTitle"}}{{if eq .Verdict "beat"}}🏆 You beat {{.Rival}} {{.Mine}}–{{.Theirs}}{{else if eq .Verdict "drew with"}}🤝 {{.Mine}}–{{.Theirs}} with {{.Rival}}{{else}}😬 {{.Rival}} beat you {{.Mine}}–{{.Theirs}}{{end}}{{end}}
+{{define "pushBody"}}{{.Round}} in {{.League}} is in.{{end}}
+{{define "content"}}
+<div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcf3a;">{{.Round}} · {{.League}}</div>
+<h1 style="margin:7px 0 14px;font-size:27px;line-height:1.12;font-weight:800;color:#fff3e6;">{{if eq .Verdict "beat"}}You beat {{.Rival}} 🏆{{else if eq .Verdict "drew with"}}A draw with {{.Rival}} 🤝{{else}}{{.Rival}} beat you 😬{{end}}</h1>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td bgcolor="#271c11" style="background:#271c11;border:1px solid #3d2e1e;border-radius:12px;padding:18px 14px;text-align:center;">
+<div style="font-size:34px;font-weight:800;line-height:1;color:#ffcf3a;">{{.Mine}} – {{.Theirs}}</div>
+<div style="margin-top:6px;font-size:11px;color:#b39a82;text-transform:uppercase;letter-spacing:.08em;">you · {{.Rival}}</div>
+</td></tr></table>
+<p style="margin:20px 0 0;font-size:15px;line-height:1.6;color:#aeb6d0;">
+{{if eq .Verdict "beat"}}Three points in the bag. Next matchday brings a new rival — pick your save calls.{{else if eq .Verdict "drew with"}}One point each. Next matchday brings a new rival — pick your save calls.{{else}}Nothing this time. Next matchday brings a new rival — pick your save calls and place your ban.{{end}}
+</p>
+{{end}}

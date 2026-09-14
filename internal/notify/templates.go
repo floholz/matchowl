@@ -69,6 +69,16 @@ type tplData struct {
 	League string // pool name (took-the-lead, pool-invite events)
 	From   string // who invited you (pool-invite event)
 
+	// Head-to-head events: the matchday, the rival, both round scores, the
+	// verdict word ("beat" / "drew with" / "lost to") and, for a ban, the
+	// match taken away.
+	Round   string
+	Rival   string
+	Mine    int
+	Theirs  int
+	Verdict string
+	Match   string
+
 	// Title/Body back the free-text "announcement" broadcast event.
 	Title string
 	Body  string

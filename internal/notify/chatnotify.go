@@ -68,7 +68,7 @@ func (r *Runner) chatPass(ctx context.Context) int {
 	for _, lg := range leagues {
 		lid := lg.Id
 		latestList, _ := r.app.FindRecordsByFilter("pool_messages",
-			"pool = {:l} && deleted = false", "-created", 1, 0, dbx.Params{"l": lid})
+			"pool = {:l} && deleted = false && system = false", "-created", 1, 0, dbx.Params{"l": lid})
 		if len(latestList) == 0 {
 			continue
 		}
@@ -235,7 +235,7 @@ func (r *Runner) chatDigestPass(ctx context.Context) int {
 // latestUnread returns the newest unread (by another member, non-deleted)
 // message in a league for a user, used as the digest dedup discriminator.
 func (r *Runner) latestUnread(leagueID, userID string) (string, time.Time) {
-	filter := "pool = {:l} && user != {:u} && deleted = false"
+	filter := "pool = {:l} && user != {:u} && deleted = false && system = false"
 	params := dbx.Params{"l": leagueID, "u": userID}
 	if rec, err := r.app.FindFirstRecordByFilter("pool_reads",
 		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {
@@ -260,7 +260,7 @@ func (r *Runner) lastReadAt(leagueID, userID string) time.Time {
 
 // chatUnread counts a user's unread, non-deleted messages in a league (capped).
 func (r *Runner) chatUnread(leagueID, userID string) int {
-	filter := "pool = {:l} && user != {:u} && deleted = false"
+	filter := "pool = {:l} && user != {:u} && deleted = false && system = false"
 	params := dbx.Params{"l": leagueID, "u": userID}
 	if rec, err := r.app.FindFirstRecordByFilter("pool_reads",
 		"pool = {:l} && user = {:u}", dbx.Params{"l": leagueID, "u": userID}); err == nil {

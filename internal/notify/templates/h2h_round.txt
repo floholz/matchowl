@@ -1,0 +1,6 @@
+{{.Round}} in {{.League}} is in: you {{.Verdict}} {{.Rival}} {{.Mine}}–{{.Theirs}}.
+
+See the table: {{.CTAUrl}}
+
+—
+Manage your notifications: {{.SettingsUrl}}

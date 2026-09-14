@@ -339,6 +339,7 @@ func msgView(r *core.Record, mod bool) map[string]any {
 		"user":    r.GetString("user"),
 		"text":    r.GetString("text"),
 		"gif":     r.GetString("gif"),
+		"system":  r.GetBool("system"),
 		"created": r.GetDateTime("created").Time().UTC().Format(time.RFC3339Nano),
 	}
 	if r.GetBool("deleted") {

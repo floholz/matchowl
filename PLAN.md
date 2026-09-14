@@ -317,7 +317,17 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
    (dashed chip), marks on the pairs. Not done: a marker on the match row
    itself — picks are per pool, the row is global; revisit with step 4's
    Home card.
-4. Surfaces: Home card, round view, chat auto-post, notifications.
+4. ✅ 2026-09-14 — Surfaces: Home's pool line shows the duel for h2h
+   pools (score, rival, matches in; or the next rival), the round
+   browser on the pool page is the round view, a **system chat message**
+   posts the matchday's results when a round closes (migration 0045:
+   `pool_messages.system`, user optional; rendered as a note; the chat
+   notifier skips it), notifications `h2h_round` (on close, per paired
+   member) and `h2h_ban` (at kick-off, from the scheduler; dedup per
+   pick) with templates and settings entries. Fixed on the way: the
+   chat page and the pool page still subscribed to the old
+   `league_messages` collection, so live chat updates were dead since the
+   pools rename.
 5. Verify a whole league season in the dev simulator (odd roster, late
    joiner, postponed match, ban-on-save), then hand it to the alpha pools.
 

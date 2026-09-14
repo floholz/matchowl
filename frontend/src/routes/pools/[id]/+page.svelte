@@ -190,7 +190,7 @@
 		if (!canChat || !id) return;
 		const lid = id;
 		let unsub: (() => void) | null = null;
-		pb.collection('league_messages')
+		pb.collection('pool_messages')
 			.subscribe(
 				'*',
 				(e) => {
@@ -198,7 +198,7 @@
 						chatUnread += 1;
 					}
 				},
-				{ filter: `league="${lid}"` }
+				{ filter: `pool="${lid}"` }
 			)
 			.then((u) => (unsub = u))
 			.catch(() => {});

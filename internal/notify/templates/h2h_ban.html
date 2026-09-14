@@ -1,0 +1,11 @@
+{{define "subject"}}{{.Rival}} banned {{.Match}} for you{{end}}
+{{define "preheader"}}{{.Round}} in {{.League}}: that match will not count for you.{{end}}
+{{define "pushTitle"}}🚫 {{.Rival}} banned {{.Match}}{{end}}
+{{define "pushBody"}}It just kicked off — it will not count for you on {{.Round}}.{{end}}
+{{define "content"}}
+<div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcf3a;">{{.Round}} · {{.League}}</div>
+<h1 style="margin:7px 0 14px;font-size:27px;line-height:1.12;font-weight:800;color:#fff3e6;">{{.Rival}} banned {{.Match}} 🚫</h1>
+<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#aeb6d0;">
+The match just kicked off, and your rival has taken it away from your round score. If it was one of your save calls, it still counts — just not double.
+</p>
+{{end}}

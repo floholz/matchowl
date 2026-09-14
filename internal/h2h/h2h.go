@@ -171,7 +171,11 @@ func closeRound(app core.App, lg *core.Record, row *core.Record, now time.Time) 
 	row.Set("results", res)
 	row.Set("status", "closed")
 	row.Set("closedAt", now)
-	return app.Save(row)
+	if err := app.Save(row); err != nil {
+		return err
+	}
+	postSummary(app, lg, row, res)
+	return nil
 }
 
 // pairingsOf decodes a row's pairings.

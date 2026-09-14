@@ -45,6 +45,16 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 		hint: 'When a friend invites you into one of their pools.'
 	},
 	{
+		key: 'h2h_round',
+		label: 'Head-to-head results',
+		hint: 'When a matchday closes in one of your head-to-head pools: how your duel went.'
+	},
+	{
+		key: 'h2h_ban',
+		label: 'Rival banned a match',
+		hint: 'At kick-off, when your head-to-head rival has banned that match for you.'
+	},
+	{
 		key: 'pool_chat',
 		label: 'Pool chat',
 		hint: 'New messages in your pool chats — push is prompt; email is a periodic digest.'

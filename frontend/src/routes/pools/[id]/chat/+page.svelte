@@ -108,7 +108,7 @@
 		// Live updates. The subscription is authorised by the collection's
 		// member-only view rule.
 		unsub = await pb
-			.collection('league_messages')
+			.collection('pool_messages')
 			.subscribe(
 				'*',
 				(e) => {
@@ -119,13 +119,14 @@
 						gif?: string;
 						created: string;
 						deleted?: boolean;
+						system?: boolean;
 					};
 					if (e.action === 'create') {
 						if (messages.some((m) => m.id === r.id)) return; // echo of our own post
 						if (!members[r.user]) loadMembers(); // unknown sender → refresh directory
 						messages = [
 							...messages,
-							{ id: r.id, user: r.user, text: r.text, gif: r.gif, created: r.created }
+							{ id: r.id, user: r.user, text: r.text, gif: r.gif, created: r.created, system: r.system }
 						];
 						scrollToBottom();
 						if (r.user !== me) api.chatMarkRead(id).catch(() => {});
@@ -141,7 +142,7 @@
 						messages = messages.filter((m) => m.id !== r.id);
 					}
 				},
-				{ filter: `league="${id}"` }
+				{ filter: `pool="${id}"` }
 			)
 			.catch(() => null);
 	}
@@ -359,6 +360,9 @@
 				{#if newDay}
 					<div class="daysep"><span>{fmtDay(m.created)}</span></div>
 				{/if}
+				{#if m.system}
+					<div class="sysmsg"><span>{m.text}</span></div>
+				{:else}
 				<div class="row" class:mine class:grouped>
 					{#if !mine}
 						<div class="ava">
@@ -407,6 +411,7 @@
 						<span class="time">{fmtTime(m.created)}</span>
 					</div>
 				</div>
+				{/if}
 			{/each}
 			</div>
 		</div>
@@ -597,6 +602,22 @@
 		border-radius: var(--radius-pill);
 		color: var(--muted);
 		cursor: pointer;
+	}
+	.sysmsg {
+		display: flex;
+		justify-content: center;
+		margin: 0.5rem 0.6rem;
+	}
+	.sysmsg span {
+		max-width: 100%;
+		padding: 0.45rem 0.8rem;
+		border-radius: var(--radius-sm);
+		border: 1px dashed var(--border);
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+		color: var(--text);
+		font-size: 0.8rem;
+		line-height: 1.4;
+		text-align: center;
 	}
 	.daysep {
 		display: flex;
