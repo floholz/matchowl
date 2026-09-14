@@ -117,7 +117,11 @@
 			)
 			.sort(byKickoff)
 	);
-	let untipped = $derived(open.filter((m) => !m.myTip));
+	/** Tip now looks a week ahead: the current matchday, midweek games
+	 *  included — not the next open pairing months out. */
+	const TIP_WINDOW_MS = 7 * 86400_000;
+	let soon = $derived(open.filter((m) => new Date(m.kickoff).getTime() - serverClock.now() <= TIP_WINDOW_MS));
+	let untipped = $derived(soon.filter((m) => !m.myTip));
 	let tipNow = $derived(untipped.slice(0, 3));
 	let live = $derived(feedStore.matches.filter((m) => m.status === 'live').sort(byKickoff));
 	/** The most recent day with results: "Yesterday" when it is. */
@@ -146,6 +150,17 @@
 	}
 	const time = (iso: string) =>
 		new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+	/** "Tue 15" — the day a match is on; "today" when it is. Built by hand
+	 *  so the order never flips with the locale, and short enough for the
+	 *  row's status column. */
+	function dayOf(iso: string): string {
+		const d = new Date(iso);
+		const now = new Date(serverClock.now());
+		const key = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+		if (key(d) === key(now)) return 'today';
+		return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${d.getDate()}`;
+	}
+	const dayTime = (iso: string) => `${dayOf(iso)} ${time(iso)}`;
 	function locksIn(iso: string): string {
 		const ms = new Date(iso).getTime() - serverClock.now();
 		const days = Math.floor(ms / 86400_000);
@@ -168,7 +183,7 @@
 		onToggle={() => (openId = openId === m.id ? '' : m.id)}
 		href={`/m/${m.id}`}
 		leg={legOf(m)}
-		sub={codeOf(m)}
+		sub={dayOf(m.kickoff) === 'today' ? codeOf(m) : dayOf(m.kickoff)}
 	/>
 {/snippet}
 
@@ -185,7 +200,7 @@
 				<h2>Tip now</h2>
 				{#if untipped.length}
 					<span class="muted note"
-						>{untipped.length} open · locks {time(untipped[0].kickoff)}</span
+						>{untipped.length} open this week · locks {dayTime(untipped[0].kickoff)}</span
 					>
 				{/if}
 				<a class="more" href="/matches">Matches <ChevronRight size={14} /></a>
@@ -194,9 +209,13 @@
 				<div class="card rows">
 					{#each tipNow as m (m.id)}{@render row(m)}{/each}
 				</div>
+			{:else if soon.length}
+				<div class="card quiet muted">
+					Everything's tipped this week. Next kick-off {dayTime(soon[0].kickoff)}.
+				</div>
 			{:else if open.length}
 				<div class="card quiet muted">
-					Everything's tipped. Next kick-off {time(open[0].kickoff)}.
+					Nothing to tip this week. Next kick-off {new Date(open[0].kickoff).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}.
 				</div>
 			{:else}
 				<div class="card quiet muted">
