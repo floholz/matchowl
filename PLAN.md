@@ -328,8 +328,18 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
    chat page and the pool page still subscribed to the old
    `league_messages` collection, so live chat updates were dead since the
    pools rename.
-5. Verify a whole league season in the dev simulator (odd roster, late
-   joiner, postponed match, ban-on-save), then hand it to the alpha pools.
+5. ✅ 2026-09-14 — Verified: La Liga 26/27 simulated to season end on a
+   copy of the dev DB (pool of 5 + a late joiner at matchday 7): 38 rounds
+   closed, each member ghosted once while the roster was odd, the late
+   joiner has 32 played, matchday 5 counted 9 of 10 (its postponed match
+   ignored), 34 chat posts and result notifications, the ban notification
+   at kick-off, ban-on-save scoring (×2 / ×0 / cancel) checked on the
+   round detail. Found and fixed on the way: the close job raced the
+   simulator's clock jump (the job is now serialised and held during
+   `/api/dev/advance`), and a round now waits up to 12 h past its close
+   time for a match that kicked off but has no result yet (late sync).
+   **Next:** hand it to the alpha pools — a fresh h2h pool on a running
+   league — and watch the first real round close.
 
 ---
 

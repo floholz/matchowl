@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -20,6 +21,11 @@ import (
 // closes. A match that kicks off later than that (postponed, rescheduled)
 // is ignored for the head-to-head; it still counts for the points table.
 const CloseGrace = 24 * time.Hour
+
+// ClosePatience is how long past its close time a round waits for a match
+// that has kicked off but has no result yet (a late results sync), before
+// it closes without it.
+const ClosePatience = 12 * time.Hour
 
 // PairResult is one decided duel: both round scores and the 3 / 1 / 0
 // each side took. B is Ghost for the odd member out.
@@ -47,10 +53,25 @@ type Results struct {
 	Picks map[string]*UserPicks `json:"picks"`
 }
 
+// jobMu serialises the job: the cron, reads and the dev simulator must
+// not open or close rounds concurrently, and the simulator holds it while
+// it writes months of results (see Suspend).
+var jobMu sync.Mutex
+
+// Suspend holds the job until the returned function is called. The dev
+// simulator uses it around a clock jump so no round closes before the
+// simulated results exist.
+func Suspend() (resume func()) {
+	jobMu.Lock()
+	return jobMu.Unlock
+}
+
 // Tick opens rounds that have kicked off and closes rounds past their
 // close time, for every head-to-head pool. Idempotent; runs on a cron,
 // on reads and after the dev simulator moves the clock.
 func Tick(app core.App) {
+	jobMu.Lock()
+	defer jobMu.Unlock()
 	recs, err := app.FindRecordsByFilter("pools", "mode = {:m}", "", 0, 0,
 		map[string]any{"m": pools.ModeH2H})
 	if err != nil {
@@ -58,7 +79,7 @@ func Tick(app core.App) {
 		return
 	}
 	for _, lg := range recs {
-		if err := TickPool(app, lg); err != nil {
+		if err := tickPool(app, lg); err != nil {
 			log.Printf("[h2h] pool %s: %v", lg.Id, err)
 		}
 	}
@@ -66,6 +87,12 @@ func Tick(app core.App) {
 
 // TickPool is Tick for one pool.
 func TickPool(app core.App, lg *core.Record) error {
+	jobMu.Lock()
+	defer jobMu.Unlock()
+	return tickPool(app, lg)
+}
+
+func tickPool(app core.App, lg *core.Record) error {
 	if lg.GetString("mode") != pools.ModeH2H {
 		return nil
 	}
@@ -96,9 +123,14 @@ func TickPool(app core.App, lg *core.Record) error {
 		rows = append(rows, row)
 		byKey[r.Key] = row
 	}
-	// Close: open rows past their close time.
+	// Close: open rows past their close time — unless a match that should
+	// count is still without a result and the patience has not run out.
 	for _, row := range rows {
-		if row.GetString("status") != "open" || row.GetDateTime("closesAt").Time().After(now) {
+		closesAt := row.GetDateTime("closesAt").Time()
+		if row.GetString("status") != "open" || closesAt.After(now) {
+			continue
+		}
+		if now.Before(closesAt.Add(ClosePatience)) && awaitingResults(app, row, closesAt) {
 			continue
 		}
 		if err := closeRound(app, lg, row, now); err != nil {
@@ -106,6 +138,28 @@ func TickPool(app core.App, lg *core.Record) error {
 		}
 	}
 	return nil
+}
+
+// awaitingResults reports whether a match of the round that kicked off
+// before the close time has not finished yet (scheduled or live, not
+// postponed or cancelled): its result may still be on the way.
+func awaitingResults(app core.App, row *core.Record, closesAt time.Time) bool {
+	var ids []string
+	_ = row.UnmarshalJSONField("matches", &ids)
+	for _, id := range ids {
+		m, err := app.FindRecordById("matches", id)
+		if err != nil {
+			continue
+		}
+		if !m.GetDateTime("kickoff").Time().Before(closesAt) {
+			continue
+		}
+		switch m.GetString("status") {
+		case "scheduled", "live":
+			return true
+		}
+	}
+	return false
 }
 
 // playable lists the rounds a pool plays: the season's rounds from the

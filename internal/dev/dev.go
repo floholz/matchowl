@@ -488,12 +488,18 @@ func Register(app core.App, se *core.ServeEvent) {
 		if !ok {
 			return e.JSON(400, map[string]string{"error": "bad timestamp"})
 		}
+		// Hold the head-to-head job while the clock jumps and the results
+		// are written, so no round closes on half-simulated data.
+		resume := h2h.Suspend()
 		if err := clock.Set(app, ts); err != nil {
+			resume()
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
 		if err := simulate(app, ts); err != nil {
+			resume()
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
+		resume()
 		h2h.Tick(app) // open / close head-to-head rounds on the new clock
 		return e.JSON(http.StatusOK, state(app))
 	})
