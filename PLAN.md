@@ -288,8 +288,13 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
 
 ### Implementation order
 
-1. Pools: one season per pool, `mode` + `saveCalls`, create sheet with the
-   mode choice, first-round lock, clone carries the mode. Migration.
+1. ✅ 2026-09-14 — Pools: one season per pool (migration 0042 keeps the
+   running one), `mode` + `saveCalls` with defaults from the season's
+   shape (`GET /api/pools/defaults`), `PoolSettings` component in the
+   create sheet, the owner's Members tab and "Set up next season",
+   `POST /api/pools/{id}/settings` refused once the first round kicked
+   off (`pools.LockAt`), rounds helper in `tournaments/rounds.go`
+   (ordered by round number, then median kick-off).
 2. Core h2h: round keys + close time, rotation + Ghost, the close job,
    `h2h_rounds`, the h2h table and Points tab on the pool page.
 3. Save calls + bans: `h2h_picks`, placement UI on the row and match page,

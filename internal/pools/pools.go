@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -43,23 +44,22 @@ func bad(e *core.RequestEvent, code int, msg string) error {
 	return e.JSON(code, map[string]string{"error": msg})
 }
 
-// tournamentIDs resolves season slugs to ids. Only running or upcoming
-// seasons can be bound — a pool for a finished season makes no sense.
-func tournamentIDs(app core.App, slugs []string) ([]string, error) {
-	out := make([]string, 0, len(slugs))
-	for _, slug := range slugs {
-		t, err := tournaments.BySlug(app, slug)
-		if err != nil {
-			return nil, fmt.Errorf("unknown season %q", slug)
-		}
-		switch t.GetString("status") {
-		case tournaments.StatusActive, tournaments.StatusUpcoming:
-		default:
-			return nil, fmt.Errorf("season %q is not open for pools", slug)
-		}
-		out = append(out, t.Id)
+// openSeason resolves a season slug. Only a running or upcoming season can
+// be bound — a pool for a finished season makes no sense.
+func openSeason(app core.App, slug string) (*core.Record, error) {
+	if strings.TrimSpace(slug) == "" {
+		return nil, fmt.Errorf("season required")
 	}
-	return out, nil
+	t, err := tournaments.BySlug(app, slug)
+	if err != nil {
+		return nil, fmt.Errorf("unknown season %q", slug)
+	}
+	switch t.GetString("status") {
+	case tournaments.StatusActive, tournaments.StatusUpcoming:
+	default:
+		return nil, fmt.Errorf("season %q is not open for pools", slug)
+	}
+	return t, nil
 }
 
 // Pool states, derived from the bound seasons: live while any of them
@@ -138,36 +138,28 @@ func poolStatus(app core.App, lg *core.Record) string {
 	}
 }
 
-// nextSeasons maps a pool's bound seasons to the same competitions' latest
-// open season (running first, else the next upcoming), skipping competitions
-// without one — the default for "Set up next season".
-func nextSeasons(app core.App, lg *core.Record) []string {
-	seen := map[string]bool{}
-	out := []string{}
-	for _, id := range lg.GetStringSlice("tournaments") {
-		t, err := app.FindRecordById("tournaments", id)
-		if err != nil {
-			continue
-		}
-		comp := t.GetString("competition")
-		if comp == "" || seen[comp] {
-			continue
-		}
-		seen[comp] = true
-		var best *core.Record
-		recs, _ := app.FindRecordsByFilter("tournaments",
-			"competition = {:c} && (status = 'active' || status = 'upcoming')", "startsAt", 0, 0,
-			map[string]any{"c": comp})
-		for _, r := range recs {
-			if best == nil || (r.GetString("status") == tournaments.StatusActive && best.GetString("status") != tournaments.StatusActive) {
-				best = r
-			}
-		}
-		if best != nil {
-			out = append(out, best.Id)
+// nextSeason maps a pool's season to the same competition's latest open
+// season (running first, else the next upcoming), nil when there is none —
+// the default for "Set up next season".
+func nextSeason(app core.App, lg *core.Record) *core.Record {
+	t, err := app.FindRecordById("tournaments", Season(lg))
+	if err != nil {
+		return nil
+	}
+	comp := t.GetString("competition")
+	if comp == "" {
+		return nil
+	}
+	var best *core.Record
+	recs, _ := app.FindRecordsByFilter("tournaments",
+		"competition = {:c} && (status = 'active' || status = 'upcoming')", "startsAt", 0, 0,
+		map[string]any{"c": comp})
+	for _, r := range recs {
+		if best == nil || (r.GetString("status") == tournaments.StatusActive && best.GetString("status") != tournaments.StatusActive) {
+			best = r
 		}
 	}
-	return out
+	return best
 }
 
 func chatUntilView(app core.App, lg *core.Record) string {
@@ -352,11 +344,27 @@ func Register(app core.App, se *core.ServeEvent) {
 	// unverified account (it is in no pool and gets no invites anyway).
 	g.Bind(users.RequireVerified("/api/pools/mine", "/api/pools/invites"))
 
-	// POST /api/leagues/create  { "name": "..." }
+	// GET /api/pools/defaults?tournament=<slug> — the mode and save-call
+	// allowance a pool for that season gets unless the creator says otherwise.
+	g.GET("/defaults", func(e *core.RequestEvent) error {
+		t, err := openSeason(app, e.Request.URL.Query().Get("tournament"))
+		if err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		mode, saveCalls, per := Defaults(t)
+		return e.JSON(http.StatusOK, map[string]any{
+			"mode": mode, "saveCalls": saveCalls, "matchesPerRound": per,
+		})
+	})
+
+	// POST /api/pools/create { "name", "tournament": slug, "mode"?, "saveCalls"? }
+	// — mode and save calls default from the season's shape (see Defaults).
 	g.POST("/create", func(e *core.RequestEvent) error {
 		var body struct {
-			Name        string   `json:"name"`
-			Tournaments []string `json:"tournaments"` // season slugs the pool counts
+			Name       string `json:"name"`
+			Tournament string `json:"tournament"` // the season the pool plays
+			Mode       string `json:"mode"`
+			SaveCalls  int    `json:"saveCalls"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
@@ -365,7 +373,11 @@ func Register(app core.App, se *core.ServeEvent) {
 		if name == "" {
 			return bad(e, http.StatusBadRequest, "name required")
 		}
-		tids, err := tournamentIDs(app, body.Tournaments)
+		season, err := openSeason(app, body.Tournament)
+		if err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		mode, saveCalls, err := resolveSettings(season, body.Mode, body.SaveCalls)
 		if err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
@@ -386,7 +398,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		if def != nil {
 			league.Set("scoringConfig", def.Id)
 		}
-		league.Set("tournaments", tids)
+		league.Set("tournaments", []string{season.Id})
+		league.Set("mode", mode)
+		league.Set("saveCalls", saveCalls)
 		if err := app.Save(league); err != nil {
 			return err
 		}
@@ -394,7 +408,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			return err
 		}
 		return e.JSON(http.StatusOK, map[string]any{
-			"id": league.Id, "name": name, "inviteCode": code,
+			"id": league.Id, "name": name, "inviteCode": code, "mode": mode,
 		})
 	})
 
@@ -447,7 +461,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			if private && role != "owner" {
 				code = ""
 			}
-			out = append(out, map[string]any{
+			v := map[string]any{
 				"id":          lg.Id,
 				"name":        lg.GetString("name"),
 				"inviteCode":  code,
@@ -458,7 +472,9 @@ func Register(app core.App, se *core.ServeEvent) {
 				"status":      poolStatus(app, lg),
 				"chatOpen":    ChatOpen(app, lg),
 				"chatUntil":   chatUntilView(app, lg),
-			})
+			}
+			maps.Copy(v, modeView(app, lg))
+			out = append(out, v)
 		}
 		return e.JSON(http.StatusOK, map[string]any{"pools": out})
 	})
@@ -505,6 +521,7 @@ func Register(app core.App, se *core.ServeEvent) {
 		lb["status"] = poolStatus(app, lg)
 		lb["chatOpen"] = ChatOpen(app, lg)
 		lb["chatUntil"] = chatUntilView(app, lg)
+		maps.Copy(lb, modeView(app, lg))
 		// Include the league's scoring config so the legend can render it
 		// without the client reading the (now members-only) leagues table.
 		if lg, err := app.FindRecordById("pools", id); err == nil {
@@ -528,41 +545,72 @@ func Register(app core.App, se *core.ServeEvent) {
 
 	// ---- Owner-only management (rename, regenerate code, privacy, remove) ----
 
-	// POST /api/leagues/{id}/tournaments { "tournaments": ["slug", …] } —
-	// the seasons the pool counts (owner only).
-	g.POST("/{id}/tournaments", func(e *core.RequestEvent) error {
+	// POST /api/pools/{id}/settings { "tournament"?, "mode"?, "saveCalls"? } —
+	// the season the pool plays and how (owner only). Frozen from the pool's
+	// first round on: once the first matchday it plays has kicked off, a
+	// wrong mode means a new pool.
+	g.POST("/{id}/settings", func(e *core.RequestEvent) error {
 		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
+		if Locked(app, lg) {
+			return bad(e, http.StatusConflict, "the pool's first matchday has kicked off — its settings are locked")
+		}
 		var body struct {
-			Tournaments []string `json:"tournaments"`
+			Tournament string `json:"tournament"`
+			Mode       string `json:"mode"`
+			SaveCalls  int    `json:"saveCalls"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
-		tids, err := tournamentIDs(app, body.Tournaments)
-		if err != nil {
+		var season *core.Record
+		if body.Tournament != "" {
+			if season, err = openSeason(app, body.Tournament); err != nil {
+				return bad(e, http.StatusBadRequest, err.Error())
+			}
+		} else if season, err = app.FindRecordById("tournaments", Season(lg)); err != nil {
+			return bad(e, http.StatusBadRequest, "season required")
+		}
+		// Unnamed values keep what the pool has; on a season change they
+		// take the new season's defaults instead (a different shape).
+		mode, saveCalls := body.Mode, body.SaveCalls
+		if season.Id == Season(lg) {
+			if mode == "" {
+				mode = lg.GetString("mode")
+			}
+			if saveCalls == 0 {
+				saveCalls = lg.GetInt("saveCalls")
+			}
+		}
+		if mode, saveCalls, err = resolveSettings(season, mode, saveCalls); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
-		lg.Set("tournaments", tids)
+		lg.Set("tournaments", []string{season.Id})
+		lg.Set("mode", mode)
+		lg.Set("saveCalls", saveCalls)
 		if err := app.Save(lg); err != nil {
 			return err
 		}
-		return e.JSON(http.StatusOK, map[string]any{"tournaments": seasonViews(app, lg)})
+		out := map[string]any{"tournaments": seasonViews(app, lg)}
+		maps.Copy(out, modeView(app, lg))
+		return e.JSON(http.StatusOK, out)
 	})
 
-	// POST /api/leagues/{id}/clone { "name": "...", "tournaments": [...] } —
-	// "Set up next season": a new pool with the same members (the caller
-	// as owner), settings and a fresh invite code; the old one stays.
+	// POST /api/pools/{id}/clone { "name"?, "tournament"?, "mode"?, "saveCalls"? }
+	// — "Set up next season": a new pool with the same members (the caller
+	// as owner), settings, mode and a fresh invite code; the old one stays.
 	g.POST("/{id}/clone", func(e *core.RequestEvent) error {
 		src, err := ownedLeague(app, e, e.Request.PathValue("id"))
 		if err != nil {
 			return err
 		}
 		var body struct {
-			Name        string   `json:"name"`
-			Tournaments []string `json:"tournaments"`
+			Name       string `json:"name"`
+			Tournament string `json:"tournament"`
+			Mode       string `json:"mode"`
+			SaveCalls  int    `json:"saveCalls"`
 		}
 		if err := e.BindBody(&body); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
@@ -571,17 +619,23 @@ func Register(app core.App, se *core.ServeEvent) {
 		if name == "" {
 			name = src.GetString("name")
 		}
-		var tids []string
-		if len(body.Tournaments) > 0 {
-			tids, err = tournamentIDs(app, body.Tournaments)
-			if err != nil {
+		var season *core.Record
+		if body.Tournament != "" {
+			if season, err = openSeason(app, body.Tournament); err != nil {
 				return bad(e, http.StatusBadRequest, err.Error())
 			}
-		} else {
-			tids = nextSeasons(app, src)
+		} else if season = nextSeason(app, src); season == nil {
+			return bad(e, http.StatusBadRequest, "this pool's competition has no open season yet")
 		}
-		if len(tids) == 0 {
-			return bad(e, http.StatusBadRequest, "none of this pool's competitions has an open season yet")
+		mode, saveCalls := body.Mode, body.SaveCalls
+		if mode == "" {
+			mode = src.GetString("mode")
+		}
+		if saveCalls == 0 {
+			saveCalls = src.GetInt("saveCalls")
+		}
+		if mode, saveCalls, err = resolveSettings(season, mode, saveCalls); err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
 		}
 		col, err := app.FindCollectionByNameOrId("pools")
 		if err != nil {
@@ -593,7 +647,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		next.Set("owner", e.Auth.Id)
 		next.Set("scoringConfig", src.GetString("scoringConfig"))
 		next.Set("privateCode", src.GetBool("privateCode"))
-		next.Set("tournaments", tids)
+		next.Set("tournaments", []string{season.Id})
+		next.Set("mode", mode)
+		next.Set("saveCalls", saveCalls)
 		if err := app.Save(next); err != nil {
 			return err
 		}
@@ -609,7 +665,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			}
 		}
 		return e.JSON(http.StatusOK, map[string]any{
-			"id": next.Id, "name": name, "inviteCode": next.GetString("inviteCode"),
+			"id": next.Id, "name": name, "inviteCode": next.GetString("inviteCode"), "mode": mode,
 		})
 	})
 

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { api, type LeaderboardRow, type BotSummary, type PoolSeason, type PoolSummary, type Person } from '$lib/api';
+	import { api, type LeaderboardRow, type BotSummary, type PoolMode, type PoolSeason, type PoolSummary, type Person } from '$lib/api';
+	import PoolSettings from '$lib/components/PoolSettings.svelte';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
@@ -65,6 +66,11 @@
 	/** The pool's bound seasons (from the leaderboard response); Global has none. */
 	let bound = $state<PoolSeason[]>([]);
 	let poolStatus = $state<PoolSummary['status']>('open');
+	/** How the pool plays its season, and whether that is still editable. */
+	let poolMode = $state<PoolMode>('classic');
+	let saveCalls = $state(1);
+	let lockAt = $state('');
+	let locked = $state(false);
 	let chatOpen = $state(true);
 	let chatUntil = $state('');
 	const untilText = (iso: string) =>
@@ -148,8 +154,10 @@
 				boardSlug = lb.tournament ?? '';
 				bound = lb.tournaments ?? [];
 				poolStatus = lb.status ?? 'open';
-			chatOpen = lb.chatOpen ?? true;
-			chatUntil = lb.chatUntil ?? '';
+				poolMode = lb.mode ?? 'classic';
+				saveCalls = lb.saveCalls ?? 1;
+				lockAt = lb.lockAt ?? '';
+				locked = lb.locked ?? false;
 				chatOpen = lb.chatOpen ?? true;
 				chatUntil = lb.chatUntil ?? '';
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
@@ -215,6 +223,10 @@
 			boardSlug = lb.tournament ?? '';
 			bound = lb.tournaments ?? [];
 			poolStatus = lb.status ?? 'open';
+			poolMode = lb.mode ?? 'classic';
+			saveCalls = lb.saveCalls ?? 1;
+			lockAt = lb.lockAt ?? '';
+			locked = lb.locked ?? false;
 		} catch {
 			/* keep current rows on a transient error */
 		}
@@ -242,64 +254,64 @@
 		await api.invite(id, p.userId).catch(() => {});
 		invitable = invitable.map((x) => (x.userId === p.userId ? { ...x, invited: true } : x));
 	}
-	/** Same competitions, latest open season each — the next-season default. */
-	let nextSeasonSlugs = $derived.by(() => {
-		const out: string[] = [];
-		const seen = new Set<string>();
-		for (const b of bound) {
-			const key = b.competition?.key;
-			if (!key || seen.has(key)) continue;
-			seen.add(key);
-			const s = defaultSeason(seasonChoices.filter((t) => t.competition?.key === key));
-			if (s) out.push(s.slug);
-		}
-		return out;
+	/** Same competition, its latest open season — the next-season default. */
+	let nextSeasonSlug = $derived.by(() => {
+		const key = bound[0]?.competition?.key;
+		if (!key) return '';
+		return defaultSeason(seasonChoices.filter((t) => t.competition?.key === key))?.slug ?? '';
 	});
-	let draftSeasons = $state<Set<string>>(new Set());
+	const lockText = (iso: string) =>
+		iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+	// Season, mode and save calls: one draft, editable until the pool's
+	// first round kicks off (the server refuses changes after that).
+	let draftSeason = $state('');
+	let draftMode = $state<PoolMode>('classic');
+	let draftSaves = $state(1);
 	$effect(() => {
-		draftSeasons = new Set(bound.map((t) => t.slug));
+		draftSeason = bound[0]?.slug ?? '';
+		draftMode = poolMode;
+		draftSaves = saveCalls;
 	});
-	function toggleDraftSeason(slug: string) {
-		const next = new Set(draftSeasons);
-		if (next.has(slug)) next.delete(slug);
-		else next.add(slug);
-		draftSeasons = next;
-	}
-	async function saveSeasons() {
+	let settingsDirty = $derived(
+		draftSeason !== (bound[0]?.slug ?? '') || draftMode !== poolMode || (draftMode === 'h2h' && draftSaves !== saveCalls)
+	);
+	async function saveSettings() {
 		if (!league) return;
 		mgmtBusy = true;
 		mgmtError = '';
 		try {
-			const r = await api.setPoolSeasons(league.id, [...draftSeasons]);
+			const r = await api.setPoolSettings(league.id, { tournament: draftSeason, mode: draftMode, saveCalls: draftSaves });
 			bound = r.tournaments;
+			poolMode = r.mode;
+			saveCalls = r.saveCalls;
+			lockAt = r.lockAt;
+			locked = r.locked;
 			tslug = '';
 			await refreshRows();
 		} catch {
-			mgmtError = 'Could not save the seasons.';
+			mgmtError = 'Could not save the settings.';
 		} finally {
 			mgmtBusy = false;
 		}
 	}
 	let cloning = $state(false);
 	let cloneName = $state('');
-	let cloneSeasons = $state<Set<string>>(new Set());
+	let cloneSeason = $state('');
+	let cloneMode = $state<PoolMode>('classic');
+	let cloneSaves = $state(1);
 	function startClone() {
 		cloneName = league?.name ?? '';
-		cloneSeasons = new Set(nextSeasonSlugs);
+		cloneSeason = nextSeasonSlug;
+		cloneMode = poolMode;
+		cloneSaves = saveCalls;
 		cloning = true;
-	}
-	function toggleCloneSeason(slug: string) {
-		const next = new Set(cloneSeasons);
-		if (next.has(slug)) next.delete(slug);
-		else next.add(slug);
-		cloneSeasons = next;
 	}
 	async function doClone() {
 		if (!league) return;
 		mgmtBusy = true;
 		mgmtError = '';
 		try {
-			const r = await api.clonePool(league.id, cloneName, [...cloneSeasons]);
+			const r = await api.clonePool(league.id, cloneName, { tournament: cloneSeason, mode: cloneMode, saveCalls: cloneSaves });
 			goto(`/pools/${r.id}`);
 		} catch {
 			mgmtError = 'Could not set up the new pool.';
@@ -406,7 +418,8 @@
 		(poolStatus === 'finished' ? 'Finished · ' : poolStatus === 'upcoming' ? 'Starts soon · ' : '') +
 			`${rows.length} ${rows.length === 1 ? 'member' : 'members'}` +
 			(bound.length
-				? ` · ${bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}`
+				? ` · ${bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}` +
+					(poolMode === 'h2h' ? ' · head-to-head' : '')
 				: isOwner
 					? ' · you own this pool'
 					: '')
@@ -504,18 +517,13 @@
 			{#if isOwner}
 				{#if cloning}
 					<input class="input" bind:value={cloneName} maxlength="64" aria-label="New pool name" />
-					<div class="muted small">Same competitions, their current seasons — adjust if you like</div>
-					<div class="chipset">
-						{#each seasonChoices as t (t.id)}
-							<button type="button" class="schip" class:on={cloneSeasons.has(t.slug)} onclick={() => toggleCloneSeason(t.slug)}>
-								{#if cloneSeasons.has(t.slug)}<Check size={13} />{/if}
-								{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
-							</button>
-						{/each}
+					<div class="muted small">Same competition, its current season — adjust if you like</div>
+					<div class="sform">
+						<PoolSettings seasons={seasonChoices} bind:tournament={cloneSeason} bind:mode={cloneMode} bind:saveCalls={cloneSaves} />
 					</div>
-					{#if nextSeasonSlugs.length === 0}<p class="muted small hint">None of this pool's competitions has an open season yet — pick any.</p>{/if}
+					{#if !nextSeasonSlug}<p class="muted small hint">This pool's competition has no open season yet — pick any.</p>{/if}
 					<div class="regrow">
-						<button class="btn" onclick={doClone} disabled={mgmtBusy || !cloneName.trim() || cloneSeasons.size === 0}>Create the new pool</button>
+						<button class="btn" onclick={doClone} disabled={mgmtBusy || !cloneName.trim() || !cloneSeason}>Create the new pool</button>
 						<button class="btn secondary" onclick={() => (cloning = false)} disabled={mgmtBusy}>Cancel</button>
 					</div>
 				{:else}
@@ -526,7 +534,7 @@
 	{/if}
 	<section class="card manage">
 		{#if bound.length}
-			<div class="muted small seasonsline">Counts {bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')}</div>
+			<div class="muted small seasonsline">Plays {bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')} · {poolMode === 'h2h' ? `head-to-head, ${saveCalls} save ${saveCalls === 1 ? 'call' : 'calls'} per matchday` : 'classic points table'}</div>
 		{/if}
 		<div class="mrow">
 			{#if editing}
@@ -543,31 +551,26 @@
 	</section>
 	{#if editing && invite !== 'GLOBAL'}
 		<section class="card vis">
-			<div class="muted small">Seasons this pool counts</div>
-			<div class="chipset">
-				{#each seasonChoices as t (t.id)}
-					<button type="button" class="schip" class:on={draftSeasons.has(t.slug)} onclick={() => toggleDraftSeason(t.slug)}>
-						{#if draftSeasons.has(t.slug)}<Check size={13} />{/if}
-						{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
-					</button>
-				{/each}
-			</div>
-			<button class="btn secondary slim" onclick={saveSeasons} disabled={mgmtBusy || draftSeasons.size === 0}>Save seasons</button>
+			<div class="muted small">Season and mode</div>
+			{#if locked}
+				<p class="muted small hint">Locked since the pool's first matchday kicked off ({lockText(lockAt)}). A different mode or season means a new pool.</p>
+			{:else}
+				<div class="sform">
+					<PoolSettings seasons={seasonChoices} bind:tournament={draftSeason} bind:mode={draftMode} bind:saveCalls={draftSaves} />
+				</div>
+				<p class="muted small hint">{lockAt ? `Editable until the pool's first matchday kicks off (${lockText(lockAt)}).` : 'Editable until the pool\'s first matchday kicks off.'}</p>
+				<button class="btn secondary slim" onclick={saveSettings} disabled={mgmtBusy || !draftSeason || !settingsDirty}>Save settings</button>
+			{/if}
 		</section>
 		<section class="card vis">
 			<div class="muted small">Next season</div>
 			{#if cloning}
 				<input class="input" bind:value={cloneName} maxlength="64" aria-label="New pool name" />
-				<div class="chipset">
-					{#each seasonChoices as t (t.id)}
-						<button type="button" class="schip" class:on={cloneSeasons.has(t.slug)} onclick={() => toggleCloneSeason(t.slug)}>
-							{#if cloneSeasons.has(t.slug)}<Check size={13} />{/if}
-							{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
-						</button>
-					{/each}
+				<div class="sform">
+					<PoolSettings seasons={seasonChoices} bind:tournament={cloneSeason} bind:mode={cloneMode} bind:saveCalls={cloneSaves} />
 				</div>
 				<div class="regrow">
-					<button class="btn" onclick={doClone} disabled={mgmtBusy || !cloneName.trim() || cloneSeasons.size === 0}>Create the new pool</button>
+					<button class="btn" onclick={doClone} disabled={mgmtBusy || !cloneName.trim() || !cloneSeason}>Create the new pool</button>
 					<button class="btn secondary" onclick={() => (cloning = false)} disabled={mgmtBusy}>Cancel</button>
 				</div>
 			{:else}
@@ -1184,31 +1187,11 @@
 	.seasonsline {
 		margin-bottom: 0.4rem;
 	}
-	.chipset {
+	.sform {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
+		flex-direction: column;
+		gap: 0.8rem;
 		margin: 0.5rem 0;
-	}
-	.schip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		height: 32px;
-		padding: 0 0.75rem;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--border);
-		background: var(--surface-2);
-		color: var(--muted);
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-	.schip.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-fg);
 	}
 	.mrow {
 		display: flex;

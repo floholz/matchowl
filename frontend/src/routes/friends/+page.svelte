@@ -3,7 +3,8 @@
      mutual graph: a board of you and your friends for one season, requests,
      and finding people. -->
 <script lang="ts">
-	import { api, type PoolSummary, type PoolSeason, type LeaderboardRow, type Person } from '$lib/api';
+	import PoolSettings from '$lib/components/PoolSettings.svelte';
+	import { api, type PoolMode, type PoolSummary, type PoolSeason, type LeaderboardRow, type Person } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { goto } from '$app/navigation';
@@ -45,7 +46,9 @@
 	let unread = $state<Record<string, number>>({});
 	let loaded = $state(false);
 	let newName = $state('');
-	let newSeasons = $state<Set<string>>(new Set());
+	let newSeason = $state('');
+	let newMode = $state<PoolMode>('classic');
+	let newSaves = $state(1);
 	let joinCode = $state('');
 	let error = $state('');
 	let busy = $state(false);
@@ -135,20 +138,14 @@
 			})
 			.catch(() => (ranks[id] = null));
 	}
-	function toggleSeason(slug: string) {
-		const next = new Set(newSeasons);
-		if (next.has(slug)) next.delete(slug);
-		else next.add(slug);
-		newSeasons = next;
-	}
 	async function create(e: Event) {
 		e.preventDefault();
 		error = '';
 		busy = true;
 		try {
-			const r = await api.createPool(newName, [...newSeasons]);
+			const r = await api.createPool(newName, { tournament: newSeason, mode: newMode, saveCalls: newSaves });
 			newName = '';
-			newSeasons = new Set();
+			newSeason = '';
 			created = r;
 			sheet = 'done';
 		} catch {
@@ -329,6 +326,7 @@
 			<a class="card league" href={`/pools/${l.id}`}>
 				<span class="lhead">
 					<span class="lt"><b class="lname">{l.name}</b><span class="muted lseasons">{seasonsLine(l)}</span></span>
+					{#if l.mode === 'h2h'}<span class="pill h2h">h2h</span>{/if}
 					{#if l.status === 'upcoming'}<span class="pill">soon</span>{:else if l.status === 'live'}<span class="pill live">live</span>{/if}
 					{#if l.role === 'owner'}<span class="pill">owner</span>{/if}
 					<span class="spacer"></span>
@@ -509,19 +507,9 @@
 			<div class="shead"><h2>Start a pool</h2><button class="ibtn" onclick={closeSheet} aria-label="Close"><X size={18} /></button></div>
 			<form class="sform" onsubmit={create}>
 				<label class="field"><span>Name</span><input class="input" placeholder="e.g. Bürocup 26/27" bind:value={newName} required /></label>
-				<div class="field">
-					<span>Counts these seasons</span>
-					<div class="chipset">
-						{#each seasonChoices as t (t.id)}
-							<button type="button" class="schip" class:on={newSeasons.has(t.slug)} onclick={() => toggleSeason(t.slug)}>
-								{#if newSeasons.has(t.slug)}<Check size={13} />{/if}
-								{t.competition?.shortName || t.competition?.name} {seasonLabel(t)}
-							</button>
-						{/each}
-					</div>
-				</div>
+				<PoolSettings seasons={seasonChoices} bind:tournament={newSeason} bind:mode={newMode} bind:saveCalls={newSaves} />
 				{#if error}<p class="error">{error}</p>{/if}
-				<button class="btn" disabled={busy || !newName.trim() || newSeasons.size === 0}>Create pool</button>
+				<button class="btn" disabled={busy || !newName.trim() || !newSeason}>Create pool</button>
 			</form>
 		{:else if sheet === 'join'}
 			<div class="shead"><h2>Join a pool</h2><button class="ibtn" onclick={closeSheet} aria-label="Close"><X size={18} /></button></div>
@@ -649,30 +637,9 @@
 	.card.grow.done {
 		opacity: 0.85;
 	}
-	.chipset {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.4rem;
-	}
-	.schip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		height: 32px;
-		padding: 0 0.75rem;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--border);
-		background: var(--surface-2);
-		color: var(--muted);
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-	.schip.on {
-		background: var(--accent);
+	.pill.h2h {
+		color: var(--accent);
 		border-color: var(--accent);
-		color: var(--accent-fg);
 	}
 	.input.code {
 		text-transform: uppercase;

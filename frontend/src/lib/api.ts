@@ -25,15 +25,29 @@ export interface PoolSeason {
 	competition?: { key: string; name: string; shortName: string };
 }
 
+/** How a pool plays its season: one points table, or matchday duels. */
+export type PoolMode = 'classic' | 'h2h';
+
+/** The mode block every pool payload carries. */
+export interface PoolModeInfo {
+	mode: PoolMode;
+	/** Head-to-head: matches per matchday that count double (1 or 2). */
+	saveCalls: number;
+	/** When season / mode / save calls freeze (RFC3339): the first kick-off
+	 *  of the pool's first round. '' when the pool binds no season. */
+	lockAt: string;
+	locked: boolean;
+}
+
 /** A pool (the API still calls them leagues). */
-export interface PoolSummary {
+export interface PoolSummary extends PoolModeInfo {
 	id: string;
 	name: string;
 	inviteCode: string;
 	role: string;
 	private: boolean;
 	members: number;
-	/** Seasons the pool counts; empty for Global. */
+	/** The one season the pool plays (a list for history's sake); empty for Global. */
 	tournaments: PoolSeason[];
 	/** live · upcoming · finished (all seasons over) · open (nothing bound). */
 	status: 'live' | 'upcoming' | 'finished' | 'open';
@@ -41,6 +55,14 @@ export interface PoolSummary {
 	chatOpen: boolean;
 	/** When the chat closes (RFC3339), '' while any season is on. */
 	chatUntil: string;
+}
+
+/** What a pool plays and how; the create / settings / clone payload. */
+export interface PoolSettings {
+	/** Season slug. */
+	tournament: string;
+	mode: PoolMode;
+	saveCalls: number;
 }
 
 export interface Person {
@@ -362,13 +384,19 @@ export const api = {
 			chatOpen?: boolean;
 			chatUntil?: string;
 			scoring?: Record<string, unknown>;
-		}>(`/api/pools/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
-	createPool: (name: string, tournaments: string[] = []) =>
-		post<{ id: string; name: string; inviteCode: string }>('/api/pools/create', { name, tournaments }),
-	setPoolSeasons: (id: string, tournaments: string[]) =>
-		post<{ tournaments: PoolSeason[] }>(`/api/pools/${id}/tournaments`, { tournaments }),
-	clonePool: (id: string, name: string, tournaments: string[]) =>
-		post<{ id: string; name: string; inviteCode: string }>(`/api/pools/${id}/clone`, { name, tournaments }),
+		} & Partial<PoolModeInfo>>(`/api/pools/${id}/leaderboard${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
+	/** Mode and save calls a pool for the season gets unless the creator says otherwise. */
+	poolDefaults: (tournament: string) =>
+		get<{ mode: PoolMode; saveCalls: number; matchesPerRound: number }>(
+			`/api/pools/defaults?tournament=${encodeURIComponent(tournament)}`
+		),
+	createPool: (name: string, settings: PoolSettings) =>
+		post<{ id: string; name: string; inviteCode: string; mode: PoolMode }>('/api/pools/create', { name, ...settings }),
+	/** Owner: the season the pool plays and how — until its first round kicks off. */
+	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
+		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),
+	clonePool: (id: string, name: string, settings: Partial<PoolSettings>) =>
+		post<{ id: string; name: string; inviteCode: string; mode: PoolMode }>(`/api/pools/${id}/clone`, { name, ...settings }),
 	// ---- pool invites: members bring friends in without a code ----
 	invitable: (poolId: string) =>
 		get<{ friends: (Person & { invited: boolean })[] }>(`/api/pools/${poolId}/invitable`),
