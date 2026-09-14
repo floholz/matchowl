@@ -7,7 +7,7 @@
 	import { pb } from '$lib/pb';
 	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
-	import { Bot, Ghost as GhostIcon, Star, Ban } from '@lucide/svelte';
+	import { Bot, Ghost as GhostIcon, ShieldCheck, Ban } from '@lucide/svelte';
 
 	let { poolId }: { poolId: string } = $props();
 
@@ -231,13 +231,13 @@
 							<span class="pa" class:won={p.ptsA === 3} class:lost={p.ptsA === 0 && p.ptsB === 3}>
 								<Avatar name={p.a.name} src={avatarUrl(p.a)} size={24} />
 								<span class="pn">{p.a.name}</span>
-								{#if p.savesA}<span class="mark" title="Save calls revealed"><Star size={11} />{p.savesA}</span>{/if}
+								{#if p.savesA}<span class="mark" title="Save Calls revealed"><ShieldCheck size={11} />{p.savesA}</span>{/if}
 								{#if p.bannedA}<span class="mark ban" title="A match banned by the rival"><Ban size={11} /></span>{/if}
 							</span>
 							<span class="ps digits"><b class:hi={p.ptsA === 3}>{p.scoreA}</b><i>–</i><b class:hi={p.ptsB === 3}>{p.scoreB}</b></span>
 							<span class="pb" class:won={p.ptsB === 3} class:lost={p.ptsB === 0 && p.ptsA === 3}>
 								{#if p.bannedB}<span class="mark ban" title="A match banned by the rival"><Ban size={11} /></span>{/if}
-								{#if p.savesB}<span class="mark" title="Save calls revealed"><Star size={11} />{p.savesB}</span>{/if}
+								{#if p.savesB}<span class="mark" title="Save Calls revealed"><ShieldCheck size={11} />{p.savesB}</span>{/if}
 								{#if p.b}
 									<span class="pn">{p.b.name}</span>
 									<Avatar name={p.b.name} src={avatarUrl(p.b)} size={24} />
@@ -281,15 +281,15 @@
 						{#if picks.closed}
 							closed
 						{:else}
-							{#if untipped}<span class="todo">{untipped} to tip</span> · {/if}<Star size={12} /> {picks.saveCallsLeft} of {picks.saveCalls} left · <Ban size={12} /> {picks.ghost ? 'no rival' : picks.mine.ban ? 'placed' : 'open'}
+							{#if untipped}<span class="todo">{untipped} to tip</span> · {/if}<ShieldCheck size={12} /> {picks.saveCallsLeft} of {picks.saveCalls} left · <Ban size={12} /> {picks.ghost ? 'no rival' : picks.mine.ban ? 'placed' : 'open'}
 						{/if}
 					</span>
 				</div>
 				<p class="muted small chelp">
 					{#if picks.ghost}
-						A save call counts double for you. You play the Ghost this matchday, so there is no one to ban.
+						A Save Call counts double for you — the tip you would bet the house on. You play the Ghost this matchday, so there is no one to ban.
 					{:else if picks.paired}
-						A save call counts double for you. Your ban takes a match away from {picks.rival?.name ?? 'your rival'} — they only see it once it kicks off. A ban on a save call cancels the double.
+						A Save Call counts double for you — the tip you would bet the house on. Your ban takes a match away from {picks.rival?.name ?? 'your rival'} — they only see it once it kicks off. A ban on a Save Call cancels the double.
 					{:else}
 						You are not paired this matchday.
 					{/if}
@@ -305,11 +305,11 @@
 							<a class="cwhen muted small" href={`/m/${m.id}`}>
 								{#if m.ftHome !== undefined}<span class="digits">{m.ftHome}–{m.ftAway}</span>{:else}{kick(m.kickoff)}{/if}
 								{#if m.tip}<span class="capsule digits" class:dim={m.locked}>{m.tip.ftHome}–{m.tip.ftAway}</span>{:else if !m.locked}<span class="capsule todo">no tip</span>{:else}<span class="capsule dim">–</span>{/if}
-								{#if m.rivalSaved}<span class="mark" title="{picks.rival?.name} saved this"><Star size={11} /> {picks.rival?.name}</span>{/if}
+								{#if m.rivalSaved}<span class="mark" title="{picks.rival?.name} made this a Save Call"><ShieldCheck size={11} /> {picks.rival?.name}</span>{/if}
 								{#if m.rivalBanned}<span class="mark ban" title="{picks.rival?.name} banned this for you"><Ban size={11} /> banned</span>{/if}
 							</a>
 							<span class="cbtns">
-								<button class="pk" class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the save call back' : 'Save call'} title={m.saved ? 'Take the save call back' : 'Save call: counts double for you'} onclick={() => setPick(m, 'save')}><Star size={15} /></button>
+								<button class="pk" class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the Save Call back' : 'Save Call'} title={m.saved ? 'Take the Save Call back' : 'Save Call: counts double for you'} onclick={() => setPick(m, 'save')}><ShieldCheck size={15} /></button>
 								{#if !picks.ghost && picks.paired}
 									<button class="pk ban" class:on={m.banned} disabled={m.locked || picks.closed || !!pickBusy} aria-label={m.banned ? 'Lift the ban' : 'Ban for your rival'} title={m.banned ? 'Lift the ban' : `Ban: does not count for ${picks.rival?.name ?? 'your rival'}`} onclick={() => setPick(m, 'ban')}><Ban size={15} /></button>
 								{/if}

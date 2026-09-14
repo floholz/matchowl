@@ -1,4 +1,4 @@
-{{.Rival}} banned {{.Match}} for you on {{.Round}} in {{.League}}. It just kicked off and will not count for your round score (a save call still counts, just not double).
+{{.Rival}} banned {{.Match}} for you on {{.Round}} in {{.League}}. It just kicked off and will not count for your round score (a Save Call still counts, just not double).
 
 See your duel: {{.CTAUrl}}
 

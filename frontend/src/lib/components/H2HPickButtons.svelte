@@ -1,10 +1,10 @@
-<!-- Save call and ban for one match, inside the tip drawer: one line per
+<!-- Save Call and ban for one match, inside the tip drawer: one line per
      head-to-head pool of the caller that plays this match's season (pool
      name shown only when there are several). Loads on mount, renders
      nothing when the caller has no such pool. -->
 <script lang="ts">
 	import { api, type H2HMatchPool } from '$lib/api';
-	import { Star, Ban } from '@lucide/svelte';
+	import { ShieldCheck, Ban } from '@lucide/svelte';
 
 	let { matchId, size = 'sm' }: { matchId: string; size?: 'sm' | 'lg' } = $props();
 
@@ -56,7 +56,7 @@
 						vs {p.rival.name}
 					{/if}
 					{#if p.locked}
-						{#if p.rivalSaved} · <span class="rv"><Star size={11} /> {p.rival?.name} saved this</span>{/if}
+						{#if p.rivalSaved} · <span class="rv"><ShieldCheck size={11} /> {p.rival?.name} made this a Save Call</span>{/if}
 						{#if p.rivalBanned} · <span class="rv ban"><Ban size={11} /> banned for you</span>{/if}
 					{/if}
 				</span>
@@ -66,12 +66,12 @@
 						class="pk"
 						class:on={p.saved}
 						disabled={p.locked || p.closed || !!busy || (!p.saved && p.saveCallsLeft === 0)}
-						title={p.saved ? 'Take the save call back' : `Save call: counts double for you (${p.saveCallsLeft} of ${p.saveCalls} left)`}
-						aria-label={p.saved ? 'Take the save call back' : 'Save call'}
+						title={p.saved ? 'Take the Save Call back' : `Save Call: counts double for you (${p.saveCallsLeft} of ${p.saveCalls} left)`}
+						aria-label={p.saved ? 'Take the Save Call back' : 'Save Call'}
 						onclick={() => toggle(p, 'save')}
 					>
-						<Star size={14} />
-						<span>{p.saved ? 'Saved' : `${p.saveCallsLeft}/${p.saveCalls}`}</span>
+						<ShieldCheck size={14} />
+						<span>{p.saved ? 'Save Call' : `Save Call ${p.saveCallsLeft}/${p.saveCalls}`}</span>
 					</button>
 					{#if p.paired && !p.ghost}
 						<button

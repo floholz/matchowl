@@ -548,7 +548,7 @@
 	{/if}
 	<section class="card manage">
 		{#if bound.length}
-			<div class="muted small seasonsline">Plays {bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')} · {poolMode === 'h2h' ? `head-to-head, ${saveCalls} save ${saveCalls === 1 ? 'call' : 'calls'} per matchday` : 'classic points table'}</div>
+			<div class="muted small seasonsline">Plays {bound.map((t) => `${t.competition?.shortName || t.competition?.name || ''} ${seasonLabel(t)}`.trim()).join(' · ')} · {poolMode === 'h2h' ? `head-to-head, ${saveCalls} Save ${saveCalls === 1 ? 'Call' : 'Calls'} per matchday` : 'classic points table'}</div>
 		{/if}
 		<div class="mrow">
 			{#if editing}

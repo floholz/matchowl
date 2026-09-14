@@ -59,13 +59,13 @@
 		</button>
 		<button type="button" class="mode" class:on={mode === 'h2h'} role="radio" aria-checked={mode === 'h2h'} {disabled} onclick={() => (mode = 'h2h')}>
 			<b>Head-to-head</b>
-			<small>A duel against a pool mate every matchday, with save calls and bans.</small>
+			<small>A duel against a pool mate every matchday, with Save Calls and bans.</small>
 		</button>
 	</div>
 </div>
 {#if mode === 'h2h'}
 	<div class="field">
-		<span>Save calls per matchday</span>
+		<span>Save Calls per matchday</span>
 		<div class="seg" role="radiogroup">
 			<button type="button" class:on={saveCalls === 1} role="radio" aria-checked={saveCalls === 1} {disabled} onclick={() => (saveCalls = 1)}>1</button>
 			<button type="button" class:on={saveCalls === 2} role="radio" aria-checked={saveCalls === 2} {disabled} onclick={() => (saveCalls = 2)}>2</button>
