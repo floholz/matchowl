@@ -728,7 +728,7 @@
 		</div>
 	{/if}
 	{#if poolMode === 'h2h' && boardKind === 'h2h'}
-		<H2HBoard poolId={id} />
+		<H2HBoard poolId={id} season={bound[0] ?? null} />
 	{:else}
 	<section class="card board">
 

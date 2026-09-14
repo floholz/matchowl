@@ -2,14 +2,20 @@
      and a browser over every round the pool has played. Data comes from
      /api/pools/{id}/h2h (open rounds carry provisional scores). -->
 <script lang="ts">
-	import { api, type H2HOverview, type H2HPair, type H2HPerson, type H2HPicks, type H2HPickTeam } from '$lib/api';
+	import { api, type H2HOverview, type H2HPair, type H2HPerson, type H2HPicks, type H2HPickTeam, type PoolSeason } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
-	import { Bot, Ghost as GhostIcon, ShieldCheck, Ban } from '@lucide/svelte';
+	import { Bot, Ghost as GhostIcon, ShieldCheck, Ban, ChevronRight } from '@lucide/svelte';
 
-	let { poolId }: { poolId: string } = $props();
+	let { poolId, season = null }: { poolId: string; season?: PoolSeason | null } = $props();
+
+	/** The competition hub's Matches tab filtered to a matchday. */
+	const hubRound = (key: string) =>
+		season?.competition
+			? `/competitions/${season.competition.key}?s=${encodeURIComponent(season.slug)}&tab=matches&round=${encodeURIComponent(key)}`
+			: '';
 
 	let data = $state<H2HOverview | null>(null);
 	let error = $state('');
@@ -108,7 +114,7 @@
 			{@const f = faced(myLatest)}
 			{@const open = latest.status === 'open'}
 			<div class="dhead">
-				<b>{roundName(latest)}</b>
+				{#if hubRound(latest.key)}<a class="rlink" href={hubRound(latest.key)}><b>{roundName(latest)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(latest)}</b>{/if}
 				<span class="muted small">
 					{#if open}
 						{latest.counted} of {latest.matches} matches in · closes {when(latest.closesAt)}
@@ -147,7 +153,7 @@
 				{/if}
 			</div>
 		{:else if latest}
-			<div class="dhead"><b>{roundName(latest)}</b><span class="muted small">{latest.status === 'open' ? 'in play' : 'final'}</span></div>
+			<div class="dhead">{#if hubRound(latest.key)}<a class="rlink" href={hubRound(latest.key)}><b>{roundName(latest)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(latest)}</b>{/if}<span class="muted small">{latest.status === 'open' ? 'in play' : 'final'}</span></div>
 			<p class="muted small dfoot">
 				You are not paired this matchday — you join from
 				{data.next ? `${roundName(data.next)} (${day(data.next.firstKickoff)})` : 'the next one'}{#if myNext}, against {(myNext.a.userId === me ? myNext.b : myNext.a)?.name ?? 'the Ghost'}{/if}.
@@ -216,7 +222,7 @@
 			</div>
 			{#if round}
 				<div class="rhead">
-					<b>{roundName(round)}</b>
+					{#if hubRound(round.key)}<a class="rlink" href={hubRound(round.key)}><b>{roundName(round)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(round)}</b>{/if}
 					<span class="muted small">
 						{#if round.status === 'open'}
 							in play · {round.counted} of {round.matches} matches in · closes {when(round.closesAt)}
@@ -252,7 +258,7 @@
 			{/if}
 			{#if data.next && selected === data.next.key}
 				<div class="rhead">
-					<b>{roundName(data.next)}</b>
+					{#if hubRound(data.next.key)}<a class="rlink" href={hubRound(data.next.key)}><b>{roundName(data.next)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(data.next)}</b>{/if}
 					<span class="muted small">opens {when(data.next.firstKickoff)} · {data.next.matches} matches</span>
 				</div>
 				<ul class="pairs preview">
@@ -276,7 +282,7 @@
 				<p class="muted small">Loading your calls…</p>
 			{:else}
 				<div class="rhead">
-					<b>Your matchday · {roundName(picks.round)}</b>
+					{#if hubRound(picks.round.key)}<a class="rlink" href={hubRound(picks.round.key)}><b>Your matchday · {roundName(picks.round)}</b><ChevronRight size={14} /></a>{:else}<b>Your matchday · {roundName(picks.round)}</b>{/if}
 					<span class="muted small">
 						{#if picks.closed}
 							closed
@@ -328,6 +334,16 @@
 	}
 	.duel {
 		padding: 0.9rem 1rem;
+	}
+	.rlink {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		color: inherit;
+		text-decoration: none;
+	}
+	.rlink:hover b {
+		color: var(--accent);
 	}
 	.dhead,
 	.rhead {

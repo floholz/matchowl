@@ -25,16 +25,30 @@
 	const played = (m: Match) => m.status === 'finished' || !!m.finalizedAt;
 
 	/** Rounds in play order (first kick-off), as "stage · round" keys. */
+	// Rounds in play order: stage order, then the round number in the
+	// label, then the median kick-off — a single rescheduled match must not
+	// pull a whole matchday ahead of the previous one (mirrors the server's
+	// tournaments.GroupRounds).
 	let rounds = $derived.by(() => {
-		const seen = new Map<string, { key: string; label: string; first: number }>();
+		const seen = new Map<string, { key: string; label: string; stage: number; num: number; kicks: number[] }>();
+		const stages = tournamentStore.structure.stages.map((s) => s.code);
 		for (const m of [...tipsStore.matches].sort(byKickoff)) {
 			const key = `${m.stage}|${m.roundLabel}`;
-			if (seen.has(key)) continue;
-			const stage = tournamentStore.stageName(m.stage);
-			const label = m.roundLabel && m.roundLabel !== stage ? m.roundLabel : stage;
-			seen.set(key, { key, label, first: new Date(m.kickoff).getTime() });
+			let r = seen.get(key);
+			if (!r) {
+				const stage = tournamentStore.stageName(m.stage);
+				const label = m.roundLabel && m.roundLabel !== stage ? m.roundLabel : stage;
+				const n = /(\d+)\s*$/.exec(m.roundLabel ?? '');
+				const si = stages.indexOf(m.stage);
+				r = { key, label, stage: si < 0 ? stages.length : si, num: n ? Number(n[1]) : 0, kicks: [] };
+				seen.set(key, r);
+			}
+			r.kicks.push(new Date(m.kickoff).getTime());
 		}
-		return [...seen.values()];
+		const median = (k: number[]) => k[Math.floor(k.length / 2)] ?? 0;
+		return [...seen.values()]
+			.sort((a, b) => a.stage - b.stage || (a.num && b.num ? a.num - b.num : 0) || median(a.kicks) - median(b.kicks))
+			.map(({ key, label, kicks }) => ({ key, label, first: kicks[0] }));
 	});
 	// Filters live in the URL (?round=stage|label, ?team=id): empty = all.
 	// Only the user sets them; coming back restores them with the page.
