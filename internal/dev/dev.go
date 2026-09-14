@@ -23,6 +23,8 @@ import (
 	"github.com/floholz/matchowl/internal/clock"
 	"github.com/floholz/matchowl/internal/football"
 	"github.com/floholz/matchowl/internal/forecast"
+	"github.com/floholz/matchowl/internal/h2h"
+	"github.com/floholz/matchowl/internal/pools"
 	"github.com/floholz/matchowl/internal/scoring"
 	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tips"
@@ -266,9 +268,10 @@ func backfillBotAdvancers(app core.App) error {
 }
 
 // makeBots creates `count` bot users, each with a complete consistent
-// Forecast and a Tip on every match, joined to the given leagues. Uses the
-// dev-only validation bypass so it works even after the clock is advanced.
-func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
+// Forecast (where the season's shape allows one) and a Tip on every match
+// of the season, joined to the given pools. Uses the dev-only validation
+// bypass so it works even after the clock is advanced.
+func makeBots(app core.App, count int, leagueIDs []string, tournament *core.Record) ([]string, error) {
 	usersCol, err := app.FindCollectionByNameOrId("users")
 	if err != nil {
 		return nil, err
@@ -282,10 +285,6 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 		return nil, err
 	}
 	lmCol, err := app.FindCollectionByNameOrId("pool_members")
-	if err != nil {
-		return nil, err
-	}
-	tournament, err := tournaments.Current(app)
 	if err != nil {
 		return nil, err
 	}
@@ -329,18 +328,18 @@ func makeBots(app core.App, count int, leagueIDs []string) ([]string, error) {
 				return err
 			}
 
-			order, thirds, bracket, err := scoring.RandomForecast(tx, tournament, rng)
-			if err != nil {
-				return err
-			}
-			f := core.NewRecord(fcCol)
-			f.Set("user", u.Id)
-			f.Set("tournament", tournament.Id)
-			f.Set("groupOrder", order)
-			f.Set("thirdQualifiers", thirds)
-			f.Set("bracket", bracket)
-			if err := tx.Save(f); err != nil {
-				return err
+			// A full random forecast only fits group + knockout shapes; a
+			// league season gets tips only.
+			if order, thirds, bracket, err := scoring.RandomForecast(tx, tournament, rng); err == nil {
+				f := core.NewRecord(fcCol)
+				f.Set("user", u.Id)
+				f.Set("tournament", tournament.Id)
+				f.Set("groupOrder", order)
+				f.Set("thirdQualifiers", thirds)
+				f.Set("bracket", bracket)
+				if err := tx.Save(f); err != nil {
+					return err
+				}
 			}
 
 			for _, m := range matches {
@@ -495,16 +494,20 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err := simulate(app, ts); err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
+		h2h.Tick(app) // open / close head-to-head rounds on the new clock
 		return e.JSON(http.StatusOK, state(app))
 	})
 
-	// POST /api/dev/bots { "count": 3, "poolId": "" } — create bot players
-	// with a full Forecast + a Tip on every match. Joins the given league, or
-	// every league the caller is in if omitted.
+	// POST /api/dev/bots { "count": 3, "poolId": "", "tournament": "" } —
+	// create bot players with a Tip on every match of the season (and a
+	// Forecast where the shape allows). Joins the given pool, or every pool
+	// the caller is in if omitted. The season is the slug given, else the
+	// pool's own, else the current tournament.
 	g.POST("/bots", func(e *core.RequestEvent) error {
 		var body struct {
-			Count    int    `json:"count"`
-			LeagueID string `json:"poolId"`
+			Count      int    `json:"count"`
+			LeagueID   string `json:"poolId"`
+			Tournament string `json:"tournament"`
 		}
 		_ = e.BindBody(&body)
 		if body.Count <= 0 {
@@ -523,7 +526,24 @@ func Register(app core.App, se *core.ServeEvent) {
 				leagueIDs = append(leagueIDs, m.GetString("pool"))
 			}
 		}
-		names, err := makeBots(app, body.Count, leagueIDs)
+		var tournament *core.Record
+		var terr error
+		switch {
+		case body.Tournament != "":
+			tournament, terr = tournaments.BySlug(app, body.Tournament)
+		case body.LeagueID != "":
+			if lg, err := app.FindRecordById("pools", body.LeagueID); err == nil && pools.Season(lg) != "" {
+				tournament, terr = app.FindRecordById("tournaments", pools.Season(lg))
+			} else {
+				tournament, terr = tournaments.Current(app)
+			}
+		default:
+			tournament, terr = tournaments.Current(app)
+		}
+		if terr != nil {
+			return e.JSON(400, map[string]any{"error": "no such season"})
+		}
+		names, err := makeBots(app, body.Count, leagueIDs, tournament)
 		if err != nil {
 			return e.JSON(500, map[string]any{"error": err.Error(), "created": names})
 		}

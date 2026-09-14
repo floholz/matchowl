@@ -24,6 +24,7 @@ import (
 	"github.com/floholz/matchowl/internal/feed"
 	"github.com/floholz/matchowl/internal/forecast"
 	"github.com/floholz/matchowl/internal/friends"
+	"github.com/floholz/matchowl/internal/h2h"
 	"github.com/floholz/matchowl/internal/importer"
 	"github.com/floholz/matchowl/internal/notify"
 	"github.com/floholz/matchowl/internal/oauth"
@@ -79,6 +80,7 @@ func main() {
 		tips.Register(e.App, e)
 		forecast.Register(e.App, e)
 		scoring.Register(e.App, e)
+		h2h.Register(e.App, e)
 		push.Register(e.App, e)
 		notify.Register(e.App, e)
 		stats.Register(e.App, e)

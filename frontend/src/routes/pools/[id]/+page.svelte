@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { api, type LeaderboardRow, type BotSummary, type PoolMode, type PoolSeason, type PoolSummary, type Person } from '$lib/api';
 	import PoolSettings from '$lib/components/PoolSettings.svelte';
+	import H2HBoard from '$lib/components/H2HBoard.svelte';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
@@ -121,6 +122,11 @@
 	let loaded = $state(false);
 	let error = $state('');
 	let tab = $state<'total' | 'tipsPoints' | 'forecastPoints'>('total');
+	/** Head-to-head pools: the duel table, or the classic points board. */
+	let boardKind = $state<'h2h' | 'points'>('points');
+	$effect(() => {
+		boardKind = poolMode === 'h2h' ? 'h2h' : 'points';
+	});
 
 	// Chat (private leagues only).
 	let canChat = $state(false);
@@ -498,11 +504,19 @@
 				{#if invite && invite !== 'GLOBAL' && !finished}
 					<button class="chip inv" onclick={() => (view = 'members')}><Share2 size={14} /> Invite</button>
 				{/if}
-				<div class="seg2" role="tablist">
-					<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
-					<button class:on={tab === 'tipsPoints'} onclick={() => (tab = 'tipsPoints')}>Tips</button>
-					<button class:on={tab === 'forecastPoints'} onclick={() => (tab = 'forecastPoints')}>Forecast</button>
-				</div>
+				{#if poolMode === 'h2h'}
+					<div class="seg2" role="tablist">
+						<button class:on={boardKind === 'h2h'} onclick={() => (boardKind = 'h2h')}>Head-to-head</button>
+						<button class:on={boardKind === 'points'} onclick={() => (boardKind = 'points')}>Points</button>
+					</div>
+				{/if}
+				{#if poolMode !== 'h2h' || boardKind === 'points'}
+					<div class="seg2" role="tablist">
+						<button class:on={tab === 'total'} onclick={() => (tab = 'total')}>Total</button>
+						<button class:on={tab === 'tipsPoints'} onclick={() => (tab = 'tipsPoints')}>Tips</button>
+						<button class:on={tab === 'forecastPoints'} onclick={() => (tab = 'forecastPoints')}>Forecast</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
@@ -713,6 +727,9 @@
 			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; startClone(); }}>Next season</button>{/if}
 		</div>
 	{/if}
+	{#if poolMode === 'h2h' && boardKind === 'h2h'}
+		<H2HBoard poolId={id} />
+	{:else}
 	<section class="card board">
 
 		<table class="lb">
@@ -827,6 +844,7 @@
 			<span class="spacer"></span>
 			<span class="digits ppts">{meRow[tab]}</span>
 		</button>
+	{/if}
 	{/if}
 	{/if}
 

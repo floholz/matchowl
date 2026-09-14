@@ -295,8 +295,18 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
    `POST /api/pools/{id}/settings` refused once the first round kicked
    off (`pools.LockAt`), rounds helper in `tournaments/rounds.go`
    (ordered by round number, then median kick-off).
-2. Core h2h: round keys + close time, rotation + Ghost, the close job,
-   `h2h_rounds`, the h2h table and Points tab on the pool page.
+2. ✅ 2026-09-14 — Core h2h (`internal/h2h`): rounds open at their first
+   kick-off with the pairings frozen from the roster (circle rotation by
+   the pool's round ordinal, Ghost = rounded mean of the others), close
+   24 h after the last scheduled kick-off with the results frozen in
+   `h2h_rounds` (migration 0043); scores come from `match_scores` under
+   the pool's config, matches kicking off after the close time are
+   ignored. Job: cron every 5 min, on every read, after the dev clock
+   moves. `GET /api/pools/{id}/h2h` (table, rounds with provisional
+   scores, headline round, next pairing) and `/h2h/round?key=` (per-match
+   breakdown). `H2HBoard` on the pool page: duel card, W-D-L table (tip
+   points as tiebreak), round browser; Head-to-head · Points switch. Dev
+   bots now tip the pool's own season.
 3. Save calls + bans: `h2h_picks`, placement UI on the row and match page,
    visibility rules, round scoring with multipliers, reveal at kick-off.
 4. Surfaces: Home card, round view, chat auto-post, notifications.

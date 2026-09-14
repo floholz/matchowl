@@ -65,6 +65,75 @@ export interface PoolSettings {
 	saveCalls: number;
 }
 
+/** Head-to-head: a member as the duel views name them; null = the Ghost. */
+export interface H2HPerson {
+	userId: string;
+	name: string;
+	avatar: string;
+	role: string;
+}
+export interface H2HPair {
+	a: H2HPerson;
+	b: H2HPerson | null;
+	scoreA: number;
+	scoreB: number;
+	/** 3 / 1 / 0 each. */
+	ptsA: number;
+	ptsB: number;
+}
+export interface H2HRound {
+	key: string;
+	label: string;
+	num: number;
+	ordinal: number;
+	status: 'open' | 'closed';
+	firstKickoff: string;
+	closesAt: string;
+	pairs: H2HPair[];
+	/** Matches in the round, and how many of them count so far. */
+	matches: number;
+	counted: number;
+	ghost: number;
+}
+export interface H2HRoundDetail extends H2HRound {
+	matchIds: string[];
+	countedIds: string[];
+	/** user → match → tip points behind the scores. */
+	breakdown: Record<string, Record<string, number>>;
+}
+export interface H2HTableRow {
+	userId: string;
+	name: string;
+	avatar: string;
+	role: string;
+	played: number;
+	won: number;
+	drawn: number;
+	lost: number;
+	points: number;
+	tipsPoints: number;
+	scoreFor: number;
+	scoreAgainst: number;
+}
+export interface H2HOverview {
+	table: H2HTableRow[];
+	rounds: H2HRound[];
+	/** Key of the round to show first: the open one, else the last closed. */
+	current: string;
+	/** The round that opens next, with the pairings the roster would get. */
+	next: {
+		key: string;
+		label: string;
+		num: number;
+		firstKickoff: string;
+		closesAt: string;
+		matches: number;
+		pairs: { a: H2HPerson; b: H2HPerson | null }[];
+	} | null;
+	firstRound: { key: string; label: string; firstKickoff: string };
+	saveCalls: number;
+}
+
 export interface Person {
 	userId: string;
 	name: string;
@@ -392,6 +461,10 @@ export const api = {
 		),
 	createPool: (name: string, settings: PoolSettings) =>
 		post<{ id: string; name: string; inviteCode: string; mode: PoolMode }>('/api/pools/create', { name, ...settings }),
+	// ---- head-to-head pools ----
+	h2h: (poolId: string) => get<H2HOverview>(`/api/pools/${poolId}/h2h`),
+	h2hRound: (poolId: string, key: string) =>
+		get<H2HRoundDetail>(`/api/pools/${poolId}/h2h/round?key=${encodeURIComponent(key)}`),
 	/** Owner: the season the pool plays and how — until its first round kicks off. */
 	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
 		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),
