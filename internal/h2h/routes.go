@@ -60,11 +60,25 @@ func roundView(app core.App, lg *core.Record, row *core.Record, pp *people, with
 			res = &Results{}
 		}
 	}
+	closed := row.GetString("status") == "closed"
+	shown := revealed(app, res.Picks, closed)
 	pairs := make([]map[string]any, 0, len(res.Pairs))
 	for _, p := range res.Pairs {
+		var savesA, savesB int
+		if up := shown[p.A]; up != nil {
+			savesA = len(up.Saves)
+		}
+		if up := shown[p.B]; up != nil {
+			savesB = len(up.Saves)
+		}
 		pairs = append(pairs, map[string]any{
 			"a": pp.get(p.A), "b": pp.get(p.B),
 			"scoreA": p.ScoreA, "scoreB": p.ScoreB, "ptsA": p.PtsA, "ptsB": p.PtsB,
+			// Revealed picks: save calls that have kicked off, and whether
+			// the rival's ban is out.
+			"savesA": savesA, "savesB": savesB,
+			"bannedA": shown[p.B] != nil && shown[p.B].Ban != "",
+			"bannedB": p.B != Ghost && shown[p.A] != nil && shown[p.A].Ban != "",
 		})
 	}
 	var ids []string
@@ -86,8 +100,65 @@ func roundView(app core.App, lg *core.Record, row *core.Record, pp *people, with
 		v["matchIds"] = ids
 		v["countedIds"] = res.Counted
 		v["breakdown"] = res.Breakdown
+		v["picks"] = shown
 	}
 	return v
+}
+
+// picksView is the picks panel for one member and round: the round's
+// matches with the member's own save calls and ban, what the rival has
+// revealed, and the allowance left.
+func picksView(app core.App, lg *core.Record, uid string, r tournaments.Round, pp *people) map[string]any {
+	now := clock.Now(app)
+	all := picksFor(app, lg.Id, r.Key)
+	mine := all[uid]
+	if mine == nil {
+		mine = &UserPicks{Saves: []string{}}
+	}
+	rival, in := rivalOf(app, lg, r.Key, uid)
+	var rivalPicks *UserPicks
+	if in && rival != Ghost {
+		rivalPicks = revealed(app, all, false)[rival]
+	}
+	closed := false
+	status := "upcoming"
+	if row, _ := app.FindFirstRecordByFilter("h2h_rounds", "pool = {:p} && key = {:k}",
+		map[string]any{"p": lg.Id, "k": r.Key}); row != nil {
+		status = row.GetString("status")
+		closed = status == "closed"
+	}
+	matches := make([]map[string]any, 0, len(r.MatchIDs))
+	for _, id := range r.MatchIDs {
+		m, err := app.FindRecordById("matches", id)
+		if err != nil {
+			continue
+		}
+		v := matchView(app, m, now)
+		v["saved"] = mine.saved(id)
+		v["banned"] = mine.Ban == id
+		v["rivalSaved"] = rivalPicks != nil && rivalPicks.saved(id)
+		v["rivalBanned"] = rivalPicks != nil && rivalPicks.Ban == id
+		matches = append(matches, v)
+	}
+	allow := lg.GetInt("saveCalls")
+	if allow < 1 {
+		allow = 1
+	}
+	out := map[string]any{
+		"round": map[string]any{
+			"key": r.Key, "label": r.Label, "num": r.Num, "status": status,
+			"firstKickoff": iso(r.First), "closesAt": iso(r.Last.Add(CloseGrace)),
+		},
+		"saveCalls":     allow,
+		"saveCallsLeft": allow - len(mine.Saves),
+		"mine":          mine,
+		"paired":        in,
+		"rival":         pp.get(rival), // nil = the Ghost (or not paired)
+		"ghost":         in && rival == Ghost,
+		"closed":        closed,
+		"matches":       matches,
+	}
+	return out
 }
 
 // nextView previews the round that opens next: which matchday, when, and
@@ -178,6 +249,70 @@ func Register(app core.App, se *core.ServeEvent) {
 			"firstRound": map[string]any{"key": first.Key, "label": first.Label, "firstKickoff": iso(first.First)},
 			"saveCalls":  lg.GetInt("saveCalls"),
 		})
+	})
+
+	// GET /api/pools/{id}/h2h/picks?round=<key> — my save calls and ban for
+	// a round (default: the headline round, else the next one), with what
+	// the rival has revealed.
+	g.GET("/picks", func(e *core.RequestEvent) error {
+		lg, err := member(e)
+		if err != nil {
+			return err
+		}
+		key := e.Request.URL.Query().Get("round")
+		var round *tournaments.Round
+		for _, r := range playable(app, lg, pools.Season(lg)) {
+			if key == "" {
+				// Default: the earliest round that has not closed.
+				row, _ := app.FindFirstRecordByFilter("h2h_rounds", "pool = {:p} && key = {:k}",
+					map[string]any{"p": lg.Id, "k": r.Key})
+				if row == nil || row.GetString("status") != "closed" {
+					round = &r
+					break
+				}
+			} else if r.Key == key {
+				round = &r
+				break
+			}
+		}
+		if round == nil {
+			return e.JSON(http.StatusNotFound, map[string]string{"error": "no such matchday"})
+		}
+		pp := &people{app: app, cache: map[string]*person{}}
+		return e.JSON(http.StatusOK, picksView(app, lg, e.Auth.Id, *round, pp))
+	})
+
+	// POST /api/pools/{id}/h2h/picks { "match", "kind": "save"|"ban", "on": true|false }
+	g.POST("/picks", func(e *core.RequestEvent) error {
+		lg, err := member(e)
+		if err != nil {
+			return err
+		}
+		var body struct {
+			Match string `json:"match"`
+			Kind  string `json:"kind"`
+			On    *bool  `json:"on"`
+		}
+		if err := e.BindBody(&body); err != nil {
+			return e.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
+		}
+		on := body.On == nil || *body.On
+		if err := SetPick(app, lg, e.Auth.Id, body.Match, body.Kind, on); err != nil {
+			if pe, ok := err.(*PickError); ok {
+				return e.JSON(pe.Status, map[string]string{"error": pe.Msg})
+			}
+			return err
+		}
+		m, _ := app.FindRecordById("matches", body.Match)
+		var round *tournaments.Round
+		if m != nil {
+			round, _ = roundOf(app, lg, m)
+		}
+		if round == nil {
+			return e.JSON(http.StatusOK, map[string]any{"ok": true})
+		}
+		pp := &people{app: app, cache: map[string]*person{}}
+		return e.JSON(http.StatusOK, picksView(app, lg, e.Auth.Id, *round, pp))
 	})
 
 	// GET /api/pools/{id}/h2h/round?key=<stage|label> — one round with the

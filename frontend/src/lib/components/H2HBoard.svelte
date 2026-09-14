@@ -2,11 +2,12 @@
      and a browser over every round the pool has played. Data comes from
      /api/pools/{id}/h2h (open rounds carry provisional scores). -->
 <script lang="ts">
-	import { api, type H2HOverview, type H2HPair, type H2HPerson, type H2HRound } from '$lib/api';
+	import { api, type H2HOverview, type H2HPair, type H2HPerson, type H2HPicks, type H2HPickTeam } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
+	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
-	import { Bot, Ghost as GhostIcon } from '@lucide/svelte';
+	import { Bot, Ghost as GhostIcon, Star, Ban } from '@lucide/svelte';
 
 	let { poolId }: { poolId: string } = $props();
 
@@ -54,7 +55,46 @@
 	let myNext = $derived(data?.next ? mine(data.next) : null);
 	let seasonStarted = $derived(!!data && data.rounds.length > 0);
 	let rows = $derived(data?.table ?? []);
-	let meIndex = $derived(rows.findIndex((r) => r.userId === me));
+
+	// ---- picks: save calls and the ban, for the selected round while it
+	// takes them (open, or the one that opens next) ----
+	let picks = $state<H2HPicks | null>(null);
+	let pickErr = $state('');
+	let pickBusy = $state('');
+	let pickRound = $derived.by(() => {
+		if (!data) return '';
+		if (selected === data.next?.key) return selected;
+		const r = data.rounds.find((r) => r.key === selected);
+		return r && r.status === 'open' ? r.key : '';
+	});
+	$effect(() => {
+		const key = pickRound;
+		const id = poolId;
+		picks = null;
+		pickErr = '';
+		if (!key) return;
+		api
+			.h2hPicks(id, key)
+			.then((p) => {
+				if (key === pickRound) picks = p;
+			})
+			.catch(() => (pickErr = 'Could not load your calls.'));
+	});
+	async function setPick(m: { id: string; saved: boolean; banned: boolean }, kind: 'save' | 'ban') {
+		if (!picks || pickBusy) return;
+		pickBusy = m.id + kind;
+		pickErr = '';
+		try {
+			picks = await api.h2hSetPick(poolId, m.id, kind, kind === 'save' ? !m.saved : !m.banned);
+		} catch (e: unknown) {
+			const msg = (e as { response?: { error?: string } })?.response?.error;
+			pickErr = msg || 'Could not place that.';
+		} finally {
+			pickBusy = '';
+		}
+	}
+	const logo = (t: H2HPickTeam | null) => (t ? teamLogoUrl(t.id, t.logo) : '');
+	const kick = (iso: string) => new Date(iso).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 </script>
 
 {#if error}
@@ -169,6 +209,9 @@
 				{#each data.rounds as r (r.key)}
 					<button class="rchip" class:on={r.key === selected} class:live={r.status === 'open'} onclick={() => (selected = r.key)}>{r.num > 0 ? r.num : r.label}</button>
 				{/each}
+				{#if data.next}
+					<button class="rchip next" class:on={data.next.key === selected} onclick={() => (selected = data!.next!.key)}>{data.next.num > 0 ? data.next.num : 'next'}</button>
+				{/if}
 			</div>
 			{#if round}
 				<div class="rhead">
@@ -187,15 +230,86 @@
 							<span class="pa" class:won={p.ptsA === 3} class:lost={p.ptsA === 0 && p.ptsB === 3}>
 								<Avatar name={p.a.name} src={avatarUrl(p.a)} size={24} />
 								<span class="pn">{p.a.name}</span>
+								{#if p.savesA}<span class="mark" title="Save calls revealed"><Star size={11} />{p.savesA}</span>{/if}
+								{#if p.bannedA}<span class="mark ban" title="A match banned by the rival"><Ban size={11} /></span>{/if}
 							</span>
 							<span class="ps digits"><b class:hi={p.ptsA === 3}>{p.scoreA}</b><i>–</i><b class:hi={p.ptsB === 3}>{p.scoreB}</b></span>
 							<span class="pb" class:won={p.ptsB === 3} class:lost={p.ptsB === 0 && p.ptsA === 3}>
+								{#if p.bannedB}<span class="mark ban" title="A match banned by the rival"><Ban size={11} /></span>{/if}
+								{#if p.savesB}<span class="mark" title="Save calls revealed"><Star size={11} />{p.savesB}</span>{/if}
 								{#if p.b}
 									<span class="pn">{p.b.name}</span>
 									<Avatar name={p.b.name} src={avatarUrl(p.b)} size={24} />
 								{:else}
 									<span class="pn">Ghost</span>
 									<span class="ghost sm"><GhostIcon size={14} /></span>
+								{/if}
+							</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			{#if data.next && selected === data.next.key}
+				<div class="rhead">
+					<b>{roundName(data.next)}</b>
+					<span class="muted small">opens {when(data.next.firstKickoff)} · {data.next.matches} matches</span>
+				</div>
+				<ul class="pairs preview">
+					{#each data.next.pairs as p (p.a.userId)}
+						<li class:mine={p.a.userId === me || p.b?.userId === me}>
+							<span class="pa"><Avatar name={p.a.name} src={avatarUrl(p.a)} size={24} /><span class="pn">{p.a.name}</span></span>
+							<span class="ps muted">v</span>
+							<span class="pb">{#if p.b}<span class="pn">{p.b.name}</span><Avatar name={p.b.name} src={avatarUrl(p.b)} size={24} />{:else}<span class="pn">Ghost</span><span class="ghost sm"><GhostIcon size={14} /></span>{/if}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
+
+	{#if pickRound}
+		<section class="card calls">
+			{#if pickErr && !picks}
+				<p class="error">{pickErr}</p>
+			{:else if !picks}
+				<p class="muted small">Loading your calls…</p>
+			{:else}
+				<div class="rhead">
+					<b>Your calls · {roundName(picks.round)}</b>
+					<span class="muted small">
+						{#if picks.closed}
+							closed
+						{:else}
+							<Star size={12} /> {picks.saveCallsLeft} of {picks.saveCalls} left · <Ban size={12} /> {picks.ghost ? 'no rival' : picks.mine.ban ? 'placed' : 'open'}
+						{/if}
+					</span>
+				</div>
+				<p class="muted small chelp">
+					{#if picks.ghost}
+						A save call counts double for you. You play the Ghost this matchday, so there is no one to ban.
+					{:else if picks.paired}
+						A save call counts double for you. Your ban takes a match away from {picks.rival?.name ?? 'your rival'} — they only see it once it kicks off. A ban on a save call cancels the double.
+					{:else}
+						You are not paired this matchday.
+					{/if}
+				</p>
+				{#if pickErr}<p class="error small">{pickErr}</p>{/if}
+				<ul class="cmatches">
+					{#each picks.matches as m (m.id)}
+						<li class:locked={m.locked}>
+							<span class="cteams">
+								<span class="ct"><img src={logo(m.home)} alt="" class="crest" />{m.home?.name ?? '?'}</span>
+								<span class="ct"><img src={logo(m.away)} alt="" class="crest" />{m.away?.name ?? '?'}</span>
+							</span>
+							<span class="cwhen muted small">
+								{#if m.ftHome !== undefined}<span class="digits">{m.ftHome}–{m.ftAway}</span>{:else}{kick(m.kickoff)}{/if}
+								{#if m.rivalSaved}<span class="mark" title="{picks.rival?.name} saved this"><Star size={11} /> {picks.rival?.name}</span>{/if}
+								{#if m.rivalBanned}<span class="mark ban" title="{picks.rival?.name} banned this for you"><Ban size={11} /> banned</span>{/if}
+							</span>
+							<span class="cbtns">
+								<button class="pk" class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the save call back' : 'Save call'} title={m.saved ? 'Take the save call back' : 'Save call: counts double for you'} onclick={() => setPick(m, 'save')}><Star size={15} /></button>
+								{#if !picks.ghost && picks.paired}
+									<button class="pk ban" class:on={m.banned} disabled={m.locked || picks.closed || !!pickBusy} aria-label={m.banned ? 'Lift the ban' : 'Ban for your rival'} title={m.banned ? 'Lift the ban' : `Ban: does not count for ${picks.rival?.name ?? 'your rival'}`} onclick={() => setPick(m, 'ban')}><Ban size={15} /></button>
 								{/if}
 							</span>
 						</li>
@@ -449,5 +563,104 @@
 	}
 	.ps b.hi {
 		color: var(--accent);
+	}
+	.rchip.next {
+		border-style: dashed;
+	}
+	.mark {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.1rem;
+		padding: 0.05rem 0.3rem;
+		border-radius: 999px;
+		border: 1px solid var(--accent);
+		color: var(--accent);
+		font-size: 0.62rem;
+		font-weight: 700;
+	}
+	.mark.ban {
+		border-color: var(--live, #e0443e);
+		color: var(--live, #e0443e);
+	}
+	.chelp {
+		margin: 0.3rem 0 0.4rem;
+	}
+	.error.small {
+		font-size: 0.8rem;
+	}
+	.cmatches {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.cmatches li {
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.45rem 0;
+		border-bottom: 1px solid var(--border);
+	}
+	.cmatches li:last-child {
+		border-bottom: 0;
+	}
+	.cmatches li.locked .cteams {
+		color: var(--muted);
+	}
+	.cteams {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
+		font-size: 0.82rem;
+		font-weight: 600;
+	}
+	.ct {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.crest {
+		width: 16px;
+		height: 16px;
+		object-fit: contain;
+	}
+	.cwhen {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.15rem;
+		text-align: right;
+	}
+	.cbtns {
+		display: inline-flex;
+		gap: 0.3rem;
+	}
+	.pk {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		color: var(--muted);
+	}
+	.pk.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-fg);
+	}
+	.pk.ban.on {
+		background: var(--live, #e0443e);
+		border-color: var(--live, #e0443e);
+		color: #fff;
+	}
+	.pk:disabled {
+		opacity: 0.45;
 	}
 </style>

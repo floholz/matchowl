@@ -42,6 +42,9 @@ type Results struct {
 	Ghost     int                       `json:"ghost"`
 	Counted   []string                  `json:"counted"`
 	Breakdown map[string]map[string]int `json:"breakdown"`
+	// Every member's save calls and ban in the round (all of them at close;
+	// the API reveals only kicked-off ones while the round is open).
+	Picks map[string]*UserPicks `json:"picks"`
 }
 
 // Tick opens rounds that have kicked off and closes rounds past their
@@ -193,7 +196,9 @@ func ResultsOf(row *core.Record) *Results {
 // Compute scores a round from what is known now: every match of the
 // round that is finished and kicked off before the round's close time
 // counts; a member's round score is the sum of their tip points over
-// those matches. Frozen at close; provisional while the round is open.
+// those matches, doubled on their save calls and zeroed on the match
+// their rival banned (a banned save call counts normal). Frozen at
+// close; provisional while the round is open.
 func Compute(app core.App, lg *core.Record, row *core.Record) (*Results, error) {
 	var ids []string
 	_ = row.UnmarshalJSONField("matches", &ids)
@@ -213,11 +218,13 @@ func Compute(app core.App, lg *core.Record, row *core.Record) (*Results, error) 
 		counted = append(counted, id)
 	}
 	pairs := pairingsOf(row)
+	picks := picksFor(app, lg.Id, row.GetString("key"))
 	res := &Results{
 		Pairs:     make([]PairResult, 0, len(pairs)),
 		Scores:    map[string]int{},
 		Counted:   counted,
 		Breakdown: map[string]map[string]int{},
+		Picks:     picks,
 	}
 	members := make([]string, 0, 2*len(pairs))
 	for _, p := range pairs {
@@ -227,17 +234,29 @@ func Compute(app core.App, lg *core.Record, row *core.Record) (*Results, error) 
 		}
 	}
 	if len(counted) > 0 && len(members) > 0 {
-		pts, err := matchPoints(app, lg, members, counted)
+		base, err := matchPoints(app, lg, members, counted)
 		if err != nil {
 			return nil, err
 		}
-		for uid, perMatch := range pts {
-			res.Breakdown[uid] = perMatch
+		// Effective points depend on the duel: my saves, my rival's ban.
+		score := func(uid, rival string) {
+			perMatch := map[string]int{}
 			sum := 0
-			for _, p := range perMatch {
+			for _, m := range counted {
+				p := effective(base[uid][m], picks[uid], picks[rival], m)
+				if p != 0 || base[uid][m] != 0 || picks[uid].saved(m) {
+					perMatch[m] = p
+				}
 				sum += p
 			}
+			res.Breakdown[uid] = perMatch
 			res.Scores[uid] = sum
+		}
+		for _, p := range pairs {
+			score(p.A, p.B)
+			if p.B != Ghost {
+				score(p.B, p.A)
+			}
 		}
 	}
 	for _, uid := range members {

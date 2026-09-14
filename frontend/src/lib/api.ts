@@ -80,6 +80,45 @@ export interface H2HPair {
 	/** 3 / 1 / 0 each. */
 	ptsA: number;
 	ptsB: number;
+	/** Revealed picks: save calls that have kicked off, and whether the rival's ban is out. */
+	savesA: number;
+	savesB: number;
+	bannedA: boolean;
+	bannedB: boolean;
+}
+export interface H2HPickTeam {
+	id: string;
+	name: string;
+	fifaCode: string;
+	logo: string;
+}
+export interface H2HPickMatch {
+	id: string;
+	kickoff: string;
+	status: string;
+	home: H2HPickTeam | null;
+	away: H2HPickTeam | null;
+	/** Kicked off: picks on it are frozen and revealed. */
+	locked: boolean;
+	ftHome?: number;
+	ftAway?: number;
+	saved: boolean;
+	banned: boolean;
+	rivalSaved: boolean;
+	rivalBanned: boolean;
+}
+/** The picks panel for one member and matchday. */
+export interface H2HPicks {
+	round: { key: string; label: string; num: number; status: 'upcoming' | 'open' | 'closed'; firstKickoff: string; closesAt: string };
+	saveCalls: number;
+	saveCallsLeft: number;
+	mine: { saves: string[]; ban?: string };
+	paired: boolean;
+	/** null = the Ghost, or not paired. */
+	rival: H2HPerson | null;
+	ghost: boolean;
+	closed: boolean;
+	matches: H2HPickMatch[];
 }
 export interface H2HRound {
 	key: string;
@@ -465,6 +504,10 @@ export const api = {
 	h2h: (poolId: string) => get<H2HOverview>(`/api/pools/${poolId}/h2h`),
 	h2hRound: (poolId: string, key: string) =>
 		get<H2HRoundDetail>(`/api/pools/${poolId}/h2h/round?key=${encodeURIComponent(key)}`),
+	h2hPicks: (poolId: string, round = '') =>
+		get<H2HPicks>(`/api/pools/${poolId}/h2h/picks${round ? `?round=${encodeURIComponent(round)}` : ''}`),
+	h2hSetPick: (poolId: string, match: string, kind: 'save' | 'ban', on: boolean) =>
+		post<H2HPicks>(`/api/pools/${poolId}/h2h/picks`, { match, kind, on }),
 	/** Owner: the season the pool plays and how — until its first round kicks off. */
 	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
 		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),

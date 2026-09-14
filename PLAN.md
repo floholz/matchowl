@@ -307,8 +307,16 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
    breakdown). `H2HBoard` on the pool page: duel card, W-D-L table (tip
    points as tiebreak), round browser; Head-to-head · Points switch. Dev
    bots now tip the pool's own season.
-3. Save calls + bans: `h2h_picks`, placement UI on the row and match page,
-   visibility rules, round scoring with multipliers, reveal at kick-off.
+3. ✅ 2026-09-14 — Save calls + bans: `h2h_picks` (migration 0044),
+   `POST/GET /api/pools/{id}/h2h/picks` (placed or moved until the match
+   kicks off; the allowance, one ban per round, no ban against the Ghost;
+   a ban can be re-pointed until its match kicks off), round scoring
+   applies ×2 / ×0 / cancel per duel, picks revealed at kick-off (round
+   views carry revealed save counts and the ban flag). UI: "Your calls"
+   panel under the round browser for the open round and the next one
+   (dashed chip), marks on the pairs. Not done: a marker on the match row
+   itself — picks are per pool, the row is global; revisit with step 4's
+   Home card.
 4. Surfaces: Home card, round view, chat auto-post, notifications.
 5. Verify a whole league season in the dev simulator (odd roster, late
    joiner, postponed match, ban-on-save), then hand it to the alpha pools.
