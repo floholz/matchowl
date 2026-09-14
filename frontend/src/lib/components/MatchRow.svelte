@@ -272,9 +272,9 @@
 			{#if live}
 				<b>Live</b><span class="ldot"></span>
 			{:else if played}
-				<b>{ending}</b>{#if statusSub}<span>{statusSub}</span>{/if}
+				<b>{ending}</b>{#if statusSub}<span class="stsub" title={statusSub}>{statusSub}</span>{/if}
 			{:else}
-				<b>{kickoffTime}</b>{#if statusSub}<span>{statusSub}</span>{/if}
+				<b>{kickoffTime}</b>{#if statusSub}<span class="stsub" title={statusSub}>{statusSub}</span>{/if}
 			{/if}
 		</span>
 		<span class="teams">
@@ -413,6 +413,15 @@
 		line-height: 1.15;
 		color: var(--muted);
 		min-width: 0;
+	}
+	/* The second line (competition name, day, countdown) never wraps: it
+	   is cut with an ellipsis at the column's edge ("La Li…"). */
+	.stsub {
+		display: block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.when b {
 		color: var(--text);

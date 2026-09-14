@@ -141,9 +141,11 @@
 	}
 	/** Short competition code for the status column (BL, UCL, …). */
 	function codeOf(m: FeedMatch): string {
+		// The short name when the admin set one ("UCL", "Prem"), else the
+		// full name — the row ellipses what does not fit ("La Li…").
 		const t = tournamentStore.list.find((x) => x.id === m.tournament.id);
-		const s = t?.competition?.shortName || m.tournament.shortName || '';
-		return s.length <= 5 ? s : '';
+		const c = t?.competition;
+		return c?.shortName || c?.name || m.tournament.shortName || m.tournament.name || '';
 	}
 	function legOf(m: FeedMatch) {
 		return m.leg ? otherLegView(m, m.leg, m.leg.first, `/m/${m.leg.id}`) : null;
