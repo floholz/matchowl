@@ -11,6 +11,66 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.3] - 2026-09-14
+
+The head-to-head release. A pool can now be played as matchday duels
+instead of one long points table — the thing meant to keep a season-long
+game alive past matchday 12.
+
+### Added
+
+- **Head-to-head pools.** A pool has a mode: *classic* (the points table, as
+  before) or *head-to-head*, chosen when the pool is created and defaulted
+  from the season's shape (leagues get head-to-head, cups and the Champions
+  League stay classic). In head-to-head, every matchday pairs you with a
+  pool mate by a fixed rotation; the duel is decided by your tip points over
+  that matchday's matches; win 3, draw 1, loss 0. The table is W-D-L with
+  the season's tip points as tiebreak; the classic points table stays one
+  tap away. An odd roster plays **the Ghost**, who scores the mean of
+  everyone else. A matchday closes 24 h after its last scheduled kick-off;
+  a match postponed past that is ignored for the duel and still counts for
+  points.
+- **Save Calls.** Per matchday you mark one or two tips (the pool's setting)
+  as the ones you'd bet the house on: they count double for you.
+- **Bans.** One per matchday, aimed at your rival: that match does not count
+  for them. They only see it once it kicks off. A ban on a Save Call cancels
+  the double and the match counts normal.
+- **Where you do it.** Save Call and ban sit in the tip drawer of every match
+  row and on the match page, next to your tip. The pool page has the duel
+  card, the W-D-L table, a round browser (every duel of every matchday,
+  with revealed Save Calls and bans) and "Your matchday", a checklist of
+  what you still have to tip and pick, each row opening the match. Every
+  matchday heading links to the competition's matchday.
+- **Round results in the chat.** When a matchday closes, the app posts the
+  duels into the pool chat ("Matchday 5 is in · Anna beat Flo 14–9 · …").
+- **Notifications**: how your duel went when a matchday closes, and, at
+  kick-off, that your rival banned that match for you. Both can be switched
+  off in the notification settings.
+- Home shows your current duel per head-to-head pool (score, rival, matches
+  in), or the next rival while you wait for your first matchday.
+
+### Changed
+
+- **One season per pool.** A pool plays exactly one season; a second
+  competition with the same friends is a second pool. Existing pools with
+  several seasons keep the running one. Season and mode can be changed until
+  the pool's first matchday kicks off, then they are locked. "Set up next
+  season" carries the mode over.
+- **Home's "Tip now"** looks a week ahead (the current matchday, midweek
+  games included) instead of jumping to the next open pairing months out,
+  and shows the day on each row, not just the time.
+- The competition hub's matchday dropdown is in play order again; a single
+  match pulled forward no longer drags its whole matchday ahead of the
+  previous one.
+- Home's status column shows the competition's short name when one is set,
+  else the full name cut with an ellipsis — no more invented codes.
+
+### Fixed
+
+- Live chat updates were dead since the pools rename (the pages still
+  listened to the old collection); the chat and the unread badge follow new
+  messages again.
+
 ## [1.0.0-alpha.2] - 2026-09-13
 
 ### Added

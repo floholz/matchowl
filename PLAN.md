@@ -567,6 +567,10 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.3** (2026-09-14): head-to-head pools — mode per pool, one
+  season per pool (migration 0042 keeps the running one), matchday duels
+  with the Ghost, Save Calls and bans in the tip drawer, round posts in the
+  chat, two notifications; Tip now capped to a week; migrations 0042–0045.
 - **v1.0.0-alpha.2** (2026-09-13): one-time registration links — an admin
   mints them under Admin → Registration links and each creates exactly one
   account while sign-up stays closed. Migration 0041 (`signup_links`).
