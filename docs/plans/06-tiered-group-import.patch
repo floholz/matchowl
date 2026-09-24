@@ -1,0 +1,162 @@
+diff --git a/internal/importer/derive.go b/internal/importer/derive.go
+index 2823a73..c59d8c0 100644
+--- a/internal/importer/derive.go
++++ b/internal/importer/derive.go
+@@ -549,27 +549,85 @@ func groupLetter(name string, i int) string {
+ 
+ // groupsFromStandings maps provider team ids to group letters using the
+ // standings tables — only for teams that actually appear in table fixtures.
++//
++// Two provider quirks are handled here. Tiered competitions (UEFA Nations
++// League) publish one "Group 1".."Group 4" table per league tier with no
++// tier in the table name; a repeated table name is disambiguated with the
++// tier from the team's round label ("League A - 1" → "A" + "1" = "A1").
++// And ranking tables that aren't groups ("Ranking of third-placed teams")
++// list teams already placed in a real group — they are skipped whenever
++// real group tables exist.
+ func groupsFromStandings(standings []football.StandingGroup, fixtures []football.Fixture) map[int]string {
+ 	if len(standings) == 0 {
+ 		return nil
+ 	}
+ 	inTable := map[int]bool{}
++	tierOf := map[int]string{} // team → round-label head ("League A")
+ 	for _, f := range fixtures {
+ 		inTable[f.HomeID] = true
+ 		inTable[f.AwayID] = true
++		if head := roundHead(f.Round); head != "" {
++			tierOf[f.HomeID], tierOf[f.AwayID] = head, head
++		}
++	}
++	hasGroupTables := false
++	names := map[string]int{}
++	for _, g := range standings {
++		names[strings.TrimSpace(g.Name)]++
++		if isGroupTable(g.Name) {
++			hasGroupTables = true
++		}
+ 	}
+ 	out := map[int]string{}
+ 	for i, g := range standings {
++		if hasGroupTables && !isGroupTable(g.Name) {
++			continue
++		}
+ 		letter := groupLetter(g.Name, i)
++		repeated := names[strings.TrimSpace(g.Name)] > 1
+ 		for _, id := range g.TeamIDs {
+-			if inTable[id] {
+-				out[id] = letter
++			if !inTable[id] {
++				continue
++			}
++			l := letter
++			if repeated {
++				l = tierLetter(tierOf[id]) + letter
+ 			}
++			out[id] = l
+ 		}
+ 	}
+ 	return out
+ }
+ 
++// isGroupTable reports whether a standings table is a group ("Group A",
++// "Group 1") rather than a whole-league table or a cross-group ranking.
++func isGroupTable(name string) bool {
++	return strings.Contains(strings.ToLower(name), "group")
++}
++
++// roundHead returns the part of a table round label before " - N"
++// ("League A - 3" → "League A"); "" for non-table labels.
++func roundHead(label string) string {
++	if m := tableRoundRe.FindStringSubmatch(label); m != nil {
++		return strings.TrimSpace(m[1])
++	}
++	return ""
++}
++
++// tierLetter reduces a round head to the one- or two-character tier it
++// names: "League A" → "A". Longer last words fall back to their initial.
++func tierLetter(head string) string {
++	words := strings.Fields(head)
++	if len(words) == 0 {
++		return ""
++	}
++	last := words[len(words)-1]
++	if len(last) <= 2 {
++		return strings.ToUpper(last)
++	}
++	return strings.ToUpper(last[:1])
++}
++
+ // zonesFromStandings turns a single table's per-rank labels into contiguous
+ // zones: ranks 1–4 "Promotion - Champions League (League phase)" become one
+ // zone {ucl, "Champions League", 1, 4}. Canonical keys (ucl, uel, uecl, po,
+diff --git a/internal/importer/derive_test.go b/internal/importer/derive_test.go
+index 5a72540..65ebea9 100644
+--- a/internal/importer/derive_test.go
++++ b/internal/importer/derive_test.go
+@@ -1,6 +1,7 @@
+ package importer
+ 
+ import (
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -280,3 +281,57 @@ func TestCodeFor(t *testing.T) {
+ 		t.Fatalf("derived got %q", c)
+ 	}
+ }
++
++func TestDeriveTieredGroupsFromStandings(t *testing.T) {
++	// UEFA Nations League shape: round labels carry the tier ("League A -
++	// 1"), the standings repeat "Group 1".."Group 2" per tier without naming
++	// it, and a cross-group ranking table lists teams already in a group.
++	var fixtures []football.Fixture
++	id := 1
++	tiers := map[string][][]int{
++		"League A": {{1, 2, 3, 4}, {5, 6, 7, 8}},
++		"League B": {{9, 10, 11, 12}, {13, 14, 15, 16}},
++	}
++	for tier, groups := range tiers {
++		for _, g := range groups {
++			day := 0
++			for i := 0; i < len(g); i++ {
++				for j := i + 1; j < len(g); j++ {
++					day++
++					fixtures = append(fixtures, fx(id, day, tier+" - "+strconv.Itoa(day), g[i], g[j]))
++					id++
++				}
++			}
++		}
++	}
++	standings := []football.StandingGroup{
++		{Name: "Group 1", TeamIDs: []int{1, 2, 3, 4}},
++		{Name: "Group 2", TeamIDs: []int{5, 6, 7, 8}},
++		{Name: "Group 1", TeamIDs: []int{9, 10, 11, 12}},
++		{Name: "Group 2", TeamIDs: []int{13, 14, 15, 16}},
++		{Name: "Ranking of third-placed teams", TeamIDs: []int{3, 7, 11, 15}},
++	}
++	league := football.League{ID: 5, Name: "UEFA Nations League", Type: "League", Country: "World"}
++	p := Derive(league, football.Season{Year: 2026, Start: "2026-09-01", End: "2027-06-30"}, fixtures, teams(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16), standings)
++
++	want := map[string][]string{
++		"A1": {"Team A", "Team B", "Team C", "Team D"},
++		"A2": {"Team E", "Team F", "Team G", "Team H"},
++		"B1": {"Team I", "Team J", "Team K", "Team L"},
++		"B2": {"Team M", "Team N", "Team O", "Team P"},
++	}
++	if len(p.Groups) != len(want) {
++		t.Fatalf("groups = %+v, want %d groups", p.Groups, len(want))
++	}
++	for _, g := range p.Groups {
++		if !eqStrings(g.Teams, want[g.Letter]) {
++			t.Errorf("group %s = %v, want %v", g.Letter, g.Teams, want[g.Letter])
++		}
++	}
++	if p.Structure.GroupSize != 4 {
++		t.Errorf("groupSize = %d, want 4", p.Structure.GroupSize)
++	}
++	if p.Shape != "groups" {
++		t.Errorf("shape = %q, want groups", p.Shape)
++	}
++}
