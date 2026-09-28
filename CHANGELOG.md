@@ -11,6 +11,8 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.4] - 2026-09-28
+
 The head-to-head pool is the focus of the app, and after two weeks of
 alpha it was too easy to lose sight of: a thin line on Home, a pool page
 stuck in either "what happened" or "what's next", nothing about the duel

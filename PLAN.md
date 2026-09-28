@@ -664,6 +664,12 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.4** (2026-09-28): head-to-head everywhere — duel cards
+  on Home (pools first), the pool page's Pool tab with the matchday strip
+  and a Leaderboard tab, the rival strip on the hub's Matches tab, pick
+  marks on the tip capsule, `GET /api/h2h/me`; joining a pool plays its
+  season (backfilled at boot); importer fix for tiered groups (plan 06).
+  No new migrations.
 - **v1.0.0-alpha.3** (2026-09-14): head-to-head pools — mode per pool, one
   season per pool (migration 0042 keeps the running one), matchday duels
   with the Ghost, Save Calls and bans in the tip drawer, round posts in the
