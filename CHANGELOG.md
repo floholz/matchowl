@@ -11,6 +11,17 @@ matching section of this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Importer: tiered competitions.** The UEFA Nations League publishes one
+  "Group 1".."Group 4" standings table per league tier without naming the
+  tier, plus a ranking of third-placed teams; the import wizard merged them
+  into five groups of up to 14 teams. Repeated table names now take the
+  tier from the round label (`League A - 1` + `Group 1` = `A1`), ranking
+  tables are skipped when real group tables exist, and the preview warns
+  when a group has more teams than its matches per team allow. The live
+  Nations League 2026/27 was repaired by hand on 2026-09-24.
+
 ## [1.0.0-alpha.3] - 2026-09-14
 
 The head-to-head release. A pool can now be played as matchday duels

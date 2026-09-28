@@ -658,6 +658,9 @@ add more):
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
 
+- 2026-09-28 — Plan 06 landed: importer disambiguates repeated standings
+  tables by tier and warns on merged groups; Nations League play-offs stay
+  a sync question for March 2027.
 - 2026-09-14 — Head-to-head pools: pools bind one season and get a mode
   (classic / h2h, default from the season's shape, locked at the pool's
   first round); h2h = matchday duels by rotation with a Ghost for odd

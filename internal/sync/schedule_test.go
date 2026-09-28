@@ -44,17 +44,23 @@ func TestApplyScheduleFollowsProvider(t *testing.T) {
 	}
 }
 
-func TestApplyScheduleLeavesFinishedAndUnknown(t *testing.T) {
+func TestApplyScheduleFollowsFinishedAndIgnoresUnknown(t *testing.T) {
+	// Finished matches follow the provider's date too (Lazio – Milan
+	// 2026-09-12: brought forward a day, first seen after full time); a
+	// zero provider date is never applied.
 	kickoff := time.Date(2026, 9, 12, 16, 0, 0, 0, time.UTC)
 	rec := scheduleRecord(kickoff, "Regular Season - 4")
-	later := kickoff.Add(48 * time.Hour)
-	if applySchedule(rec, football.Fixture{Date: later, Round: "Regular Season - 4"}, "finished") {
-		t.Fatal("finished match was rescheduled")
+	earlier := kickoff.Add(-24 * time.Hour)
+	if !applySchedule(rec, football.Fixture{Date: earlier, Round: "Regular Season - 4"}, "finished") {
+		t.Fatal("finished match did not follow the provider's date")
+	}
+	if got := rec.GetDateTime("kickoff").Time().UTC(); !got.Equal(earlier) {
+		t.Fatalf("kickoff = %v, want %v", got, earlier)
 	}
 	if applySchedule(rec, football.Fixture{Round: "Regular Season - 4"}, "scheduled") {
 		t.Fatal("zero provider date was applied")
 	}
-	if got := rec.GetDateTime("kickoff").Time().UTC(); !got.Equal(kickoff) {
+	if got := rec.GetDateTime("kickoff").Time().UTC(); !got.Equal(earlier) {
 		t.Fatalf("kickoff moved to %v", got)
 	}
 }

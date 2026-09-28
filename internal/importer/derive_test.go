@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -278,5 +279,94 @@ func TestCodeFor(t *testing.T) {
 	}
 	if c := codeFor("VfB Stuttgart", "", used); c != "VFB" {
 		t.Fatalf("derived got %q", c)
+	}
+}
+
+func TestDeriveTieredGroupsFromStandings(t *testing.T) {
+	// UEFA Nations League shape: round labels carry the tier ("League A -
+	// 1"), the standings repeat "Group 1".."Group 2" per tier without naming
+	// it, and a cross-group ranking table lists teams already in a group.
+	var fixtures []football.Fixture
+	id := 1
+	tiers := map[string][][]int{
+		"League A": {{1, 2, 3, 4}, {5, 6, 7, 8}},
+		"League B": {{9, 10, 11, 12}, {13, 14, 15, 16}},
+	}
+	for tier, groups := range tiers {
+		for _, g := range groups {
+			day := 0
+			for i := 0; i < len(g); i++ {
+				for j := i + 1; j < len(g); j++ {
+					day++
+					fixtures = append(fixtures, fx(id, day, tier+" - "+strconv.Itoa(day), g[i], g[j]))
+					id++
+				}
+			}
+		}
+	}
+	standings := []football.StandingGroup{
+		{Name: "Group 1", TeamIDs: []int{1, 2, 3, 4}},
+		{Name: "Group 2", TeamIDs: []int{5, 6, 7, 8}},
+		{Name: "Group 1", TeamIDs: []int{9, 10, 11, 12}},
+		{Name: "Group 2", TeamIDs: []int{13, 14, 15, 16}},
+		{Name: "Ranking of third-placed teams", TeamIDs: []int{3, 7, 11, 15}},
+	}
+	league := football.League{ID: 5, Name: "UEFA Nations League", Type: "League", Country: "World"}
+	p := Derive(league, football.Season{Year: 2026, Start: "2026-09-01", End: "2027-06-30"}, fixtures, teams(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16), standings)
+
+	want := map[string][]string{
+		"A1": {"Team A", "Team B", "Team C", "Team D"},
+		"A2": {"Team E", "Team F", "Team G", "Team H"},
+		"B1": {"Team I", "Team J", "Team K", "Team L"},
+		"B2": {"Team M", "Team N", "Team O", "Team P"},
+	}
+	if len(p.Groups) != len(want) {
+		t.Fatalf("groups = %+v, want %d groups", p.Groups, len(want))
+	}
+	for _, g := range p.Groups {
+		if !eqStrings(g.Teams, want[g.Letter]) {
+			t.Errorf("group %s = %v, want %v", g.Letter, g.Teams, want[g.Letter])
+		}
+	}
+	if p.Structure.GroupSize != 4 {
+		t.Errorf("groupSize = %d, want 4", p.Structure.GroupSize)
+	}
+	if p.Shape != "groups" {
+		t.Errorf("shape = %q, want groups", p.Shape)
+	}
+}
+
+func TestDeriveWarnsOnMergedGroups(t *testing.T) {
+	// Same tiered shape, but the standings name every table "Group 1" and
+	// "Group 2" with the fixtures carrying no tier: the tables merge into
+	// two groups of eight that each play only three matches.
+	var fixtures []football.Fixture
+	id := 1
+	for _, g := range [][]int{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}} {
+		day := 0
+		for i := 0; i < len(g); i++ {
+			for j := i + 1; j < len(g); j++ {
+				day++
+				fixtures = append(fixtures, fx(id, day, "Regular Season - "+strconv.Itoa(day), g[i], g[j]))
+				id++
+			}
+		}
+	}
+	standings := []football.StandingGroup{
+		{Name: "Group 1", TeamIDs: []int{1, 2, 3, 4}},
+		{Name: "Group 2", TeamIDs: []int{5, 6, 7, 8}},
+		{Name: "Group 1", TeamIDs: []int{9, 10, 11, 12}},
+		{Name: "Group 2", TeamIDs: []int{13, 14, 15, 16}},
+	}
+	league := football.League{ID: 5, Name: "Tiered", Type: "League", Country: "World"}
+	p := Derive(league, football.Season{Year: 2026, Start: "2026-09-01", End: "2027-06-30"}, fixtures, teams(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16), standings)
+	found := false
+	for _, w := range p.Warnings {
+		if strings.Contains(w, "merged across tiers") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a merged-groups warning, got %v (groups %+v)", p.Warnings, p.Groups)
 	}
 }

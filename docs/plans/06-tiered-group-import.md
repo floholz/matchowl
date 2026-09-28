@@ -1,7 +1,9 @@
 # 06 — Tiered group import (UEFA Nations League)
 
-Written 2026-09-24. Status: **open** — the live tournament was repaired by
-hand (see "What was done"); the importer fix is not applied yet.
+Written 2026-09-24. Status: **done** — the live tournament was repaired by
+hand on 2026-09-24 (see "What was done"); the importer fix and the merged-
+group warning landed on 2026-09-28 (steps 1 and 2 below). Step 3 stays
+open until the play-offs are published.
 
 ## The issue
 
@@ -110,16 +112,16 @@ Add a regression test (Nations League shape: two tiers × two groups,
 repeated `Group 1`/`Group 2` names, one ranking table) asserting the groups
 `A1, A2, B1, B2` and `groupSize 4`.
 
-A ready patch with exactly this change and test is at
-`docs/plans/06-tiered-group-import.patch` (applies cleanly on
-`e46752d`; `go vet` and `go test ./internal/importer/` pass).
+Landed 2026-09-28 (the patch that shipped with this plan, unchanged; the
+patch file was removed once applied).
 
 ### 2. Guard against silent merges
 
-In `Derive`, warn when a standings-derived group is larger than the
-largest round-labelled or component-derived group would allow — e.g. any
-group with more than 8 teams in a non-single-table shape. Cheap early
-signal in the preview for the next odd competition.
+Landed 2026-09-28. `Derive` warns when a group (in a several-groups shape)
+has more teams than a round robin allows for the games each team plays
+(`len(teams)-1 > gamesPerTeam`): "group 1 has 14 teams but each plays only
+6 group match(es) — standings tables were probably merged across tiers".
+Cheap early signal in the preview for the next odd competition.
 
 ### 3. Later
 

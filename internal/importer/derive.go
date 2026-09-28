@@ -472,6 +472,17 @@ func Derive(league football.League, season football.Season, fixtures []football.
 		if p.Structure.GamesPerTeam == 0 {
 			p.Structure.GamesPerTeam = 1
 		}
+		// A round-robin group of n teams needs at least n-1 games per team.
+		// A group bigger than that is not a group but several merged into
+		// one — the way tiered standings tables ("Group 1" per tier) read
+		// when nothing tells them apart. Flag it in the preview.
+		if hasGroups {
+			for _, g := range p.Groups {
+				if len(g.Teams)-1 > games {
+					p.Warnings = append(p.Warnings, fmt.Sprintf("group %s has %d teams but each plays only %d group match(es) — standings tables were probably merged across tiers; check the groups", g.Letter, len(g.Teams), games))
+				}
+			}
+		}
 	}
 
 	switch {
@@ -549,25 +560,83 @@ func groupLetter(name string, i int) string {
 
 // groupsFromStandings maps provider team ids to group letters using the
 // standings tables — only for teams that actually appear in table fixtures.
+//
+// Two provider quirks are handled here. Tiered competitions (UEFA Nations
+// League) publish one "Group 1".."Group 4" table per league tier with no
+// tier in the table name; a repeated table name is disambiguated with the
+// tier from the team's round label ("League A - 1" → "A" + "1" = "A1").
+// And ranking tables that aren't groups ("Ranking of third-placed teams")
+// list teams already placed in a real group — they are skipped whenever
+// real group tables exist.
 func groupsFromStandings(standings []football.StandingGroup, fixtures []football.Fixture) map[int]string {
 	if len(standings) == 0 {
 		return nil
 	}
 	inTable := map[int]bool{}
+	tierOf := map[int]string{} // team → round-label head ("League A")
 	for _, f := range fixtures {
 		inTable[f.HomeID] = true
 		inTable[f.AwayID] = true
+		if head := roundHead(f.Round); head != "" {
+			tierOf[f.HomeID], tierOf[f.AwayID] = head, head
+		}
+	}
+	hasGroupTables := false
+	names := map[string]int{}
+	for _, g := range standings {
+		names[strings.TrimSpace(g.Name)]++
+		if isGroupTable(g.Name) {
+			hasGroupTables = true
+		}
 	}
 	out := map[int]string{}
 	for i, g := range standings {
+		if hasGroupTables && !isGroupTable(g.Name) {
+			continue
+		}
 		letter := groupLetter(g.Name, i)
+		repeated := names[strings.TrimSpace(g.Name)] > 1
 		for _, id := range g.TeamIDs {
-			if inTable[id] {
-				out[id] = letter
+			if !inTable[id] {
+				continue
 			}
+			l := letter
+			if repeated {
+				l = tierLetter(tierOf[id]) + letter
+			}
+			out[id] = l
 		}
 	}
 	return out
+}
+
+// isGroupTable reports whether a standings table is a group ("Group A",
+// "Group 1") rather than a whole-league table or a cross-group ranking.
+func isGroupTable(name string) bool {
+	return strings.Contains(strings.ToLower(name), "group")
+}
+
+// roundHead returns the part of a table round label before " - N"
+// ("League A - 3" → "League A"); "" for non-table labels.
+func roundHead(label string) string {
+	if m := tableRoundRe.FindStringSubmatch(label); m != nil {
+		return strings.TrimSpace(m[1])
+	}
+	return ""
+}
+
+// tierLetter reduces a round head to the one- or two-character tier it
+// names: "League A" → "A". Longer last words fall back to their initial.
+func tierLetter(head string) string {
+	words := strings.Fields(head)
+	if len(words) == 0 {
+		return ""
+	}
+	last := words[len(words)-1]
+	if len(last) <= 2 {
+		return strings.ToUpper(last)
+	}
+	return strings.ToUpper(last[:1])
 }
 
 // zonesFromStandings turns a single table's per-rank labels into contiguous
