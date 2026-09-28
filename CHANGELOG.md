@@ -29,6 +29,11 @@ where the tips are placed. This pass makes the duel present everywhere.
   and your to-do — centred on the current matchday with the neighbours
   peeking in, so last week and next week are one flick apart. The selected
   matchday's duels and your checklist follow, then the table.
+- **Pool tab.** Head-to-head pools open on a new *Pool* tab (the strip,
+  the duels, your checklist and a short table: the top three plus you)
+  and the full table moves to its own *Leaderboard* tab with the
+  Head-to-head / Points switch. Tab and selected matchday live in the URL,
+  so coming back from a match lands where you were.
 - **Rival strip on the competition hub.** With a matchday selected on the
   Matches tab, each of your head-to-head pools on that season says who you
   play and what is left to do, and links to the pool.

@@ -6,11 +6,26 @@
 	import { auth } from '$lib/auth.svelte';
 	import { h2hStore } from '$lib/h2h.svelte';
 	import { pb } from '$lib/pb';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
 	import { Bot, Ghost as GhostIcon, ShieldCheck, Ban, ChevronRight } from '@lucide/svelte';
 
-	let { poolId, season = null }: { poolId: string; season?: PoolSeason | null } = $props();
+	let {
+		poolId,
+		season = null,
+		mode = 'overview',
+		onLeaderboard = undefined
+	}: {
+		poolId: string;
+		season?: PoolSeason | null;
+		/** overview: the matchday strip, the selected matchday's duels, the
+		 *  checklist and a short table linking to the leaderboard · table:
+		 *  the full W-D-L table only (the pool's Leaderboard tab). */
+		mode?: 'overview' | 'table';
+		onLeaderboard?: () => void;
+	} = $props();
 
 	/** The competition hub's Matches tab filtered to a matchday. */
 	const hubRound = (key: string) =>
@@ -20,7 +35,9 @@
 
 	let data = $state<H2HOverview | null>(null);
 	let error = $state('');
-	let selected = $state('');
+	// The selected matchday lives in the URL (?md=) so coming back from a
+	// match lands on the card you had open, not the latest one.
+	let selected = $state($page.url.searchParams.get('md') ?? '');
 
 	$effect(() => {
 		const id = poolId;
@@ -31,9 +48,21 @@
 			.then((d) => {
 				if (id !== poolId) return;
 				data = d;
-				selected = d.current;
+				const known = d.rounds.some((r) => r.key === selected) || d.next?.key === selected;
+				if (!known) selected = d.current || d.next?.key || '';
 			})
 			.catch(() => (error = 'Could not load the head-to-head.'));
+	});
+	$effect(() => {
+		const key = selected;
+		if (!data || mode !== 'overview') return;
+		// The current matchday is the default and stays out of the URL.
+		const want = key && key !== data.current ? key : '';
+		const u = new URL($page.url);
+		if ((u.searchParams.get('md') ?? '') === want) return;
+		if (want) u.searchParams.set('md', want);
+		else u.searchParams.delete('md');
+		goto(`${u.pathname}${u.search}`, { replaceState: true, noScroll: true, keepFocus: true });
 	});
 
 	const me = $derived(auth.user?.id ?? '');
@@ -57,6 +86,14 @@
 	let myNext = $derived(data?.next ? mine(data.next) : null);
 	let seasonStarted = $derived(!!data && data.rounds.length > 0);
 	let rows = $derived(data?.table ?? []);
+	/** The overview's short table: the top three, plus me when I am lower. */
+	let shownRows = $derived.by(() => {
+		const all = rows.map((r, i) => ({ r, i }));
+		if (mode === 'table' || all.length <= 4) return all;
+		const top = all.slice(0, 3);
+		const mine = all.find((x) => x.r.userId === me);
+		return mine && mine.i >= 3 ? [...top, mine] : top;
+	});
 	/** What the next matchday still wants from me (from the shared store). */
 	let nextTodo = $derived.by(() => {
 		const n = h2hStore.pools.find((p) => p.poolId === poolId)?.next;
@@ -137,6 +174,7 @@
 	     rival and what is left to do — so last week and next week are one
 	     flick apart, never a mode switch. The selected card's duels and
 	     checklist follow, then the table. -->
+	{#if mode === 'overview'}
 	<div class="strip" bind:this={stripEl}>
 		{#each data.rounds as r (r.key)}
 			{@const p = mine(r) as H2HPair | null}
@@ -248,8 +286,9 @@
 			{/if}
 		</section>
 	{/if}
+	{/if}
 
-	{#if pickRound}
+	{#if pickRound && mode === 'overview'}
 		<section class="card calls">
 			{#if pickErr && !picks}
 				<p class="error">{pickErr}</p>
@@ -317,7 +356,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each rows as r, i (r.userId)}
+				{#each shownRows as { r, i } (r.userId)}
 					<tr class:lead={r.userId === me}>
 						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
 						<td class="player">
@@ -337,9 +376,13 @@
 				{/each}
 			</tbody>
 		</table>
-		<p class="muted small note">
-			3 for a win, 1 for a draw. Ties on points go to the season's tip points. Rounds close 24 h after the matchday's last scheduled kick-off.
-		</p>
+		{#if mode === 'overview'}
+			<button class="seeall" onclick={onLeaderboard}>Leaderboard · {rows.length} players <ChevronRight size={14} /></button>
+		{:else}
+			<p class="muted small note">
+				3 for a win, 1 for a draw. Ties on points go to the season's tip points. Rounds close 24 h after the matchday's last scheduled kick-off.
+			</p>
+		{/if}
 	</section>
 {/if}
 
@@ -456,6 +499,22 @@
 	}
 	.intro {
 		margin: 0 0 0.6rem;
+	}
+	.seeall {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.15rem;
+		width: 100%;
+		margin: 0.4rem 0 0;
+		padding: 0.5rem;
+		border: none;
+		background: transparent;
+		color: var(--accent);
+		font: inherit;
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
 	}
 	.ghost {
 		display: inline-flex;

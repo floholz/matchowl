@@ -112,8 +112,29 @@
 
 	let revealed = $state(false);
 	let openRow = $state<string | null>(null);
-	/** Page tabs: the leaderboard, or the members (invite, roles, management). */
-	let view = $state<'board' | 'members'>('board');
+	/** Page tabs: the pool overview (head-to-head pools: matchday strip,
+	 *  duels, checklist, short table), the leaderboard, or the members
+	 *  (invite, roles, management). Kept in the URL (?tab=) so coming back
+	 *  from a match lands on the same tab. */
+	type View = 'pool' | 'board' | 'members';
+	const viewParam = (v: string | null): View | null => (v === 'pool' || v === 'board' || v === 'members' ? v : null);
+	let view = $state<View>(viewParam($page.url.searchParams.get('tab')) ?? 'board');
+	let viewInit = false;
+	$effect(() => {
+		// Head-to-head pools open on the overview unless the URL says otherwise.
+		if (viewInit || !loaded) return;
+		viewInit = true;
+		if (!viewParam($page.url.searchParams.get('tab')) && poolMode === 'h2h') view = 'pool';
+	});
+	$effect(() => {
+		const v = view;
+		if (!loaded) return;
+		const u = new URL($page.url);
+		if ((u.searchParams.get('tab') ?? '') === v) return;
+		u.searchParams.set('tab', v);
+		if (v !== 'pool') u.searchParams.delete('md');
+		goto(`${u.pathname}${u.search}`, { replaceState: true, noScroll: true, keepFocus: true });
+	});
 
 	let id = $derived($page.params.id ?? '');
 	let league = $state<{ id: string; name: string } | null>(null);
@@ -476,6 +497,9 @@
 {:else if league}
 	<div class="subbar tabrow" class:withchips={view === 'board'}>
 		<div class="utabs" role="tablist">
+			{#if poolMode === 'h2h'}
+				<button class="utab" class:on={view === 'pool'} role="tab" aria-selected={view === 'pool'} onclick={() => (view = 'pool')}>Pool</button>
+			{/if}
 			<button class="utab" class:on={view === 'board'} role="tab" aria-selected={view === 'board'} onclick={() => (view = 'board')}>Leaderboard</button>
 			<button class="utab" class:on={view === 'members'} role="tab" aria-selected={view === 'members'} onclick={() => (view = 'members')}>Members</button>
 			{#if canChat}
@@ -720,15 +744,25 @@
 	</section>
 	{/if}
 
+	{#if view === 'pool' && poolMode === 'h2h'}
+		{#if poolStatus === 'finished'}
+			<div class="card quiet done">
+				<span class="qtxt"><b>This pool is finished.</b><span class="muted small">{isOwner ? 'Set it up again for the next season under Members.' : 'The final standings stay here.'}</span></span>
+				{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; startClone(); }}>Next season</button>{/if}
+			</div>
+		{/if}
+		<H2HBoard poolId={id} season={bound[0] ?? null} mode="overview" onLeaderboard={() => (view = 'board')} />
+	{/if}
+
 	{#if view === 'board'}
-	{#if poolStatus === 'finished'}
+	{#if poolStatus === 'finished' && poolMode !== 'h2h'}
 		<div class="card quiet done">
 			<span class="qtxt"><b>This pool is finished.</b><span class="muted small">{isOwner ? 'Set it up again for the next season under Members.' : 'The final standings stay here.'}</span></span>
 			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; startClone(); }}>Next season</button>{/if}
 		</div>
 	{/if}
 	{#if poolMode === 'h2h' && boardKind === 'h2h'}
-		<H2HBoard poolId={id} season={bound[0] ?? null} />
+		<H2HBoard poolId={id} season={bound[0] ?? null} mode="table" />
 	{:else}
 	<section class="card board">
 
