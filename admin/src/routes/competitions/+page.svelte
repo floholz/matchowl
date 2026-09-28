@@ -12,7 +12,7 @@
 	import ImportWizard from '$lib/components/admin/ImportWizard.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { describeSeason } from '$lib/describe';
-	import type { Tournament } from '$lib/tournament.svelte';
+	import type { Tournament } from '$lib/describe';
 	import {
 		Plus,
 		Download,
@@ -21,7 +21,6 @@
 		Users,
 		CalendarDays,
 		Database,
-		ChevronLeft,
 		ImageDown
 	} from '@lucide/svelte';
 
@@ -246,7 +245,7 @@
 
 <div class="head">
 	<div>
-		<p class="kicker"><a href="/admin" class="crumb"><ChevronLeft size={14} /> Admin</a></p>
+		<p class="kicker">Admin</p>
 		<h1>Tournaments</h1>
 	</div>
 	<div class="headactions">
@@ -475,13 +474,6 @@
 		gap: 1rem;
 		flex-wrap: wrap;
 		margin-bottom: 1.1rem;
-	}
-	.crumb {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		color: inherit;
-		text-decoration: none;
 	}
 	.headactions {
 		display: flex;

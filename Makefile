@@ -1,4 +1,4 @@
-.PHONY: help install dev-frontend dev-backend build-frontend build run docker clean test tailscale tailscale-off
+.PHONY: help install dev-frontend dev-admin dev-backend build-frontend build-admin build run docker clean test tailscale tailscale-off
 
 # Load .env (if present) and export its variables to every recipe, so
 # `make run` / `make dev-backend` see the same config as docker-compose.
@@ -11,26 +11,35 @@ TS_PORT ?= 8090
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-16s %s\n", $$1, $$2}'
 
-install: ## Install frontend deps
+install: ## Install frontend + admin deps
 	cd frontend && npm install
+	cd admin && npm install
 
-dev-frontend: ## Run SvelteKit dev server (proxies /api to :8090)
+dev-frontend: ## Run the app's SvelteKit dev server on :5173 (proxies /api to :8090)
 	cd frontend && npm run dev
+
+dev-admin: ## Run the admin app's dev server on :5174 (proxies /api to :8090)
+	cd admin && npm run dev
 
 dev-backend: ## Run PocketBase backend on :8090
 	go run . serve --http=127.0.0.1:8090 --dir=./pb_data
 
-build-frontend: ## Build the SPA into internal/web/build (cleaned first)
+build-frontend: ## Build the app SPA into internal/web/build (cleaned first)
 	rm -rf internal/web/build && mkdir -p internal/web/build
 	cd frontend && npm run build
 	touch internal/web/build/.gitkeep
+
+build-admin: ## Build the admin SPA into internal/web/admin (cleaned first)
+	rm -rf internal/web/admin && mkdir -p internal/web/admin
+	cd admin && npm run build
+	touch internal/web/admin/.gitkeep
 
 # Version stamped into the binary (Home footer, /api/appconfig): the release
 # tag when on one, else the nearest tag + commit, "-dirty" with local changes.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS = -s -w -X github.com/floholz/matchowl/internal/version.Version=$(VERSION)
 
-build: build-frontend ## Build the single binary (frontend embedded)
+build: build-frontend build-admin ## Build the single binary (both SPAs embedded)
 	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o matchowl .
 
 run: build ## Build then run the single binary
@@ -62,5 +71,6 @@ reset: ## Wipe the local dev database (pb_data is disposable — re-seeded on bo
 
 clean: ## Remove build artifacts (keeps the embed .gitkeep so go build works)
 	rm -f matchowl
-	rm -rf frontend/.svelte-kit frontend/build
+	rm -rf frontend/.svelte-kit frontend/build admin/.svelte-kit admin/build
 	find internal/web/build -mindepth 1 ! -name .gitkeep -exec rm -rf {} + 2>/dev/null || true
+	find internal/web/admin -mindepth 1 ! -name .gitkeep -exec rm -rf {} + 2>/dev/null || true

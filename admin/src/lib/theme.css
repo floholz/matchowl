@@ -1,0 +1,187 @@
+/* =========================================================================
+   THEME — single source of truth. "NIGHT OWL": the Matchowl identity.
+   Owl-orange on warm night · peach paper by day · true black for OLED ·
+   round friendly shapes (the mark is built from circles) · mono scoreboard
+   digits. No pitch green anywhere — orange IS the brand.
+
+   Three themes, switched by data-theme on <html> (see theme.svelte.ts):
+     :root                      warm-dark (default; also [data-theme='dark'])
+     [data-theme='light']       peach paper
+     [data-theme='amoled']      true-black OLED variant of dark
+
+   Re-skin the whole app by editing ONLY this file. No colour/font/radius
+   literals live anywhere else. Fonts are self-hosted via Fontsource
+   (imported in app.css) — no external font requests.
+   ========================================================================= */
+
+:root {
+	/* ---- Brand (constant across themes) ---- */
+	--accent: #ff7700; /* owl orange — primary actions, links, focus */
+	--accent-2: #ffa149; /* soft orange — highlights, hover */
+	--accent-fg: #1c0e00; /* ink on a solid orange fill */
+	--accent-ink: #1c0e00; /* ink on a bright accent gradient */
+	--peach: #ffd7b4; /* the mark's plumage — tints, chips, empty states */
+
+	/* ---- Surfaces & text: night (dark default) ----
+	   Matches the matchowl.app reference page's dark appearance
+	   (its prefers-color-scheme block): near-black, warm cream text. */
+	--bg: #040404; /* the owl's night */
+	--surface: #121009; /* cards, bars — subtle warm lift off the black */
+	--surface-2: #1d1913; /* insets, chips, hover */
+	--border: #322b22; /* hairlines */
+	--text: #f2e5d5; /* primary text */
+	--muted: #a8917a; /* secondary text */
+
+	/* ---- Status ---- */
+	--danger: #f4504a;
+	--success: #4fb56d;
+	--warning: #ffb43d;
+	--live: #ff3d2e; /* hotter than the accent so LIVE still pops */
+	--gold: #ffc633; /* champion / trophy highlight */
+
+	/* ---- Effects ---- */
+	--radius: 20px; /* round like the mark */
+	--radius-sm: 12px;
+	--radius-pill: 999px;
+	--ring: 2px solid var(--accent);
+	--shadow-pop: 0 18px 44px -12px rgba(0, 0, 0, 0.65);
+	--glow:
+		0 0 0 1px rgba(255, 119, 0, 0.28),
+		0 8px 30px -8px rgba(255, 119, 0, 0.38);
+
+	/* Atmosphere: a faint warm glow from above, like a porch light the owl
+	   sits under. Layered on --bg. */
+	--bg-atmosphere:
+		radial-gradient(
+			110% 70% at 50% -20%,
+			rgba(255, 119, 0, 0.1),
+			transparent 55%
+		),
+		radial-gradient(
+			80% 60% at 100% 0%,
+			rgba(255, 215, 180, 0.05),
+			transparent 50%
+		);
+
+	/* ---- Type ---- */
+	--font: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Baloo 2 Variable', 'Figtree Variable', sans-serif; /* round + warm */
+	--font-mono: 'Red Hat Mono Variable', ui-monospace, monospace; /* scoreboard */
+	--font-led: 'DSEG7', 'Red Hat Mono Variable', ui-monospace, monospace; /* the LED board */
+
+	/* The stadium board: tile behind the LED digits, its inset ring, and
+	   (optionally, per theme) the digit colour and glow. Dark themes leave
+	   the digits at the amber default. */
+	--board-bg: #000;
+	--board-line: #221c14;
+
+	/* ---- Layout metrics ---- */
+	--maxw: 740px;
+	--maxw-wide: 1260px; /* desktop pages that spread out (Matches, Home) */
+	--nav-h: 66px;
+	--topbar-h: 58px;
+	--rail-w: 240px;
+
+	/* The PWA theme-color per theme (read by theme.svelte.ts into the
+	   <meta name="theme-color">). */
+	--theme-color: #040404;
+
+	color-scheme: dark;
+}
+
+/* Explicit dark is identical to the default. */
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* ---- Peach paper (light) — the mark's own background, per the
+   matchowl.app reference. ---- */
+:root[data-theme='light'] {
+	--accent: #cc5800; /* deeper for contrast on peach */
+	--accent-2: #f26a00;
+	--peach: #ffd7b4;
+
+	/* 2026-09-13: white-ish ground, peach surfaces — cleaner, less colour
+	   dense than the full-strength peach ground it had before. */
+	--bg: #fff6ec;
+	--surface: #ffd7b4; /* the mark's plumage, on cards */
+	--surface-2: #ffc999;
+	--border: #e8b98d;
+	--text: #452f1a; /* warm dark brown — softer than black against peach */
+	--muted: #7a5a3c;
+
+	/* Board in daylight: a burnt-orange tile with lit orange digits — the
+	   stadium board, but in the palette rather than a black hole in a peach
+	   card. Live digits go red with a soft glow. */
+	--board-bg: #7f3b12;
+	--board-line: #9a4a19;
+	--board-led: #ff8427;
+	--board-glow: rgba(255, 132, 39, 0.35);
+	--board-live-glow: rgba(255, 61, 46, 0.5);
+	--board-shade: rgba(60, 25, 5, 0.45);
+
+	--danger: #d92d27;
+	--success: #1e8a47;
+	--warning: #b26a00;
+	--live: #e02412;
+	--gold: #b98200;
+
+	--shadow-pop: 0 16px 40px -14px rgba(120, 70, 20, 0.28);
+	--glow:
+		0 0 0 1px rgba(242, 106, 0, 0.25),
+		0 8px 26px -10px rgba(242, 106, 0, 0.3);
+
+	--bg-atmosphere:
+		radial-gradient(
+			110% 70% at 50% -20%,
+			rgba(255, 246, 236, 0.75),
+			transparent 60%
+		),
+		radial-gradient(
+			80% 60% at 100% 0%,
+			rgba(255, 119, 0, 0.07),
+			transparent 55%
+		);
+
+	--theme-color: #ffd7b4;
+
+	color-scheme: light;
+}
+
+/* ---- True black (AMOLED) — optimized for OLED phone displays: the
+   background is pure black so pixels switch off, and every COLORED area is
+   muted (dimmer, lower-chroma orange, no glow, toned-down status colors) so
+   nothing sears next to black at night. Borders carry the separation
+   instead of surface contrast. ---- */
+:root[data-theme='amoled'] {
+	--accent: #d96f14;
+	--accent-2: #d98a45;
+	--peach: #d3ac8b;
+
+	--bg: #000000;
+	--surface: #0d0a07;
+	--surface-2: #171310;
+	--border: #2b241c;
+	--text: #f2e5d5;
+	--muted: #a8917a;
+
+	--danger: #cc4742;
+	--success: #3f8f56;
+	--warning: #cc9433;
+	--live: #cc3a2d;
+	--gold: #cc9e2e;
+
+	--shadow-pop: none;
+	--glow: none;
+	--bg-atmosphere: none;
+
+	--theme-color: #000000;
+
+	color-scheme: dark;
+}
+
+@media (min-width: 900px) {
+	:root {
+		--maxw: 1120px;
+	}
+}

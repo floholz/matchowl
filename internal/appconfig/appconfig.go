@@ -42,6 +42,45 @@ func Register(app core.App, se *core.ServeEvent) {
 			// lives in env so it stays out of the public repository.
 			"operatorName":     strings.TrimSpace(os.Getenv("OPERATOR_NAME")),
 			"operatorLocation": location,
+			// The two origins: the player app (APP_URL) and the admin app
+			// (ADMIN_URL, or derived — see AdminURL).
+			"appUrl":   strings.TrimRight(strings.TrimSpace(os.Getenv("APP_URL")), "/"),
+			"adminUrl": AdminURL(),
 		})
 	})
+}
+
+// AdminURL is the admin app's public origin: ADMIN_URL when set, else
+// derived from APP_URL by swapping a leading "play." for "admin."
+// (https://play.matchowl.app → https://admin.matchowl.app). Empty when
+// neither applies; the app then hides its admin link.
+func AdminURL() string {
+	if u := strings.TrimRight(strings.TrimSpace(os.Getenv("ADMIN_URL")), "/"); u != "" {
+		return u
+	}
+	app := strings.TrimSpace(os.Getenv("APP_URL"))
+	if i := strings.Index(app, "://play."); i >= 0 {
+		return strings.TrimRight(app[:i]+"://admin."+app[i+len("://play."):], "/")
+	}
+	return ""
+}
+
+// IsAdminHost reports whether a request's Host header names the admin
+// origin: the host of ADMIN_URL when set, else any host whose first label
+// is "admin" (admin.matchowl.app, admin.localhost:8090 in a local build).
+func IsAdminHost(host string) bool {
+	h := strings.ToLower(host)
+	if i := strings.LastIndex(h, ":"); i >= 0 && !strings.Contains(h[i:], "]") {
+		h = h[:i]
+	}
+	if u := AdminURL(); u != "" {
+		if i := strings.Index(u, "://"); i >= 0 {
+			want := strings.ToLower(u[i+3:])
+			if j := strings.LastIndex(want, ":"); j >= 0 {
+				want = want[:j]
+			}
+			return h == want
+		}
+	}
+	return strings.HasPrefix(h, "admin.")
 }

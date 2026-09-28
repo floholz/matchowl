@@ -102,26 +102,36 @@ internal/
   oauth/                Google sign-in wiring from env (idempotent)
   clock/                overridable "now" (dev virtual clock)
   dev/                  MATCHOWL_DEV-only simulator + bot generator
-  web/                  go:embed of the built SPA
-frontend/               SvelteKit app
+  web/                  go:embed of the built SPAs (app + admin)
+frontend/               SvelteKit app (players; PWA)
+admin/                  SvelteKit admin app, desktop-first, served on the admin host
 bots/                   standalone bot player (algo / Claude) — own Go module
 ```
 
 ## Develop
 
 ```sh
-make install        # frontend deps
-make dev-backend    # PocketBase on http://127.0.0.1:8090 (admin UI at /_/)
-make dev-frontend   # SvelteKit dev server (proxies /api to the backend)
+make install        # frontend + admin deps
+make dev-backend    # PocketBase on http://127.0.0.1:8090 (PocketBase UI at /_/)
+make dev-frontend   # the app's dev server on :5173 (proxies /api to the backend)
+make dev-admin      # the admin app's dev server on :5174 (same proxy)
 ```
+
+The admin app (competitions, sync, people, comms, dev harness) is its own
+SPA with its own sign-in — an account with role `admin` or `owner`. The
+binary serves it by host: `admin.<app host>` (see `ADMIN_URL` in
+[DEPLOY.md](DEPLOY.md)); with a single local binary that is
+`http://admin.localhost:8090`. Set `ADMIN_URL=http://localhost:5174` in
+`.env` while developing so the app's user menu links to the dev server.
 
 ## Build & run as a single binary
 
 ```sh
-make run            # builds the SPA, embeds it, runs the binary
+make run            # builds both SPAs, embeds them, runs the binary
 ```
 
-App + API are served from one origin on `:8090`.
+App + API are served from one origin on `:8090`; the admin app answers on
+`http://admin.localhost:8090`.
 
 ## Test
 
@@ -129,7 +139,7 @@ App + API are served from one origin on `:8090`.
 make test           # Go unit tests (scoring engine)
 ```
 
-The frontend type-checks with `cd frontend && npm run check`.
+The frontends type-check with `npm run check` in `frontend/` and `admin/`.
 
 ## Docker / deploy
 
@@ -143,8 +153,7 @@ see [DEPLOY.md](DEPLOY.md).
 
 ## Dev / test harness
 
-Run with `MATCHOWL_DEV=1` to unlock the **/dev** page (also linked in the user
-menu):
+Run with `MATCHOWL_DEV=1` to unlock the **Dev** page of the admin app:
 
 - **Advance** to any timestamp — matches before it are simulated finished
   (mid-match → live, not scored), later ones reset; the virtual clock drives

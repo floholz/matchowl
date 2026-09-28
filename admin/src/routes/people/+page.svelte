@@ -9,7 +9,7 @@
 	import { appConfig } from '$lib/appconfig.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { onMount } from 'svelte';
-	import { ChevronLeft, Plus, Copy, Share2, Trash2, Check, Ticket } from '@lucide/svelte';
+	import { Plus, Copy, Share2, Trash2, Check, Ticket } from '@lucide/svelte';
 
 	$effect(() => {
 		if (!auth.isAdmin) goto('/');
@@ -120,7 +120,7 @@
 
 <div class="head">
 	<div>
-		<p class="kicker"><a href="/admin" class="crumb"><ChevronLeft size={14} /> Admin</a></p>
+		<p class="kicker">Admin</p>
 		<h1>Registration links</h1>
 	</div>
 </div>
@@ -284,13 +284,6 @@
 		gap: 1rem;
 		flex-wrap: wrap;
 		margin-bottom: 1.1rem;
-	}
-	.crumb {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.2rem;
-		color: inherit;
-		text-decoration: none;
 	}
 	.sec {
 		display: flex;

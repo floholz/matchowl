@@ -18,6 +18,7 @@ cp .env.example .env
 | `UNVERIFIED_PURGE_DAYS` | no | Nightly purge of unverified accounts older than this (default `180`; `0` disables). |
 | `MATCHOWL_VERSION` | no | Image tag to run with `docker compose pull` (e.g. `1.0.0-alpha.1`; default `latest`). |
 | `APP_URL` | **yes** | Public origin of the app, e.g. `https://play.matchowl.app`. Applied to PocketBase's application URL at boot: every link in verification / reset / email-change mails is built from it. |
+| `ADMIN_URL` | no | Origin of the admin app, e.g. `https://admin.matchowl.app`. Defaults to `APP_URL` with a leading `play.` swapped for `admin.`; empty otherwise (then any host whose first label is `admin` serves it). The same container serves both: point both hostnames at it (Traefik: one router per host, or a `Host(\`play…\`) \|\| Host(\`admin…\`)` rule). The admin app has its own origin — its own sign-in (an account with role `admin` or `owner`) and no PWA. |
 | `API_FOOTBALL_KEY` | optional | Only used if it's a **paid** API-Football plan (the free tier has no WC2026 access). |
 | `RESULTS_SOURCE` | no | `auto` (default): API-Football if its key reaches WC2026, else the free **openfootball** JSON. Force with `apifootball` / `openfootball`. Manual override always works. openfootball is community-updated (hours, not real-time). |
 | `SYNC_CRON` | no | Override the results-sync cadence (default `*/30 * * * *`). Tighten to e.g. `*/5 * * * *` for near-instant scores during matches; mind your plan's request quota. |

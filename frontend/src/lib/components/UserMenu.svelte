@@ -1,15 +1,12 @@
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
-	import { serverClock } from '$lib/serverclock.svelte';
+	import { appConfig } from '$lib/appconfig.svelte';
 	import Avatar from './Avatar.svelte';
 	import {
 		LogOut,
 		ChevronDown,
-		FlaskConical,
 		Settings,
 		Shield,
-		Crown,
-		Megaphone,
 		LayoutDashboard,
 		ExternalLink
 	} from '@lucide/svelte';
@@ -22,6 +19,9 @@
 		$props();
 	let open = $state(false);
 	let root: HTMLElement;
+	$effect(() => {
+		if (auth.isAdmin) appConfig.load();
+	});
 
 	function onDocClick(e: MouseEvent) {
 		if (root && !root.contains(e.target as Node)) open = false;
@@ -58,23 +58,9 @@
 					<div class="email">{auth.user?.email}</div>
 				</div>
 			</a>
-			{#if serverClock.dev}
-				<a class="item" href="/dev" onclick={() => (open = false)}>
-					<FlaskConical size={17} /> Dev tools
-				</a>
-				<div class="divider"></div>
-			{/if}
-			{#if auth.isOwner}
-				<a class="item" href="/owner" onclick={() => (open = false)}>
-					<Crown size={17} /> Owner stats
-				</a>
-			{/if}
-			{#if auth.isAdmin}
-				<a class="item" href="/announcements" onclick={() => (open = false)}>
-					<Megaphone size={17} /> Announcements
-				</a>
-				<a class="item" href="/admin" onclick={() => (open = false)}>
-					<LayoutDashboard size={17} /> Admin area
+			{#if auth.isAdmin && appConfig.adminUrl}
+				<a class="item" href={appConfig.adminUrl} target="_blank" rel="noopener" onclick={() => (open = false)}>
+					<LayoutDashboard size={17} /> Admin
 				</a>
 				<a
 					class="item"

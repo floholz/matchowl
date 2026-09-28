@@ -18,8 +18,11 @@ services:
       - "${HTTP_PORT:-8090}:8090"
     environment:
       - MATCHOWL_DEV=${MATCHOWL_DEV:-}
-      # Public origin (mail links, OAuth redirect) and who runs it.
+      # Public origin (mail links, OAuth redirect) and who runs it. The
+      # admin app is served on ADMIN_URL's host (default: APP_URL with
+      # "play." swapped for "admin.") — route both hosts to this container.
       - APP_URL=${APP_URL:-}
+      - ADMIN_URL=${ADMIN_URL:-}
       - OPERATOR_NAME=${OPERATOR_NAME:-}
       - OPERATOR_LOCATION=${OPERATOR_LOCATION:-}
       # Sign-up switch (0 = private testing, invite existing accounts only).

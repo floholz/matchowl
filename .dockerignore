@@ -3,7 +3,11 @@ pb_data
 frontend/node_modules
 frontend/.svelte-kit
 frontend/build
+admin/node_modules
+admin/.svelte-kit
+admin/build
 internal/web/build
+internal/web/admin
 *.local
 .env
 README.md

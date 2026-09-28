@@ -11,6 +11,19 @@ matching section of this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Admin app.** The admin tooling moved out of the phone app into its own
+  desktop-first SPA (`admin/`), served by the same binary on the admin host
+  (`ADMIN_URL`, default `admin.` in place of `play.`; a local binary answers
+  on `admin.localhost:8090`). Own origin, own sign-in (an admin or owner
+  account), no PWA. Sidebar: Dashboard (owner stats) · Competitions (the
+  tournament browser and import wizard) · Sync & services · People
+  (registration links) · Comms (announcements, delivery policy) · Dev (the
+  harness, when `MATCHOWL_DEV=1`). The app's user menu links to it; the
+  in-app `/admin`, `/owner`, `/announcements` and `/dev` pages are gone.
+  `GET /api/appconfig` now carries `appUrl` and `adminUrl`.
+
 ## [1.0.0-alpha.4] - 2026-09-28
 
 The head-to-head pool is the focus of the app, and after two weeks of

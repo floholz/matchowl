@@ -7,7 +7,16 @@ COPY frontend/ ./
 # adapter-static writes the SPA into /app/internal/web/build
 RUN npm run build
 
-# ---- Stage 2: build the Go binary with the SPA embedded ----
+# ---- Stage 1b: build the admin SPA (served on the admin host) ----
+FROM node:22-alpine AS admin
+WORKDIR /app/admin
+COPY admin/package.json admin/package-lock.json* ./
+RUN npm ci 2>/dev/null || npm install
+COPY admin/ ./
+# adapter-static writes the SPA into /app/internal/web/admin
+RUN npm run build
+
+# ---- Stage 2: build the Go binary with both SPAs embedded ----
 FROM golang:1.26-alpine AS backend
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -15,6 +24,7 @@ RUN go mod download
 COPY . .
 # Replace the committed placeholder with the freshly built SPA before embed.
 COPY --from=frontend /app/internal/web/build ./internal/web/build
+COPY --from=admin /app/internal/web/admin ./internal/web/admin
 # Stamp the release version (CI passes the tag; "dev" for local builds).
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -trimpath \

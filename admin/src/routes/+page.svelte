@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
 	import { api, type OwnerStats } from '$lib/api';
 	import { Users, Trophy, Bell, RefreshCw } from '@lucide/svelte';
@@ -9,11 +8,8 @@
 	let loaded = $state(false);
 	let busy = $state(false);
 
-	// Gate: send anyone who isn't the owner home. The auth store hydrates
-	// synchronously from the stored token, so isOwner is accurate on mount.
-	$effect(() => {
-		if (!auth.isOwner) goto('/');
-	});
+	// The stats are owner-only (the server enforces it); admins see the
+	// dashboard without them.
 
 	async function load() {
 		busy = true;
@@ -35,8 +31,8 @@
 
 <div class="head">
 	<div>
-		<p class="kicker">App owner</p>
-		<h1>Owner stats</h1>
+		<p class="kicker">Admin</p>
+		<h1>Dashboard</h1>
 	</div>
 	{#if auth.isOwner}
 		<button class="btn ghost refresh" onclick={load} disabled={busy} title="Refresh">
@@ -46,7 +42,7 @@
 </div>
 
 {#if !auth.isOwner}
-	<p class="muted">Restricted.</p>
+	<p class="muted">Competitions, sync, people and comms are in the sidebar. The usage stats on this page are for the owner.</p>
 {:else if !loaded}
 	<p class="muted">Loading…</p>
 {:else if error}

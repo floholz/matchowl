@@ -9,6 +9,8 @@ class AppConfigStore {
 	operatorLocation = $state('Vienna, Austria');
 	version = $state('');
 	registrationOpen = $state(true);
+	/** The admin app's origin ('' = none configured; the menu hides the link). */
+	adminUrl = $state('');
 	loaded = $state(false);
 	private loading = false;
 
@@ -23,6 +25,7 @@ class AppConfigStore {
 			if (r.operatorLocation) this.operatorLocation = r.operatorLocation;
 			this.version = r.version ?? '';
 			this.registrationOpen = r.registrationOpen !== false;
+			this.adminUrl = r.adminUrl ?? '';
 			this.loaded = true;
 		} catch {
 			/* keep fallbacks; retry on next load() call */

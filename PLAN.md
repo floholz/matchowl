@@ -359,7 +359,7 @@ targeted mail tool.
 ### Order
 
 1. **Alpha fixes** (h2h presence — see findings below).
-2. **Admin app skeleton**: a second SvelteKit SPA in `admin/`, desktop-first
+2. ✅ 2026-09-28 — **Admin app skeleton**: a second SvelteKit SPA in `admin/`, desktop-first
    (sidebar: Dashboard · Competitions · Sync · People · Comms · Dev),
    embedded in the same Go binary and served on its own origin
    `admin.matchowl.app` (Traefik host rule → same container). Own origin =
@@ -372,6 +372,18 @@ targeted mail tool.
    Google OAuth gets the admin origin. **Frontend only** — one backend, one
    database, one deploy; a separate admin process was considered and
    rejected (auth propagation, a second thing to keep alive, no gain).
+   *Built:* `admin/` (own package, adapter-static into `internal/web/admin`,
+   vite on :5174), sidebar shell + `/login`, the six pages moved over
+   (`/`, `/competitions`, `/sync`, `/people`, `/comms`, `/dev`), shared
+   lib copied (theme, app.css, api slice, auth, ConfirmDialog,
+   NotifyPolicyCard, Avatar), `web.AdminFS` + host switch in `main.go`
+   (`appconfig.IsAdminHost`), `ADMIN_URL` env + `adminUrl`/`appUrl` in
+   `/api/appconfig`, Dockerfile stage, Makefile targets, docs. **Still
+   open from this step:** every admin route under one `/api/admin/*`
+   middleware (three still use PocketBase superuser auth:
+   `/api/sync/refresh`, `/api/admin/recompute`, the result override),
+   Google sign-in on the admin origin, Traefik host rule on the VPS
+   (floholz), and the admin `api.ts` is a hand-kept copy of the app's.
 3. **Competitions**: `provider` + `providerId` on teams (written at
    import, backfilled for existing tournaments by re-fetch; the importer
    matches by name today), a **teams registry** (one row per distinct

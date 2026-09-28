@@ -412,6 +412,8 @@ export interface AppConfig {
 	operatorLocation: string; // town + country, never a street
 	version: string; // build version, e.g. "1.0.0-alpha.1" ("dev" locally)
 	registrationOpen: boolean; // false = private testing, no new accounts
+	appUrl: string; // the player app's public origin ('' when unset)
+	adminUrl: string; // the admin app's origin ('' when none)
 }
 
 // End-of-tournament feedback survey (v1). Enum values mirror the validation

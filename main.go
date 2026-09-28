@@ -109,13 +109,21 @@ func main() {
 		return e.Next()
 	})
 
-	// Serve the embedded SvelteKit build with SPA (index.html) fallback so
-	// client-side routes resolve. Registered last and only if no API/user
+	// Serve the embedded SvelteKit builds with SPA (index.html) fallback so
+	// client-side routes resolve: the admin app on the admin host, the
+	// player app everywhere else. Registered last and only if no API/user
 	// route already owns the path.
 	app.OnServe().Bind(&hook.Handler[*core.ServeEvent]{
 		Func: func(e *core.ServeEvent) error {
 			if !e.Router.HasRoute(http.MethodGet, "/{path...}") {
-				e.Router.GET("/{path...}", apis.Static(web.DistFS(), true))
+				appSPA := apis.Static(web.DistFS(), true)
+				adminSPA := apis.Static(web.AdminFS(), true)
+				e.Router.GET("/{path...}", func(re *core.RequestEvent) error {
+					if appconfig.IsAdminHost(re.Request.Host) {
+						return adminSPA(re)
+					}
+					return appSPA(re)
+				})
 			}
 			return e.Next()
 		},
