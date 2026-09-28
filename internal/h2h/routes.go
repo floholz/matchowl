@@ -240,6 +240,7 @@ func matchPoolView(app core.App, lg *core.Record, uid string, m *core.Record, r 
 // Register wires the head-to-head routes and the job.
 func Register(app core.App, se *core.ServeEvent) {
 	app.Cron().MustAdd("h2h-tick", "*/5 * * * *", func() { Tick(app) })
+	registerMe(app, se)
 
 	// GET /api/h2h/match/{id} — the caller's head-to-head pools that play
 	// this match's season, each with the caller's picks on the match. Empty

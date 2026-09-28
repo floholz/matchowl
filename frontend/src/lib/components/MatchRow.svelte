@@ -30,6 +30,8 @@
 	import TipCapsule from './TipCapsule.svelte';
 	import Stepper from './Stepper.svelte';
 	import H2HPickButtons from './H2HPickButtons.svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
+	import { auth } from '$lib/auth.svelte';
 	import { ChevronRight, Check } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
@@ -151,6 +153,12 @@
 	let boardAdv = $derived(played && phased ? sideOf(match.advancer) : '');
 
 	// ---- capsule ----
+	// Head-to-head marks come from the shared store (one request for all my
+	// pools); the first row to render asks it to load.
+	$effect(() => {
+		if (auth.isAuthed) h2hStore.load().catch(() => {});
+	});
+	let marks = $derived(h2hStore.marks(match.id));
 	let tipScore = $derived(existing ? legScore(existing) : null);
 	let tipAdv = $derived(existing && phased ? sideOf(existing.advancer) : '');
 	let capState = $derived.by(() => {
@@ -301,6 +309,7 @@
 			away={tipScore?.[1] ?? null}
 			state={capState}
 			advancer={tipAdv}
+			{marks}
 			active={open}
 			onclick={editable ? () => onToggle?.() : undefined}
 		/>

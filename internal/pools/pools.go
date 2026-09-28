@@ -19,6 +19,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/friends"
+	"github.com/floholz/matchowl/internal/players"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
@@ -109,6 +110,10 @@ func ChatOpen(app core.App, lg *core.Record) bool {
 	until := ChatUntil(app, lg)
 	return until.IsZero() || time.Now().Before(until)
 }
+
+// Status is the pool's lifecycle state from its season: PoolUpcoming,
+// PoolLive or PoolFinished (PoolOpen when it has no season yet).
+func Status(app core.App, lg *core.Record) string { return poolStatus(app, lg) }
 
 func poolStatus(app core.App, lg *core.Record) string {
 	ids := lg.GetStringSlice("tournaments")
@@ -298,6 +303,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	if err := backfillGlobal(app); err != nil {
 		log.Printf("[pools] global backfill failed: %v", err)
 	}
+	backfillSeasonPlayers(app)
 	app.OnRecordAfterCreateSuccess("users").BindFunc(func(e *core.RecordEvent) error {
 		if e.Record.Verified() {
 			if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
@@ -592,6 +598,12 @@ func Register(app core.App, se *core.ServeEvent) {
 		lg.Set("saveCalls", saveCalls)
 		if err := app.Save(lg); err != nil {
 			return err
+		}
+		// The pool now plays this season: so do its members.
+		if mems, err := app.FindRecordsByFilter("pool_members", "pool = {:l}", "", 0, 0, map[string]any{"l": lg.Id}); err == nil {
+			for _, m := range mems {
+				_ = players.Ensure(app, season.Id, m.GetString("user"), "auto")
+			}
 		}
 		out := map[string]any{"tournaments": seasonViews(app, lg)}
 		maps.Copy(out, modeView(app, lg))
@@ -970,6 +982,41 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 }
 
+// backfillSeasonPlayers makes every pool member a player of their pool's
+// season (idempotent, at boot): members who joined before joining a pool
+// implied playing its season (2026-09-28).
+func backfillSeasonPlayers(app core.App) {
+	mems, err := app.FindRecordsByFilter("pool_members", "", "", 0, 0)
+	if err != nil {
+		return
+	}
+	seasons := map[string]string{}
+	n := 0
+	for _, m := range mems {
+		pid := m.GetString("pool")
+		tid, ok := seasons[pid]
+		if !ok {
+			if lg, err := app.FindRecordById("pools", pid); err == nil {
+				tid = Season(lg)
+			}
+			seasons[pid] = tid
+		}
+		if tid == "" {
+			continue
+		}
+		if err := players.Ensure(app, tid, m.GetString("user"), "auto"); err == nil {
+			n++
+		}
+	}
+	if n > 0 {
+		log.Printf("[pools] season players checked for %d memberships", n)
+	}
+}
+
+// addMember puts a user in a pool and, since a pool plays one season,
+// makes them a player of it: the pool's matches must reach their feed and
+// Home right away (2026-09-28: an alpha member who never pressed Play saw
+// "nothing to tip" next to a live duel).
 func addMember(app core.App, leagueID, userID, role string) error {
 	col, err := app.FindCollectionByNameOrId("pool_members")
 	if err != nil {
@@ -979,7 +1026,15 @@ func addMember(app core.App, leagueID, userID, role string) error {
 	rec.Set("pool", leagueID)
 	rec.Set("user", userID)
 	rec.Set("role", role)
-	return app.Save(rec)
+	if err := app.Save(rec); err != nil {
+		return err
+	}
+	if lg, err := app.FindRecordById("pools", leagueID); err == nil {
+		if err := players.Ensure(app, Season(lg), userID, "auto"); err != nil {
+			log.Printf("[pools] play season for new member %s: %v", userID, err)
+		}
+	}
+	return nil
 }
 
 // ensureGlobal idempotently creates the "Global" league (owner left empty so

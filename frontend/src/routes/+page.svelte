@@ -1,14 +1,17 @@
-<!-- Home: the time-based hub. Tip now (matches locking soonest), the
-     forecast deadline, Live, your pools, yesterday's points. Nothing
-     else. Signed-out visitors are sent to sign in by the layout. -->
+<!-- Home: your pools first (the head-to-head duel is the biggest thing
+     on the page), then Tip now (matches locking soonest, in the thumb
+     zone), the forecast deadline, Live, yesterday's points. Nothing else.
+     Signed-out visitors are sent to sign in by the layout. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
 	import { feedStore, type FeedMatch } from '$lib/feed.svelte';
 	import { otherLegView } from '$lib/tips.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
 	import { api, type PoolSummary } from '$lib/api';
 	import MatchRow from '$lib/components/MatchRow.svelte';
+	import DuelCard from '$lib/components/DuelCard.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { appConfig } from '$lib/appconfig.svelte'; // loaded by SupportCard
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
@@ -23,20 +26,9 @@
 		tournamentStore.ready().catch(() => {});
 	});
 
-	// ---- pools: where am I, who leads ----
-	/** A head-to-head pool's line: my duel this matchday (or the next one). */
-	interface DuelLine {
-		round: string;
-		open: boolean;
-		rival: string;
-		mine: number;
-		theirs: number;
-		pts: number;
-		counted: number;
-		matches: number;
-		/** Not paired in the headline round: the next matchday and rival. */
-		next?: { round: string; rival: string; when: string };
-	}
+	// ---- pools ----
+	// Head-to-head pools come from the shared h2h store as duel cards;
+	// classic pools keep the compact "where am I, who leads" row.
 	interface LeagueLine {
 		league: PoolSummary;
 		rank: number;
@@ -44,43 +36,16 @@
 		points: number;
 		leader: string;
 		leaderPoints: number;
-		duel?: DuelLine | null;
-	}
-	const roundName = (r: { label: string; num: number }) => (r.num > 0 && /\d+\s*$/.test(r.label) ? `Matchday ${r.num}` : r.label);
-	async function duelLine(poolId: string): Promise<DuelLine | null> {
-		const d = await api.h2h(poolId).catch(() => null);
-		if (!d) return null;
-		const me = auth.user?.id;
-		const nextPair = d.next?.pairs.find((p) => p.a.userId === me || p.b?.userId === me);
-		const next = d.next && nextPair
-			? { round: roundName(d.next), rival: (nextPair.a.userId === me ? nextPair.b : nextPair.a)?.name ?? 'the Ghost', when: d.next.firstKickoff }
-			: undefined;
-		const r = d.rounds.find((x) => x.key === d.current);
-		const p = r?.pairs.find((p) => p.a.userId === me || p.b?.userId === me);
-		if (!r || !p) {
-			return next ? { round: '', open: false, rival: '', mine: 0, theirs: 0, pts: 0, counted: 0, matches: 0, next } : null;
-		}
-		const meA = p.a.userId === me;
-		return {
-			round: roundName(r),
-			open: r.status === 'open',
-			rival: (meA ? p.b : p.a)?.name ?? 'the Ghost',
-			mine: meA ? p.scoreA : p.scoreB,
-			theirs: meA ? p.scoreB : p.scoreA,
-			pts: meA ? p.ptsA : p.ptsB,
-			counted: r.counted,
-			matches: r.matches,
-			next
-		};
 	}
 	let leagues = $state<LeagueLine[]>([]);
 	let leaguesLoaded = $state(false);
 	$effect(() => {
 		if (!auth.isAuthed) return;
+		h2hStore.load().catch(() => {});
 		api
 			.myPools()
 			.then(async ({ pools: ls }) => {
-				const mine = ls.filter((l) => l.inviteCode !== 'GLOBAL' && l.status !== 'finished');
+				const mine = ls.filter((l) => l.inviteCode !== 'GLOBAL' && l.status !== 'finished' && l.mode !== 'h2h');
 				const lines = await Promise.all(
 					mine.map(async (league) => {
 						const { rows } = await api.leaderboard(league.id).catch(() => ({ rows: [] }));
@@ -91,8 +56,7 @@
 							total: rows.length,
 							points: i >= 0 ? rows[i].total : 0,
 							leader: rows[0]?.name ?? '',
-							leaderPoints: rows[0]?.total ?? 0,
-							duel: league.mode === 'h2h' ? await duelLine(league.id) : null
+							leaderPoints: rows[0]?.total ?? 0
 						};
 					})
 				);
@@ -101,6 +65,9 @@
 			.catch(() => {})
 			.finally(() => (leaguesLoaded = true));
 	});
+	let duels = $derived(h2hStore.pools);
+	/** Results are capped: the rest is one tap away on Matches. */
+	const RECENT_MAX = 5;
 
 	// ---- matches ----
 	const byKickoff = (a: FeedMatch, b: FeedMatch) =>
@@ -199,6 +166,47 @@
 			</div>
 		{:else if feedStore.loaded}
 			<div class="sec">
+				<h2>Your pools</h2>
+				<a class="more" href="/friends">Friends <ChevronRight size={14} /></a>
+			</div>
+			{#each duels as pool (pool.poolId)}
+				<DuelCard {pool} />
+			{/each}
+			{#if leagues.length}
+				<div class="card rows">
+					{#each leagues as l (l.league.id)}
+						<a class="lrow" href={`/pools/${l.league.id}`}>
+							<span class="rank digits"
+								>{l.rank > 0 ? `#${l.rank}` : '–'}<small>/{l.total}</small></span
+							>
+							<span class="ltxt">
+								<b>{l.league.name}</b>
+								<span class="muted"
+									>{l.leader
+										? l.rank === 1
+											? 'You lead'
+											: `${l.leader} leads · ${l.leaderPoints} pts`
+										: `${l.league.members} members`}</span
+								>
+							</span>
+							<span class="lpts">
+								<span class="digits">{l.points}</span>
+								{#if l.leader && l.rank > 1}
+									<span class="gap muted"><ChevronDown size={11} />{l.leaderPoints - l.points}</span>
+								{:else if l.rank === 1 && l.total > 1}
+									<span class="gap up"><ChevronUp size={11} />lead</span>
+								{/if}
+							</span>
+						</a>
+					{/each}
+				</div>
+			{:else if leaguesLoaded && h2hStore.loaded && !duels.length}
+				<div class="card quiet muted">
+					No pools yet. <a href="/friends">Start one</a> and invite your friends.
+				</div>
+			{/if}
+
+			<div class="sec">
 				<h2>Tip now</h2>
 				{#if untipped.length}
 					<span class="muted note"
@@ -246,62 +254,6 @@
 				</div>
 			{/if}
 
-			<div class="sec">
-				<h2>Your pools</h2>
-				<a class="more" href="/friends">Friends <ChevronRight size={14} /></a>
-			</div>
-			{#if leagues.length}
-				<div class="card rows">
-					{#each leagues as l (l.league.id)}
-						<a class="lrow" href={`/pools/${l.league.id}`}>
-							{#if l.duel && l.duel.round}
-								<span class="duel digits" class:win={l.duel.pts === 3} class:loss={l.duel.pts === 0 && (l.duel.mine > 0 || l.duel.theirs > 0)}>{l.duel.mine}<i>–</i>{l.duel.theirs}</span>
-								<span class="ltxt">
-									<b>{l.league.name}</b>
-									<span class="muted">{l.duel.round} · {l.duel.open ? `vs ${l.duel.rival} · ${l.duel.counted} of ${l.duel.matches} in` : `${l.duel.pts === 3 ? 'you beat' : l.duel.pts === 1 ? 'you drew with' : 'you lost to'} ${l.duel.rival}`}{#if !l.duel.open && l.duel.next} · next {l.duel.next.rival}{/if}</span>
-								</span>
-								<span class="lpts">
-									<span class="pill h2h">h2h</span>
-								</span>
-							{:else if l.duel?.next}
-								<span class="duel digits muted">–</span>
-								<span class="ltxt">
-									<b>{l.league.name}</b>
-									<span class="muted">{l.duel.next.round} · you vs {l.duel.next.rival}</span>
-								</span>
-								<span class="lpts"><span class="pill h2h">h2h</span></span>
-							{:else}
-							<span class="rank digits"
-								>{l.rank > 0 ? `#${l.rank}` : '–'}<small>/{l.total}</small></span
-							>
-							<span class="ltxt">
-								<b>{l.league.name}</b>
-								<span class="muted"
-									>{l.leader
-										? l.rank === 1
-											? 'You lead'
-											: `${l.leader} leads · ${l.leaderPoints} pts`
-										: `${l.league.members} members`}</span
-								>
-							</span>
-							<span class="lpts">
-								<span class="digits">{l.points}</span>
-								{#if l.leader && l.rank > 1}
-									<span class="gap muted"><ChevronDown size={11} />{l.leaderPoints - l.points}</span>
-								{:else if l.rank === 1 && l.total > 1}
-									<span class="gap up"><ChevronUp size={11} />lead</span>
-								{/if}
-							</span>
-							{/if}
-						</a>
-					{/each}
-				</div>
-			{:else if leaguesLoaded}
-				<div class="card quiet muted">
-					No pools yet. <a href="/friends">Start one</a> and invite your friends.
-				</div>
-			{/if}
-
 			{#if recent}
 				<div class="sec">
 					<h2>{recent.label}</h2>
@@ -311,7 +263,10 @@
 					<a class="more" href="/matches">Results <ChevronRight size={14} /></a>
 				</div>
 				<div class="card rows">
-					{#each recent.matches as m (m.id)}{@render row(m)}{/each}
+					{#each recent.matches.slice(0, RECENT_MAX) as m (m.id)}{@render row(m)}{/each}
+					{#if recent.matches.length > RECENT_MAX}
+						<a class="seeall" href="/matches">See all {recent.matches.length} results <ChevronRight size={14} /></a>
+					{/if}
 				</div>
 			{/if}
 		{:else}
@@ -320,7 +275,7 @@
 
 		<SupportCard />
 		<footer class="foot muted">
-			Matchowl{#if appConfig.version} <span class="ver">v{appConfig.version}</span>{/if} · made by floholz ·
+			Matchowl{#if appConfig.version}&nbsp;<span class="ver">v{appConfig.version}</span>{/if} · made by floholz ·
 			<a href="/help">Help</a> · <a href="/legal/about">About</a>
 		</footer>
 	</div>
@@ -407,27 +362,14 @@
 	.lrow:last-child {
 		border-bottom: none;
 	}
-	.duel {
-		min-width: 3.2rem;
-		font-size: 1.05rem;
-		font-weight: 800;
-		display: inline-flex;
-		align-items: baseline;
-		gap: 0.1rem;
-	}
-	.duel i {
-		font-style: normal;
-		color: var(--muted);
-	}
-	.duel.win {
-		color: var(--accent);
-	}
-	.duel.loss {
-		color: var(--muted);
-	}
-	.pill.h2h {
-		color: var(--accent);
-		border-color: var(--accent);
+	.seeall {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.15rem;
+		padding: 0.6rem;
+		font-size: 0.82rem;
+		font-weight: 600;
 	}
 	.rank {
 		font-size: 1.35rem;

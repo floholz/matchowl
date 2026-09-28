@@ -141,6 +141,57 @@ export interface H2HPicks {
 	closed: boolean;
 	matches: H2HPickMatch[];
 }
+/** What a match row shows of my head-to-head picks: my own, and what the
+ *  rival has revealed (picks reveal at kick-off). */
+export interface H2HPickMark {
+	saved: boolean;
+	banned: boolean;
+	rivalSaved: boolean;
+	rivalBanned: boolean;
+}
+/** One round from my side: who I face, how the duel stands, what is left
+ *  to do. `mine`/`theirs`/`pts` only once the round has opened; the to-do
+ *  fields only while it still takes tips and picks. */
+export interface H2HDuelState {
+	key: string;
+	label: string;
+	num: number;
+	/** "Matchday 8", or the label. */
+	name: string;
+	status: 'upcoming' | 'open' | 'closed';
+	firstKickoff: string;
+	closesAt: string;
+	matches: number;
+	counted: number;
+	paired: boolean;
+	ghost: boolean;
+	rival: H2HPerson | null;
+	mine?: number;
+	theirs?: number;
+	pts?: number;
+	/** Every duel of an opened round (the card's "All duels"). */
+	pairs?: { a: H2HPerson; b: H2HPerson | null; scoreA: number; scoreB: number; ptsA: number; ptsB: number }[];
+	untipped?: number;
+	saveCallsLeft?: number;
+	banPlaced?: boolean;
+}
+/** One of my head-to-head pools at a glance (GET /api/h2h/me). */
+export interface H2HMePool {
+	poolId: string;
+	name: string;
+	/** Season (tournament) id and slug. */
+	season: string;
+	seasonSlug: string;
+	/** Competition key: the hub lives at /competitions/{key}?s={seasonSlug}. */
+	competition: string;
+	saveCalls: number;
+	/** The headline round: the open one, else the last closed. */
+	current: H2HDuelState | null;
+	/** The round that opens next. */
+	next: H2HDuelState | null;
+	/** Every pick I may see, by match id. */
+	picks: Record<string, H2HPickMark>;
+}
 export interface H2HRound {
 	key: string;
 	label: string;
@@ -532,6 +583,9 @@ export const api = {
 	h2hSetPick: (poolId: string, match: string, kind: 'save' | 'ban', on: boolean) =>
 		post<H2HPicks>(`/api/pools/${poolId}/h2h/picks`, { match, kind, on }),
 	h2hMatch: (matchId: string) => get<{ pools: H2HMatchPool[] }>(`/api/h2h/match/${matchId}`),
+	/** All my head-to-head pools at a glance (one season with `tournament`). */
+	h2hMe: (tournament = '') =>
+		get<{ pools: H2HMePool[] }>(`/api/h2h/me${tournament ? `?tournament=${encodeURIComponent(tournament)}` : ''}`),
 	/** Owner: the season the pool plays and how — until its first round kicks off. */
 	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
 		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),

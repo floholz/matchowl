@@ -2,7 +2,8 @@
 // which tournament. Playing is what puts a tournament's matches into your
 // feed. Subscription is hybrid: an explicit Play button, plus
 // auto-subscribe the moment you submit your first tip or forecast in a
-// tournament. League activity never auto-joins — it only powers the
+// tournament, and joining a pool plays its season (a pool binds exactly
+// one). Other pool-mate activity never auto-joins — it only powers the
 // suggestions endpoint.
 package players
 
@@ -19,7 +20,8 @@ import (
 const collection = "tournament_players"
 
 // Ensure records the user as a player of the tournament (idempotent).
-// source is "manual" (Play button) or "auto" (first tip/forecast).
+// source is "manual" (Play button) or "auto" (first tip/forecast, or a
+// pool that plays the season).
 func Ensure(app core.App, tournamentID, userID, source string) error {
 	if tournamentID == "" || userID == "" {
 		return nil

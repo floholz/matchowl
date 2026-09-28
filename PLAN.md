@@ -346,6 +346,103 @@ now; see the backlog. Inactive members are free wins, as in fantasy.
 
 ---
 
+## Next: alpha fixes, the admin app, comms and the WC26 outreach (decided 2026-09-28)
+
+Two weeks of alpha.3 on the VPS (pool "Alpha Testers", Ö. Bundesliga, h2h)
+gave four findings, all saying the same thing: **the head-to-head pool is
+the focus of the app and must be more present.** Alongside, the admin
+tooling gets its own app, because the next admin features (group editor,
+teams registry, mailings) are desktop work that does not belong in the
+phone shell — and the pre-launch outreach to the WC26 players needs a
+targeted mail tool.
+
+### Order
+
+1. **Alpha fixes** (h2h presence — see findings below).
+2. **Admin app skeleton**: a second SvelteKit SPA in `admin/`, desktop-first
+   (sidebar: Dashboard · Competitions · Sync · People · Comms · Dev),
+   embedded in the same Go binary and served on its own origin
+   `admin.matchowl.app` (Traefik host rule → same container). Own origin =
+   own service-worker scope and localStorage; no PWA, no i18n (English
+   only). Every admin route under `/api/admin/*` behind one middleware (the
+   stray `/api/sync/refresh` and the `/api/dev/*` routes move under it).
+   The five existing pages (admin dashboard, tournaments + import wizard,
+   registration links, owner stats, dev harness) move over as they are;
+   the app's user menu links out. Dockerfile gets a second frontend stage;
+   Google OAuth gets the admin origin. **Frontend only** — one backend, one
+   database, one deploy; a separate admin process was considered and
+   rejected (auth propagation, a second thing to keep alive, no gain).
+3. **Competitions**: `provider` + `providerId` on teams (written at
+   import, backfilled for existing tournaments by re-fetch; the importer
+   matches by name today), a **teams registry** (one row per distinct
+   team: competitions, code, flag, logo, provider ids; edits apply across
+   its rows), and the **group editor** — drag and drop teams between
+   groups, new group, on the import preview and on a live tournament;
+   saving rewrites `matches.groupLetter` from the home team's group and
+   recounts group size / games per team; the merged-group warning shows
+   inline. Retires the PocketBase relation-picker foot-gun from plan 06.
+4. **Comms**: announcement creator (Markdown body with a live preview of
+   the themed mail, CTA button, per-message channels banner / mail / push,
+   audience, optional schedule) and **mailings**: an audience selector
+   (verified, role, plays competition X, member of pool Y, last seen
+   before / after, imported and not yet claimed), live recipient count,
+   test send to self, a `mailings` record keeping the audience snapshot,
+   delivery through the existing dispatch (prefs, dedup ledger, provider).
+   mailto/BCC rejected (spam-flagged, no theme, no record).
+5. **WC26 outreach**: import the consenting WC26 players as dormant
+   accounts (release data plan below), then a mailing to the "not claimed
+   yet" segment whose CTA is the claim path (Google sign-in on the same
+   address or password reset — no registration link needed while sign-up
+   stays closed). The mail says why they get it, carries a one-click "no
+   more mail" link; the privacy page covers the transfer from the old app.
+   Beta feedback channel: one "Matchowl Beta" pool whose chat is the
+   lounge, plus a feedback form in the user menu writing to a collection
+   the admin reads.
+6. **Mail DNS** (floholz, gates only step 5): domain stays at Spaceship;
+   **Resend** (free plan: 3,000 mails / month, **100 / day** — watch the
+   daily cap once ~90 beta users get reminders and digests) verified for
+   `matchowl.app` (DKIM + SPF TXT, bounce MX on Resend's subdomain,
+   DMARC). No mailbox: inbound `*@matchowl.app` forwards (set up
+   2026-09-28) to a floholz.dev address; replies from that address are
+   fine for a private project whose About page names the operator anyway.
+   Sender `hello@matchowl.app`, Reply-To the same.
+
+### Alpha findings (2026-09-28) — h2h presence
+
+- **Home**: the pool line sits squashed between Tip now and Yesterday; the
+  duel should be the biggest thing on the page — a real card with last
+  matchday's result, the current score, and who is up next.
+- **Pool page**: the duel card shows one round and the round browser sits
+  at the bottom; "what happened" and "what's next" feel like two modes you
+  are stuck in, while in reality you flip between them constantly.
+- **Competition hub, Matches tab**: when the next matchday is selected
+  nothing says "you play DomiStra this week" — the pool is invisible from
+  the place where the tips get placed. Gets complicated with several pools
+  on one season.
+- **Match lists**: Save Calls and bans show only on the match page; the
+  rows carry no hint that a match is picked. Same multi-pool caveat.
+
+**Built 2026-09-28** (floholz trusted the calls; judged in daily use):
+`GET /api/h2h/me` + a shared `h2hStore` (one request for all my h2h
+pools: headline + next round from my side, to-do counts, every pick by
+match id; the drawer keeps `/api/h2h/match/{id}` for per-pool detail).
+Home: pools first — the duel card is read at a glance, Tip now's capsules
+are what you tap and stay in the thumb zone — `DuelCard` per h2h pool
+(duel, verdict, next + to-do, "All duels"), classic pools keep the row,
+Yesterday capped at 5 + "See all results". Pool page: the duel card and
+the round browser merged into a horizontal **matchday strip** (past =
+result, open = live score, next = rival + to-do), centred on the current
+card with neighbours peeking; selected matchday's duels + checklist below,
+then the table. Hub Matches tab: rival strip under the pills for the
+selected matchday, one line per pool. Rows: shield / ban badges on the
+capsule. Found on the way: joining a pool did not play its season (plan 04
+said pool activity never auto-joins — from before pools bound one season),
+so Home said "nothing to tip" next to a live duel; joining now plays it.
+Open: watch how the Home order feels; the strip on desktop shows three
+cards side by side.
+
+---
+
 ## Next: full app validation walkthrough
 
 The app accreted from the WC26-only base through three reworks. Before

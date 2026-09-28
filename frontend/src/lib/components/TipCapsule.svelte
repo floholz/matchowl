@@ -4,15 +4,22 @@
      stays orange on a hit and goes grey on a miss. The LED dot marks the
      user's advancer pick on a knockout (a drawn tip + dot = penalty pick). -->
 <script lang="ts">
-	import { Plus, Lock } from '@lucide/svelte';
+	import { Plus, Lock, ShieldCheck, Ban } from '@lucide/svelte';
+	import type { H2HPickMark } from '$lib/api';
 	let {
 		home = null,
 		away = null,
 		state = 'open',
 		advancer = '',
 		active = false,
-		onclick = undefined
+		onclick = undefined,
+		marks = null
 	}: {
+		/** Head-to-head marks: a shield on the top corner for a Save Call
+		 *  (mine in orange, the rival's revealed one in grey), a ban on the
+		 *  bottom corner (outlined = mine on the rival, filled red = the
+		 *  rival's on me, revealed at kick-off). */
+		marks?: H2HPickMark | null;
 		home?: number | null;
 		away?: number | null;
 		/** open: editable (digits, or a plus when empty) · frozen: locked with
@@ -25,18 +32,33 @@
 		onclick?: () => void;
 	} = $props();
 	let has = $derived(home !== null && away !== null);
+	let markText = $derived(
+		[
+			marks?.saved ? 'your Save Call' : marks?.rivalSaved ? "your rival's Save Call" : '',
+			marks?.rivalBanned ? 'banned for you' : marks?.banned ? 'your ban on your rival' : ''
+		]
+			.filter(Boolean)
+			.join(', ')
+	);
 	let label = $derived(
-		state === 'unavailable'
+		(state === 'unavailable'
 			? 'Not tippable yet'
 			: !has
 				? state === 'open'
 					? 'Place a tip'
 					: 'No tip'
-				: `Your tip ${home}–${away}${state === 'open' ? ', tap to change' : ''}`
+				: `Your tip ${home}–${away}${state === 'open' ? ', tap to change' : ''}`) +
+			(markText ? ` · ${markText}` : '')
 	);
 </script>
 
 {#snippet inner()}
+	{#if marks?.saved || marks?.rivalSaved}
+		<span class="bd save" class:rival={!marks.saved}><ShieldCheck size={9} /></span>
+	{/if}
+	{#if marks?.banned || marks?.rivalBanned}
+		<span class="bd ban" class:onme={marks.rivalBanned}><Ban size={9} /></span>
+	{/if}
 	{#if state === 'unavailable'}
 		<Lock size={14} />
 	{:else if !has}
@@ -143,5 +165,39 @@
 	}
 	.mk.a {
 		top: 31px;
+	}
+	/* Head-to-head badges on the capsule's right corners. */
+	.bd {
+		position: absolute;
+		right: -6px;
+		width: 15px;
+		height: 15px;
+		border-radius: 50%;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
+		border: 1.5px solid var(--surface);
+		z-index: 1;
+	}
+	.bd.save {
+		top: -6px;
+		background: var(--accent);
+		color: var(--accent-fg);
+	}
+	.bd.save.rival {
+		background: var(--muted);
+		color: var(--surface);
+	}
+	.bd.ban {
+		bottom: -6px;
+		background: var(--surface);
+		border-color: var(--live, #e0443e);
+		color: var(--live, #e0443e);
+	}
+	.bd.ban.onme {
+		background: var(--live, #e0443e);
+		border-color: var(--surface);
+		color: #fff;
 	}
 </style>

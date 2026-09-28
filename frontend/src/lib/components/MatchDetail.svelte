@@ -29,6 +29,7 @@
 	import TipCapsule from './TipCapsule.svelte';
 	import Stepper from './Stepper.svelte';
 	import H2HPickButtons from './H2HPickButtons.svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
 	import Avatar from './Avatar.svelte';
 	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
 	import { untrack } from 'svelte';
@@ -434,7 +435,7 @@
 					{/if}
 				</div>
 				<div class="tiprow">
-					<TipCapsule home={tipScore?.[0] ?? null} away={tipScore?.[1] ?? null} state={capState} advancer={tipAdv} />
+					<TipCapsule home={tipScore?.[0] ?? null} away={tipScore?.[1] ?? null} state={capState} advancer={tipAdv} marks={h2hStore.marks(id)} />
 					<div class="tiptxt">
 						<span class="tipline">{tipLine}</span>
 						{#if breakdown}

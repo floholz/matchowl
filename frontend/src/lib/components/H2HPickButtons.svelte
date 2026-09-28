@@ -4,6 +4,7 @@
      nothing when the caller has no such pool. -->
 <script lang="ts">
 	import { api, type H2HMatchPool } from '$lib/api';
+	import { h2hStore } from '$lib/h2h.svelte';
 	import { ShieldCheck, Ban } from '@lucide/svelte';
 
 	let { matchId, size = 'sm' }: { matchId: string; size?: 'sm' | 'lg' } = $props();
@@ -32,6 +33,7 @@
 			await api.h2hSetPick(p.poolId, matchId, kind, kind === 'save' ? !p.saved : !p.banned);
 			const r = await api.h2hMatch(matchId);
 			pools = r.pools;
+			h2hStore.invalidate(); // the row marks and the hub strip follow
 		} catch (e: unknown) {
 			err = (e as { response?: { error?: string } })?.response?.error || 'Could not place that.';
 		} finally {

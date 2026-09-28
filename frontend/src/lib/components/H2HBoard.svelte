@@ -4,6 +4,7 @@
 <script lang="ts">
 	import { api, type H2HOverview, type H2HPair, type H2HPerson, type H2HPicks, type H2HPickTeam, type PoolSeason } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
 	import { pb } from '$lib/pb';
 	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
@@ -44,8 +45,6 @@
 	/** "Regular Season - 12" → "Matchday 12"; anything else stays. */
 	const roundName = (r: { label: string; num: number }) => (r.num > 0 && /\d+\s*$/.test(r.label) ? `Matchday ${r.num}` : r.label);
 
-	/** The latest round (open, else the last closed) — the headline. */
-	let latest = $derived(data ? (data.rounds.find((r) => r.key === data!.current) ?? null) : null);
 	let round = $derived(data ? (data.rounds.find((r) => r.key === selected) ?? null) : null);
 	const mine = (r: { pairs: { a: H2HPerson; b: H2HPerson | null }[] } | null) =>
 		r?.pairs.find((p) => p.a.userId === me || p.b?.userId === me) ?? null;
@@ -55,12 +54,35 @@
 			? { me: p.a, them: p.b, mine: p.scoreA, theirs: p.scoreB, pts: p.ptsA }
 			: { me: p.b!, them: p.a, mine: p.scoreB, theirs: p.scoreA, pts: p.ptsB };
 	}
-	const verdict = (pts: number, open: boolean) =>
-		open ? (pts === 3 ? 'ahead' : pts === 1 ? 'level' : 'behind') : pts === 3 ? 'won' : pts === 1 ? 'draw' : 'lost';
-	let myLatest = $derived(latest ? (mine(latest) as H2HPair | null) : null);
 	let myNext = $derived(data?.next ? mine(data.next) : null);
 	let seasonStarted = $derived(!!data && data.rounds.length > 0);
 	let rows = $derived(data?.table ?? []);
+	/** What the next matchday still wants from me (from the shared store). */
+	let nextTodo = $derived.by(() => {
+		const n = h2hStore.pools.find((p) => p.poolId === poolId)?.next;
+		if (!n) return '';
+		const parts: string[] = [];
+		if (n.untipped) parts.push(`${n.untipped} to tip`);
+		if ((n.saveCallsLeft ?? 0) > 0) parts.push(`Save Call ${n.saveCallsLeft} left`);
+		if (n.paired && !n.ghost && n.banPlaced === false) parts.push('ban open');
+		return parts.join(' · ');
+	});
+	$effect(() => {
+		if (auth.isAuthed) h2hStore.load().catch(() => {});
+	});
+	// Centre the selected card in the strip (instantly on load, smoothly after).
+	let stripEl = $state<HTMLElement | null>(null);
+	let scrolledOnce = false;
+	$effect(() => {
+		const key = selected;
+		const el = stripEl;
+		if (!el || !key) return;
+		const card = el.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
+		if (!card) return;
+		const left = card.offsetLeft - (el.clientWidth - card.clientWidth) / 2;
+		el.scrollTo({ left, behavior: scrolledOnce ? 'smooth' : 'instant' });
+		scrolledOnce = true;
+	});
 
 	// ---- picks: save calls and the ban, for the selected round while it
 	// takes them (open, or the one that opens next) ----
@@ -92,6 +114,7 @@
 		pickErr = '';
 		try {
 			picks = await api.h2hSetPick(poolId, m.id, kind, kind === 'save' ? !m.saved : !m.banned);
+			h2hStore.invalidate();
 		} catch (e: unknown) {
 			const msg = (e as { response?: { error?: string } })?.response?.error;
 			pickErr = msg || 'Could not place that.';
@@ -109,117 +132,69 @@
 {:else if !data}
 	<p class="muted">Loading…</p>
 {:else}
-	<section class="card duel">
-		{#if latest && myLatest}
-			{@const f = faced(myLatest)}
-			{@const open = latest.status === 'open'}
-			<div class="dhead">
-				{#if hubRound(latest.key)}<a class="rlink" href={hubRound(latest.key)}><b>{roundName(latest)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(latest)}</b>{/if}
-				<span class="muted small">
-					{#if open}
-						{latest.counted} of {latest.matches} matches in · closes {when(latest.closesAt)}
+	<!-- The matchday strip: one card per matchday — played ones with my
+	     result, the open one with the live score, the next one with the
+	     rival and what is left to do — so last week and next week are one
+	     flick apart, never a mode switch. The selected card's duels and
+	     checklist follow, then the table. -->
+	<div class="strip" bind:this={stripEl}>
+		{#each data.rounds as r (r.key)}
+			{@const p = mine(r) as H2HPair | null}
+			{@const open = r.status === 'open'}
+			{@const f = p ? faced(p) : null}
+			<button
+				class="mcard"
+				class:on={r.key === selected}
+				class:live={open}
+				class:win={!!f && f.pts === 3}
+				class:draw={!!f && f.pts === 1}
+				class:loss={!!f && f.pts === 0 && (f.mine > 0 || f.theirs > 0)}
+				data-key={r.key}
+				onclick={() => (selected = r.key)}
+			>
+				<span class="mhead"><b>{roundName(r)}</b><span class="mst" class:islive={open}>{open ? 'in play' : 'final'}</span></span>
+				{#if f}
+					<span class="mscore digits">{f.mine}<i>–</i>{f.theirs}</span>
+					<span class="mwho">
+						{#if f.them}<Avatar name={f.them.name} src={avatarUrl(f.them)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
+						<span class="mname">{f.them ? f.them.name : 'The Ghost'}</span>
+					</span>
+					<span class="mfoot">{open ? `${r.counted} of ${r.matches} in` : f.pts === 3 ? 'won · +3' : f.pts === 1 ? 'draw · +1' : 'lost'}</span>
+				{:else}
+					<span class="mscore digits muted">–</span>
+					<span class="mfoot">not paired</span>
+				{/if}
+			</button>
+		{/each}
+		{#if data.next}
+			{@const n = myNext ? (myNext.a.userId === me ? myNext.b : myNext.a) : null}
+			<button class="mcard next" class:on={data.next.key === selected} data-key={data.next.key} onclick={() => (selected = data!.next!.key)}>
+				<span class="mhead"><b>{roundName(data.next)}</b><span class="mst">{data.rounds.length ? 'next' : 'first'}</span></span>
+				<span class="mvs">vs</span>
+				<span class="mwho">
+					{#if myNext}
+						{#if n}<Avatar name={n.name} src={avatarUrl(n)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
+						<span class="mname">{n ? n.name : 'The Ghost'}</span>
 					{:else}
-						final
+						<span class="mname muted">not paired</span>
 					{/if}
 				</span>
-			</div>
-			<div class="vs" class:open>
-				<span class="side me">
-					<Avatar name={f.me.name} src={avatarUrl(f.me)} size={36} />
-					<span class="sname">You</span>
-				</span>
-				<span class="score digits" class:win={f.pts === 3} class:draw={f.pts === 1} class:loss={f.pts === 0 && (f.mine > 0 || f.theirs > 0)}>
-					{f.mine}<i>–</i>{f.theirs}
-				</span>
-				<span class="side them">
-					{#if f.them}
-						<Avatar name={f.them.name} src={avatarUrl(f.them)} size={36} />
-						<span class="sname">{f.them.name}</span>
-					{:else}
-						<span class="ghost"><GhostIcon size={20} /></span>
-						<span class="sname">The Ghost</span>
-					{/if}
-				</span>
-			</div>
-			<div class="muted small dfoot">
-				{#if open}
-					You are {verdict(f.pts, true)}{f.them ? '' : ' of the Ghost, who scores the mean of everyone else'}.
-				{:else}
-					You {verdict(f.pts, false)} this matchday{f.pts === 3 ? ' · +3' : f.pts === 1 ? ' · +1' : ''}.
-				{/if}
-				{#if data.next && myNext}
-					{@const n = myNext.a.userId === me ? myNext.b : myNext.a}
-					Next: {n ? n.name : 'the Ghost'} on {roundName(data.next)}, {day(data.next.firstKickoff)}.
-				{/if}
-			</div>
-		{:else if latest}
-			<div class="dhead">{#if hubRound(latest.key)}<a class="rlink" href={hubRound(latest.key)}><b>{roundName(latest)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(latest)}</b>{/if}<span class="muted small">{latest.status === 'open' ? 'in play' : 'final'}</span></div>
-			<p class="muted small dfoot">
-				You are not paired this matchday — you join from
-				{data.next ? `${roundName(data.next)} (${day(data.next.firstKickoff)})` : 'the next one'}{#if myNext}, against {(myNext.a.userId === me ? myNext.b : myNext.a)?.name ?? 'the Ghost'}{/if}.
-			</p>
-		{:else}
-			<div class="dhead"><b>Kicks off with {roundName({ label: data.firstRound.label, num: data.next?.num ?? 0 })}</b><span class="muted small">{when(data.firstRound.firstKickoff)}</span></div>
-			<p class="muted small dfoot">
-				{#if myNext}
-					First up: you against {(myNext.a.userId === me ? myNext.b : myNext.a)?.name ?? 'the Ghost'}. Every matchday pairs you with a pool mate; your tip points decide the duel.
-				{:else}
-					Every matchday pairs you with a pool mate; your tip points decide the duel.
-				{/if}
-			</p>
+				<span class="mfoot">{#if nextTodo}<span class="todo">{nextTodo}</span>{:else}opens {day(data.next.firstKickoff)}{/if}</span>
+			</button>
 		{/if}
-	</section>
-
-	<section class="card board">
-		<table class="lb">
-			<thead>
-				<tr>
-					<th>#</th>
-					<th>Player</th>
-					<th class="num" title="Matchdays played">P</th>
-					<th class="num" title="Won">W</th>
-					<th class="num" title="Drawn">D</th>
-					<th class="num" title="Lost">L</th>
-					<th class="num ext" title="Tip points this season (tiebreak)">Tips</th>
-					<th class="num pts" title="3 per win, 1 per draw">Pts</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each rows as r, i (r.userId)}
-					<tr class:lead={r.userId === me}>
-						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
-						<td class="player">
-							<div class="pwrap">
-								<Avatar name={r.name} src={avatarUrl(r)} size={28} />
-								<span class="pname">{r.name}</span>
-								{#if r.role === 'bot'}<span class="rolepill" title="Bot player"><Bot size={11} /> Bot</span>{/if}
-							</div>
-						</td>
-						<td class="num digits">{r.played}</td>
-						<td class="num digits">{r.won}</td>
-						<td class="num digits">{r.drawn}</td>
-						<td class="num digits">{r.lost}</td>
-						<td class="num ext digits">{r.tipsPoints}</td>
-						<td class="num pts digits">{r.points}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-		<p class="muted small note">
-			3 for a win, 1 for a draw. Ties on points go to the season's tip points. Rounds close 24 h after the matchday's last scheduled kick-off.
-		</p>
-	</section>
-
-	{#if data.rounds.length}
-		<section class="card rounds">
-			<div class="rchips">
-				{#each data.rounds as r (r.key)}
-					<button class="rchip" class:on={r.key === selected} class:live={r.status === 'open'} onclick={() => (selected = r.key)}>{r.num > 0 ? r.num : r.label}</button>
-				{/each}
-				{#if data.next}
-					<button class="rchip next" class:on={data.next.key === selected} onclick={() => (selected = data!.next!.key)}>{data.next.num > 0 ? data.next.num : 'next'}</button>
-				{/if}
+		{#if !data.rounds.length && !data.next}
+			<div class="mcard">
+				<span class="mhead"><b>{roundName({ label: data.firstRound.label, num: 0 })}</b></span>
+				<span class="mfoot">kicks off {when(data.firstRound.firstKickoff)}</span>
 			</div>
+		{/if}
+	</div>
+	{#if !seasonStarted}
+		<p class="muted small intro">Every matchday pairs you with a pool mate; your tip points decide the duel.</p>
+	{/if}
+
+	{#if round || (data.next && selected === data.next.key)}
+		<section class="card rounds">
 			{#if round}
 				<div class="rhead">
 					{#if hubRound(round.key)}<a class="rlink" href={hubRound(round.key)}><b>{roundName(round)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(round)}</b>{/if}
@@ -326,73 +301,161 @@
 			{/if}
 		</section>
 	{/if}
+
+	<section class="card board">
+		<table class="lb">
+			<thead>
+				<tr>
+					<th>#</th>
+					<th>Player</th>
+					<th class="num" title="Matchdays played">P</th>
+					<th class="num" title="Won">W</th>
+					<th class="num" title="Drawn">D</th>
+					<th class="num" title="Lost">L</th>
+					<th class="num ext" title="Tip points this season (tiebreak)">Tips</th>
+					<th class="num pts" title="3 per win, 1 per draw">Pts</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each rows as r, i (r.userId)}
+					<tr class:lead={r.userId === me}>
+						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
+						<td class="player">
+							<div class="pwrap">
+								<Avatar name={r.name} src={avatarUrl(r)} size={28} />
+								<span class="pname">{r.name}</span>
+								{#if r.role === 'bot'}<span class="rolepill" title="Bot player"><Bot size={11} /> Bot</span>{/if}
+							</div>
+						</td>
+						<td class="num digits">{r.played}</td>
+						<td class="num digits">{r.won}</td>
+						<td class="num digits">{r.drawn}</td>
+						<td class="num digits">{r.lost}</td>
+						<td class="num ext digits">{r.tipsPoints}</td>
+						<td class="num pts digits">{r.points}</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+		<p class="muted small note">
+			3 for a win, 1 for a draw. Ties on points go to the season's tip points. Rounds close 24 h after the matchday's last scheduled kick-off.
+		</p>
+	</section>
 {/if}
 
 <style>
 	.card {
 		margin-bottom: 0.8rem;
 	}
-	.duel {
-		padding: 0.9rem 1rem;
-	}
-	.rlink {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.15rem;
-		color: inherit;
-		text-decoration: none;
-	}
-	.rlink:hover b {
-		color: var(--accent);
-	}
-	.dhead,
-	.rhead {
+	.strip {
 		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
 		gap: 0.6rem;
-		flex-wrap: wrap;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scrollbar-width: none;
+		padding: 0.2rem 0.15rem 0.5rem;
 	}
-	.vs {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
-		align-items: center;
-		gap: 0.6rem;
-		margin: 0.8rem 0 0.5rem;
+	/* Phones: edge to edge, so the neighbours peek in at both sides. */
+	@media (max-width: 899px) {
+		.strip {
+			margin: 0 calc(-1 * var(--shell-x, 1rem));
+			padding-inline: var(--shell-x, 1rem);
+		}
 	}
-	.side {
+	.strip::-webkit-scrollbar {
+		display: none;
+	}
+	.mcard {
+		flex: 0 0 auto;
+		width: min(62vw, 220px);
+		scroll-snap-align: center;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.3rem;
-		min-width: 0;
+		gap: 0.2rem;
+		padding: 0.6rem 0.7rem 0.55rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--surface);
+		color: var(--text);
+		font: inherit;
+		text-align: center;
+		cursor: pointer;
+		transition: border-color 0.15s ease;
 	}
-	.sname {
+	.mcard.on {
+		border-color: var(--accent);
+		box-shadow: var(--glow);
+	}
+	.mcard.live {
+		border-color: color-mix(in srgb, var(--live, #e0443e) 60%, var(--border));
+	}
+	.mcard.next {
+		border-style: dashed;
+	}
+	.mhead {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.5rem;
+		width: 100%;
 		font-size: 0.8rem;
-		font-weight: 700;
-		max-width: 100%;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
-	.score {
-		font-size: 1.9rem;
+	.mst {
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.mst.islive {
+		color: var(--live, #e0443e);
+	}
+	.mscore {
+		font-size: 1.7rem;
 		font-weight: 800;
 		letter-spacing: 0.02em;
 		display: inline-flex;
 		align-items: baseline;
-		gap: 0.15rem;
+		gap: 0.1rem;
+		line-height: 1.1;
 	}
-	.score i {
+	.mscore i {
 		font-style: normal;
 		color: var(--muted);
-		font-size: 1.2rem;
+		font-size: 1rem;
 	}
-	.score.win {
+	.mcard.win .mscore {
 		color: var(--accent);
 	}
-	.score.loss {
+	.mcard.loss .mscore {
 		color: var(--muted);
+	}
+	.mvs {
+		font-size: 1.1rem;
+		font-weight: 800;
+		color: var(--muted);
+		line-height: 1.6;
+	}
+	.mwho {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		max-width: 100%;
+		font-size: 0.78rem;
+		font-weight: 700;
+	}
+	.mname {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.mfoot {
+		font-size: 0.72rem;
+		color: var(--muted);
+	}
+	.intro {
+		margin: 0 0 0.6rem;
 	}
 	.ghost {
 		display: inline-flex;
@@ -408,8 +471,26 @@
 		width: 24px;
 		height: 24px;
 	}
-	.dfoot {
-		margin: 0.2rem 0 0;
+	.ghost.xs {
+		width: 18px;
+		height: 18px;
+	}
+	.rlink {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		color: inherit;
+		text-decoration: none;
+	}
+	.rlink:hover b {
+		color: var(--accent);
+	}
+	.rhead {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 0.6rem;
+		flex-wrap: wrap;
 	}
 	.small {
 		font-size: 0.8rem;
@@ -496,35 +577,6 @@
 			display: none;
 		}
 	}
-	.rchips {
-		display: flex;
-		gap: 0.35rem;
-		overflow-x: auto;
-		padding-bottom: 0.4rem;
-		margin-bottom: 0.4rem;
-		scrollbar-width: none;
-	}
-	.rchip {
-		flex: 0 0 auto;
-		min-width: 34px;
-		height: 30px;
-		padding: 0 0.6rem;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--border);
-		background: var(--surface-2);
-		color: var(--muted);
-		font: inherit;
-		font-weight: 700;
-		font-size: 0.78rem;
-	}
-	.rchip.live {
-		border-color: var(--live, #e0443e);
-	}
-	.rchip.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-fg);
-	}
 	.pairs {
 		list-style: none;
 		margin: 0.6rem 0 0;
@@ -581,9 +633,6 @@
 	}
 	.ps b.hi {
 		color: var(--accent);
-	}
-	.rchip.next {
-		border-style: dashed;
 	}
 	.mark {
 		display: inline-flex;

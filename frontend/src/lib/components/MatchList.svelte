@@ -9,7 +9,9 @@
 	import MatchGroup from './MatchGroup.svelte';
 	import MatchRow from './MatchRow.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
-	import { LocateFixed, ChevronDown, X } from '@lucide/svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
+	import { auth } from '$lib/auth.svelte';
+	import { LocateFixed, ChevronDown, X, Swords, ChevronRight } from '@lucide/svelte';
 	import { tick, onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
@@ -63,6 +65,37 @@
 	}
 	let teams = $derived(Object.values(tipsStore.teams).sort((a, b) => a.name.localeCompare(b.name)));
 
+	// The rival strip: with a matchday selected, each of my head-to-head
+	// pools on this season that plays it (as its open or next round) says
+	// who I face and what is left to do — the pool, seen from where the
+	// tips are placed.
+	$effect(() => {
+		if (auth.isAuthed) h2hStore.load().catch(() => {});
+	});
+	let duels = $derived.by(() => {
+		const tid = tournamentStore.current?.id ?? '';
+		if (!roundKey || !tid) return [];
+		return h2hStore.forSeason(tid).flatMap((pool) =>
+			[pool.current, pool.next]
+				.filter((d) => d && d.key === roundKey)
+				.map((d) => ({ pool, d: d! }))
+		);
+	});
+	function duelLine(d: (typeof duels)[number]['d']): string {
+		const rival = d.ghost ? 'the Ghost' : (d.rival?.name ?? '');
+		if (!d.paired) return 'you are not paired this matchday';
+		if (d.status === 'closed') {
+			const v = d.pts === 3 ? 'you beat' : d.pts === 1 ? 'you drew with' : 'you lost to';
+			return `${v} ${rival} ${d.mine}–${d.theirs}`;
+		}
+		const parts = [`you vs ${rival}`];
+		if (d.status === 'open') parts.push(`${d.mine}–${d.theirs} · ${d.counted} of ${d.matches} in`);
+		if (d.untipped) parts.push(`${d.untipped} to tip`);
+		if ((d.saveCallsLeft ?? 0) > 0) parts.push(`Save Call ${d.saveCallsLeft} left`);
+		if (!d.ghost && d.banPlaced === false) parts.push('ban open');
+		return parts.join(' · ');
+	}
+
 	let filtered = $derived(
 		tipsStore.matches.filter((m) => {
 			if (team) return m.homeTeam === team || m.awayTeam === team;
@@ -115,7 +148,10 @@
 	function goDay(i: number, behavior: ScrollBehavior = 'smooth') {
 		if (i < 0) return;
 		activeDay = i;
-		document.getElementById(`day-${i}`)?.scrollIntoView({ behavior, block: 'start' });
+		// The first day sits right under the chrome: go to the top so what
+		// is above it (the rival strip) stays in view.
+		if (i === 0) window.scrollTo({ top: 0, behavior });
+		else document.getElementById(`day-${i}`)?.scrollIntoView({ behavior, block: 'start' });
 	}
 	// Follow the list: the topmost day section below the sticky chrome.
 	$effect(() => {
@@ -230,6 +266,21 @@
 		</div>
 	{/if}
 </div>
+
+{#if duels.length}
+	<div class="card duels">
+		{#each duels as { pool, d } (pool.poolId)}
+			<a class="duel" class:todo={!!d.untipped} href={`/pools/${pool.poolId}`}>
+				<span class="dic"><Swords size={16} /></span>
+				<span class="dtxt">
+					<b>{pool.name}</b>
+					<span class="muted">{duelLine(d)}</span>
+				</span>
+				<ChevronRight size={16} class="cv" />
+			</a>
+		{/each}
+	</div>
+{/if}
 
 {#if !tipsStore.loaded}
 	<p class="muted">Loading fixtures…</p>
@@ -354,6 +405,51 @@
 	.chip.sel option {
 		background: var(--surface);
 		color: var(--text);
+	}
+	.duels {
+		padding: 0;
+		margin-top: 0.75rem;
+		border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+	}
+	.duel {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0.65rem 0.8rem;
+		color: var(--text);
+		border-bottom: 1px solid var(--border);
+	}
+	.duel:last-child {
+		border-bottom: none;
+	}
+	.dic {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		flex: none;
+		border-radius: var(--radius-sm);
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 14%, transparent);
+	}
+	.dtxt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		min-width: 0;
+		font-size: 0.88rem;
+	}
+	.dtxt .muted {
+		font-size: 0.78rem;
+	}
+	.duel.todo .dtxt .muted {
+		color: var(--text);
+	}
+	.duel :global(.cv) {
+		margin-left: auto;
+		color: var(--muted);
+		flex: none;
 	}
 	.day {
 		margin: 1rem 0.15rem 0.55rem;

@@ -11,6 +11,43 @@ matching section of this file.
 
 ## [Unreleased]
 
+The head-to-head pool is the focus of the app, and after two weeks of
+alpha it was too easy to lose sight of: a thin line on Home, a pool page
+stuck in either "what happened" or "what's next", nothing about the duel
+where the tips are placed. This pass makes the duel present everywhere.
+
+### Added
+
+- **Duel cards on Home.** Your pools now come first, and every
+  head-to-head pool is a full card: the matchday's duel with the score,
+  the verdict, who is next and what is still to do (matches to tip, Save
+  Call left, ban open), plus "All duels" to unfold the rest of the
+  matchday. Classic pools keep their compact row.
+- **Matchday strip on the pool page.** The duel card and the round browser
+  became one horizontal strip of matchday cards — past ones with your
+  result, the open one with the live score, the next one with your rival
+  and your to-do — centred on the current matchday with the neighbours
+  peeking in, so last week and next week are one flick apart. The selected
+  matchday's duels and your checklist follow, then the table.
+- **Rival strip on the competition hub.** With a matchday selected on the
+  Matches tab, each of your head-to-head pools on that season says who you
+  play and what is left to do, and links to the pool.
+- **Pick marks on match rows.** The tip capsule carries a shield for a Save
+  Call (yours in orange, the rival's revealed one in grey) and a ban badge
+  (outlined for yours on the rival, filled red once the rival's ban on you
+  is revealed at kick-off). With several pools the badge shows if any pool
+  has a pick; the drawer keeps the per-pool detail.
+- `GET /api/h2h/me` — all your head-to-head pools at a glance, one request
+  shared by Home, the match lists and the hub.
+
+### Changed
+
+- **Joining a pool plays its season.** A pool binds one season, so a new
+  member is a player of it right away and its matches reach their feed and
+  Home; the same happens for all members when the owner changes the pool's
+  season before its first matchday.
+- Home's results list is capped at five rows with a "See all results" line.
+
 ### Fixed
 
 - **Importer: tiered competitions.** The UEFA Nations League publishes one
