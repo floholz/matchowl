@@ -426,7 +426,10 @@ targeted mail tool.
    subset), scheduling, a "last seen" filter (users carry no such field
    yet; "joined" dates stand in), and an unsubscribe link that works
    without signing in (the mail footer points at the settings page).
-5. **WC26 outreach**: import the consenting WC26 players as dormant
+5. **WC26 outreach** (2026-09-28: floholz does the import and sends the
+   mails himself with the mailing tool; before that, a pass on the landing
+   page and the marketing site with a custom graphic and text that explain
+   what Matchowl is and that WM-Tips became Matchowl): import the consenting WC26 players as dormant
    accounts (release data plan below), then a mailing to the "not claimed
    yet" segment whose CTA is the claim path (Google sign-in on the same
    address or password reset — no registration link needed while sign-up
@@ -701,6 +704,12 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.5** (2026-09-28): the admin release — `admin/` SPA on
+  `admin.matchowl.app` (same binary, host switch), group editor, teams
+  registry with provider ids (migration 0046), mailings with audiences
+  and a live mail preview (migration 0047), Markdown + button on
+  announcements; fixes the broadcast that reached one person and the
+  Nations League importer (plan 06).
 - **v1.0.0-alpha.4** (2026-09-28): head-to-head everywhere — duel cards
   on Home (pools first), the pool page's Pool tab with the matchday strip
   and a Leaderboard tab, the rival strip on the hub's Matches tab, pick

@@ -11,6 +11,15 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.5] - 2026-09-28
+
+The admin release. The admin tooling moves into its own app on its own
+host, and gains the group editor, the teams registry, mailings and richer
+announcements — the pieces the pre-launch outreach needs.
+
+**Deploy:** route `admin.<your host>` to the same container (see
+`ADMIN_URL` in DEPLOY.md); migrations 0046 and 0047 run at boot.
+
 ### Added
 
 - **Admin app.** The admin tooling moved out of the phone app into its own
