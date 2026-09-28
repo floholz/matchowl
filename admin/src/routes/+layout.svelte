@@ -9,6 +9,7 @@
 	import {
 		LayoutDashboard,
 		Trophy,
+		Shield,
 		RefreshCw,
 		Users,
 		Megaphone,
@@ -41,6 +42,7 @@
 	const nav = $derived([
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboard },
 		{ href: '/competitions', label: 'Competitions', icon: Trophy },
+		{ href: '/teams', label: 'Teams', icon: Shield },
 		{ href: '/sync', label: 'Sync', icon: RefreshCw },
 		{ href: '/people', label: 'People', icon: Users },
 		{ href: '/announcements', label: 'Announcements', icon: Megaphone },

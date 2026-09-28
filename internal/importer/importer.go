@@ -199,6 +199,14 @@ func Register(app core.App, se *core.ServeEvent) {
 		// over the same cached data — the admin edits identity + structure,
 		// not the seed rows.
 		derived := Derive(d.league, d.season, d.fixtures, d.teams, d.standings)
+		// The preview's group editor: the admin's groups win over the
+		// derived ones (by team name), and the group size follows.
+		if len(body.Groups) > 0 {
+			applyGroups(derived, body.Groups)
+			if n := largestGroup(body.Groups); n > 0 {
+				body.Structure.GroupSize = n
+			}
+		}
 
 		structure, _ := json.Marshal(body.Structure)
 		syncJSON, _ := json.Marshal(body.Sync)
@@ -281,9 +289,71 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return e.JSON(http.StatusBadGateway, map[string]string{"error": err.Error()})
 		}
-		n := attachLogos(ctx, app, t.Id, logoURLs(Derive(d.league, d.season, d.fixtures, d.teams, d.standings)))
-		return e.JSON(http.StatusOK, map[string]any{"status": "ok", "logos": n})
+		derived := Derive(d.league, d.season, d.fixtures, d.teams, d.standings)
+		linked := linkProviderIDs(app, t.Id, derived)
+		n := attachLogos(ctx, app, t.Id, logoURLs(derived))
+		return e.JSON(http.StatusOK, map[string]any{"status": "ok", "logos": n, "linked": linked})
 	}).Bind(apis.RequireAuth()).BindFunc(adminOnly)
+}
+
+// Provider is the data source name stored on imported team rows.
+const Provider = "api-football"
+
+// applyGroups overwrites the derived per-team group letters with the
+// admin's edited groups (team names as the preview lists them).
+func applyGroups(p *Proposal, groups []GroupPreview) {
+	letterOf := map[string]string{}
+	for _, g := range groups {
+		for _, name := range g.Teams {
+			letterOf[football.NormalizeName(name)] = strings.TrimSpace(g.Letter)
+		}
+	}
+	for i := range p.Teams {
+		if l, ok := letterOf[football.NormalizeName(p.Teams[i].Name)]; ok {
+			p.Teams[i].Group = l
+		}
+	}
+	p.Groups = groups
+}
+
+func largestGroup(groups []GroupPreview) int {
+	n := 0
+	for _, g := range groups {
+		if len(g.Teams) > n {
+			n = len(g.Teams)
+		}
+	}
+	return n
+}
+
+// linkProviderIDs stores the provider id on the tournament's team rows
+// that have none yet, matched by normalized name (rows seeded before ids
+// were recorded). Returns how many were linked.
+func linkProviderIDs(app core.App, tournamentID string, p *Proposal) int {
+	ids := map[string]int{}
+	for _, t := range p.Teams {
+		ids[football.NormalizeName(t.Name)] = t.ID
+	}
+	teams, err := app.FindRecordsByFilter("teams", "tournament = {:t}", "", 0, 0, map[string]any{"t": tournamentID})
+	if err != nil {
+		return 0
+	}
+	n := 0
+	for _, tm := range teams {
+		if tm.GetInt("providerId") != 0 {
+			continue
+		}
+		id := ids[football.NormalizeName(tm.GetString("name"))]
+		if id == 0 {
+			continue
+		}
+		tm.Set("provider", Provider)
+		tm.Set("providerId", id)
+		if err := app.Save(tm); err == nil {
+			n++
+		}
+	}
+	return n
 }
 
 // logoURLs maps normalized team name → provider logo URL.
@@ -407,6 +477,8 @@ func seedFromFixtures(app core.App, t *core.Record, p *Proposal, fixtures []foot
 		rec.Set("name", tp.Name)
 		rec.Set("fifaCode", codeFor(tp.Name, tp.Code, used))
 		rec.Set("iso2", tp.ISO2)
+		rec.Set("provider", Provider)
+		rec.Set("providerId", tp.ID)
 		if !tp.National {
 			rec.Set("clubKey", Slugify(tp.Name))
 		}

@@ -384,7 +384,7 @@ targeted mail tool.
    `/api/sync/refresh`, `/api/admin/recompute`, the result override),
    Google sign-in on the admin origin, Traefik host rule on the VPS
    (floholz), and the admin `api.ts` is a hand-kept copy of the app's.
-3. **Competitions**: `provider` + `providerId` on teams (written at
+3. ✅ 2026-09-28 — **Competitions**: `provider` + `providerId` on teams (written at
    import, backfilled for existing tournaments by re-fetch; the importer
    matches by name today), a **teams registry** (one row per distinct
    team: competitions, code, flag, logo, provider ids; edits apply across
@@ -393,6 +393,17 @@ targeted mail tool.
    saving rewrites `matches.groupLetter` from the home team's group and
    recounts group size / games per team; the merged-group warning shows
    inline. Retires the PocketBase relation-picker foot-gun from plan 06.
+   *Built:* migration 0046; `linkProviderIDs` on the crest refresh; the
+   import route honours the preview's edited `groups`; `GET/PUT
+   /api/admin/tournaments/{id}/groups` (transaction: groups upserted /
+   deleted, `matches.groupLetter` from the home team, `groupSize` from the
+   largest group); `GET /api/admin/teams` + `POST /api/admin/teams/{id}`
+   (`applyToAll`); admin pages `/teams` and `/competitions/{id}/groups`,
+   `GroupEditor` (HTML5 drag and drop plus tap-to-move for touch) reused
+   in the import wizard. Verified on the dev DB: Mexico moved A → B, its
+   matches followed, restore put it back. Open: the registry cannot merge
+   two rows the key does not pair (a renamed club), and a team edit does
+   not touch the crest.
 4. **Comms**: announcement creator (Markdown body with a live preview of
    the themed mail, CTA button, per-message channels banner / mail / push,
    audience, optional schedule) and **mailings**: an audience selector

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
+	import { appConfig } from '$lib/appconfig.svelte';
 	import {
 		api,
 		type AdminTournament,
@@ -21,7 +22,8 @@
 		Users,
 		CalendarDays,
 		Database,
-		ImageDown
+		ImageDown,
+		LayoutGrid
 	} from '@lucide/svelte';
 
 	$effect(() => {
@@ -222,7 +224,7 @@
 		logosBusy = t.id;
 		try {
 			const r = await api.adminTournamentLogos(t.id);
-			flash = `${t.name}: ${r.logos} crest${r.logos === 1 ? '' : 's'} fetched.`;
+			flash = `${t.name}: ${r.logos} crest${r.logos === 1 ? '' : 's'} fetched, ${r.linked} team${r.linked === 1 ? '' : 's'} linked to provider ids.`;
 		} catch (e) {
 			flash = msg(e);
 		} finally {
@@ -371,10 +373,13 @@
 								class="btn secondary sm"
 								disabled={logosBusy === t.id}
 								onclick={() => fetchLogos(t)}
-								title="Download team crests from API-Football (teams matched by name)"
+								title="Download team crests from API-Football and link provider ids (teams matched by name)"
 							>
 								<ImageDown size={14} /> {logosBusy === t.id ? 'Fetching…' : 'Fetch logos'}
 							</button>
+						{/if}
+						{#if t.teams > 0}
+							<a class="btn secondary sm" href={`/competitions/${t.id}/groups`}><LayoutGrid size={14} /> Groups</a>
 						{/if}
 						<button class="btn secondary sm" onclick={() => openEdit(t)}><Pencil size={14} /> Edit</button>
 						{#if t.status === 'draft'}
@@ -382,7 +387,9 @@
 								<Trash2 size={14} /> Delete
 							</button>
 						{/if}
-						<a class="btn ghost sm" href={`/competitions/${compKey(t.competition)}?s=${t.slug}`}>Open</a>
+						{#if appConfig.appUrl}
+							<a class="btn ghost sm" href={`${appConfig.appUrl}/competitions/${compKey(t.competition)}?s=${t.slug}`} target="_blank" rel="noopener">Open</a>
+						{/if}
 					</div>
 				</section>
 			{/each}

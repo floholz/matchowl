@@ -23,6 +23,21 @@ matching section of this file.
   harness, when `MATCHOWL_DEV=1`). The app's user menu links to it; the
   in-app `/admin`, `/owner`, `/announcements` and `/dev` pages are gone.
   `GET /api/appconfig` now carries `appUrl` and `adminUrl`.
+- **Group editor.** Under Competitions → Groups (and in the import wizard's
+  preview): drag teams between groups, or tap a team and tap a group; add
+  and remove groups; saving makes every group-stage match follow its
+  teams and sets the structure's group size to the largest group. The
+  merged-groups warning shows on the offending column. The import wizard
+  sends the edited groups along, so a Nations League can be fixed before
+  it is seeded.
+- **Teams registry.** Admin → Teams: one row per club or nation across
+  every season it plays in (grouped by provider id, club key or name), the
+  seasons with group and status, fields that differ between seasons
+  flagged, and an editor for name, code and flag that applies to all
+  seasons at once.
+- **Provider ids on teams** (migration 0046: `provider`, `providerId`),
+  written at import; "Fetch logos" on a season now also links older rows
+  by name.
 
 ## [1.0.0-alpha.4] - 2026-09-28
 

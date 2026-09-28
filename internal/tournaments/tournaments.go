@@ -416,6 +416,8 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 
 	registerClone(app, g)
+	registerGroups(app, g)
+	registerTeams(app, se)
 
 	// DELETE /api/admin/tournaments/{id} — draft tournaments only. Deleting
 	// a played tournament would cascade through teams/matches into user data.

@@ -241,6 +241,49 @@ export interface ImportProposal {
 	warnings: string[] | null;
 }
 
+// ---- Admin: group editor + teams registry ----
+
+export interface GroupTeam {
+	id: string;
+	name: string;
+	fifaCode: string;
+	iso2: string;
+	logo: string;
+}
+export interface GroupsView {
+	groups: { id: string; letter: string; teams: GroupTeam[] }[];
+	unassigned: GroupTeam[];
+	structure: { groupSize: number; gamesPerTeam: number; hasGroups: boolean } | null;
+	groupMatches: number;
+}
+export interface RegistryEntry {
+	teamId: string;
+	tournament: string;
+	slug: string;
+	season: string;
+	status: string;
+	group: string;
+	fifaCode: string;
+	iso2: string;
+	logo: string;
+	name: string;
+}
+/** One team across every season it plays in (grouped by provider id, club key or name). */
+export interface RegistryTeam {
+	key: string;
+	name: string;
+	fifaCode: string;
+	iso2: string;
+	clubKey: string;
+	provider: string;
+	providerId: number;
+	/** "<teamId>/<file>" of the first row with a crest. */
+	logo: string;
+	/** Fields that differ across the rows. */
+	mixed: string[];
+	entries: RegistryEntry[];
+}
+
 export const api = {
 	myPools: () => get<{ pools: PoolSummary[] }>('/api/pools/mine'),
 
@@ -267,7 +310,7 @@ export const api = {
 			{ teams, fixtures }
 		),
 	adminTournamentLogos: (id: string) =>
-		post<{ status: string; logos: number }>(`/api/admin/tournaments/${id}/logos`, {}),
+		post<{ status: string; logos: number; linked: number }>(`/api/admin/tournaments/${id}/logos`, {}),
 	adminCompetitions: () => get<{ competitions: AdminCompetition[] }>('/api/admin/competitions'),
 	adminCompetitionUpdate: (id: string, body: AdminCompetitionPayload) =>
 		post<AdminCompetition>(`/api/admin/competitions/${id}`, body),
@@ -332,4 +375,11 @@ export const api = {
 	// Public deploy-time config (Ko-Fi / contact links).
 	appConfig: () => get<AppConfig>('/api/appconfig'),
 
+	// Group editor + teams registry.
+	adminGroups: (tournamentId: string) => get<GroupsView>(`/api/admin/tournaments/${tournamentId}/groups`),
+	adminSaveGroups: (tournamentId: string, groups: { letter: string; teams: string[] }[]) =>
+		put<GroupsView>(`/api/admin/tournaments/${tournamentId}/groups`, { groups }),
+	adminTeams: () => get<{ teams: RegistryTeam[] }>('/api/admin/teams'),
+	adminTeamUpdate: (id: string, body: { name?: string; fifaCode?: string; iso2?: string; applyToAll?: boolean }) =>
+		post<{ updated: number }>(`/api/admin/teams/${id}`, body),
 };

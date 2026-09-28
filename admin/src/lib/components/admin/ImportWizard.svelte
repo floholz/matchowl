@@ -10,6 +10,7 @@
 		type TournamentStatus
 	} from '$lib/api';
 	import { Search, ChevronLeft, Check, TriangleAlert, Trophy } from '@lucide/svelte';
+	import GroupEditor from './GroupEditor.svelte';
 
 	let {
 		open = $bindable(false),
@@ -43,6 +44,11 @@
 	// Step 3 — preview
 	let proposal = $state<ImportProposal | null>(null);
 	let structureText = $state('');
+	// The preview's groups, editable (teams keyed by name, as the proposal
+	// lists them); sent back with the import so the seed follows them.
+	type PT = { id: string; name: string; fifaCode?: string; logo?: string };
+	let groups = $state<{ letter: string; teams: PT[] }[]>([]);
+	let unassigned = $state<PT[]>([]);
 	let competition = $state('');
 	let initialStatus = $state<TournamentStatus>('draft');
 	// Step 4 — done
@@ -58,6 +64,8 @@
 		league = null;
 		proposal = null;
 		structureText = '';
+		groups = [];
+		unassigned = [];
 		competition = '';
 		initialStatus = 'draft';
 		result = null;
@@ -101,6 +109,10 @@
 		try {
 			proposal = await api.footballPreview(league.id, year);
 			structureText = JSON.stringify(proposal.structure, null, 2);
+			const byName = new Map(proposal.teams.map((t) => [t.name, { id: t.name, name: t.name, fifaCode: t.code, logo: t.logo }]));
+			groups = proposal.groups.map((g) => ({ letter: g.letter, teams: g.teams.map((n) => byName.get(n) ?? { id: n, name: n }) }));
+			const placed = new Set(proposal.groups.flatMap((g) => g.teams));
+			unassigned = proposal.teams.filter((t) => !placed.has(t.name)).map((t) => ({ id: t.name, name: t.name, fifaCode: t.code, logo: t.logo }));
 			// Pre-select a competition that already maps to this league id.
 			competition = competitions.find((c) => c.apiFootballLeague === league?.id)?.id ?? '';
 			step = 'preview';
@@ -124,7 +136,7 @@
 		busy = true;
 		try {
 			result = await api.tournamentImport(
-				{ ...proposal, structure },
+				{ ...proposal, structure, groups: groups.map((g) => ({ letter: g.letter, teams: g.teams.map((t) => t.name) })) },
 				{ competition: competition || undefined, status: initialStatus }
 			);
 			step = 'done';
@@ -305,16 +317,10 @@
 							<p class="warn"><TriangleAlert size={14} /> {w}</p>
 						{/each}
 					{/if}
-					{#if proposal.groups.length}
+					{#if groups.length || unassigned.length}
 						<h4>Groups</h4>
-						<div class="groups">
-							{#each proposal.groups as g (g.letter)}
-								<div class="grp">
-									<strong>{g.letter}</strong>
-									<span class="muted">{g.teams.join(', ')}</span>
-								</div>
-							{/each}
-						</div>
+						<p class="muted small">Drag teams between groups before importing; the group size follows.</p>
+						<GroupEditor bind:groups bind:unassigned crest={(t) => t.logo ?? ''} gamesPerTeam={Number((proposal.structure as { gamesPerTeam?: number }).gamesPerTeam ?? 0)} />
 					{/if}
 					<h4>Rounds</h4>
 					<div class="rounds">
@@ -539,20 +545,6 @@
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 		color: var(--muted);
-	}
-	.groups {
-		display: grid;
-		grid-template-columns: 1fr;
-		gap: 0.3rem;
-		font-size: 0.85rem;
-	}
-	.grp {
-		display: flex;
-		gap: 0.6rem;
-	}
-	.grp strong {
-		width: 1.4rem;
-		color: var(--accent);
 	}
 	.rounds {
 		display: flex;
