@@ -38,6 +38,18 @@ matching section of this file.
 - **Provider ids on teams** (migration 0046: `provider`, `providerId`),
   written at import; "Fetch logos" on a season now also links older rows
   by name.
+- **Mailings.** Admin → Mailings: one email to an audience. Markdown body
+  with `{{name}}` for the recipient's first name, a button, and an
+  audience filter (role, plays a season, member of a pool, joined
+  before/after, only or never these addresses) whose recipient count and
+  names update as you narrow it. The real mail is previewed as you type,
+  "Send me a test" mails it to you, and a mailing is sent once: delivery
+  goes through the notification ledger, so a repeat is a no-op and the
+  mailing keeps its result. Recipients can opt out under a new "News from
+  Matchowl" setting; unverified addresses never get mail. Migration 0047.
+- **Announcements** take Markdown (bold, italic, links, lists) and an
+  optional button (text + link, an in-app path works). The banner in the
+  app and the broadcast mail render both; the admin page previews the mail.
 
 ## [1.0.0-alpha.4] - 2026-09-28
 
@@ -85,6 +97,11 @@ where the tips are placed. This pass makes the duel present everywhere.
 
 ### Fixed
 
+- **Announcement broadcasts reached one person.** The notification
+  ledger's dedup key for a broadcast did not include the recipient, and the
+  ledger is unique per key and channel, so "Send as notification" delivered
+  to the first eligible user and skipped the rest. The key now carries the
+  user; mailings use the same shape.
 - **Importer: tiered competitions.** The UEFA Nations League publishes one
   "Group 1".."Group 4" standings table per league tier without naming the
   tier, plus a ranking of third-placed teams; the import wizard merged them

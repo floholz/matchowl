@@ -7,6 +7,8 @@
 		type AnnounceLevel
 	} from '$lib/api';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
+	import MailPreview from '$lib/components/admin/MailPreview.svelte';
+	import { renderMarkdown } from '$lib/markdown';
 	import {
 		Megaphone,
 		Info,
@@ -17,7 +19,8 @@
 		Check,
 		Plus,
 		Zap,
-		Pin
+		Pin,
+		Link as LinkIcon
 	} from '@lucide/svelte';
 
 	// Gate: anyone who isn't an owner/admin goes home. auth hydrates
@@ -34,6 +37,8 @@
 	let editId = $state<string | null>(null);
 	let title = $state('');
 	let body = $state('');
+	let ctaText = $state('');
+	let ctaUrl = $state('');
 	let level = $state<AnnounceLevel>('info');
 	let active = $state(true);
 	let highPriority = $state(false);
@@ -86,6 +91,8 @@
 		editId = a.id;
 		title = a.title;
 		body = a.body;
+		ctaText = a.ctaText ?? '';
+		ctaUrl = a.ctaUrl ?? '';
 		level = a.level;
 		active = a.active;
 		highPriority = a.highPriority;
@@ -108,7 +115,9 @@
 				level,
 				active,
 				highPriority,
-				persistent
+				persistent,
+				ctaText: ctaText.trim(),
+				ctaUrl: ctaUrl.trim()
 			};
 			if (editId) {
 				const updated = await api.updateAnnouncement(editId, payload);
@@ -201,9 +210,20 @@
 			<input bind:value={title} maxlength="120" placeholder="What's new?" />
 		</label>
 		<label class="fld">
-			<span>Message</span>
-			<textarea bind:value={body} maxlength="2000" rows="3" placeholder="A short message for everyone…"></textarea>
+			<span>Message <small class="muted">Markdown: **bold**, *italic*, [link](https://…), - lists</small></span>
+			<textarea bind:value={body} maxlength="2000" rows="5" placeholder="A short message for everyone…"></textarea>
 		</label>
+		<div class="row">
+			<label class="fld grow">
+				<span>Button text <small class="muted">optional</small></span>
+				<input bind:value={ctaText} maxlength="60" placeholder="Open Matchowl" />
+			</label>
+			<label class="fld grow">
+				<span>Button link <small class="muted">URL or in-app path</small></span>
+				<input bind:value={ctaUrl} maxlength="500" placeholder="/competitions or https://…" />
+			</label>
+		</div>
+		<MailPreview subject={title} {body} {ctaText} {ctaUrl} event="announcement" />
 		<div class="row">
 			<label class="fld grow">
 				<span>Style</span>
@@ -282,7 +302,8 @@
 						<span class="when">{fmtDate(a.created)}</span>
 					</div>
 					<strong class="ann-title">{a.title}</strong>
-					<p class="ann-body">{a.body}</p>
+					<div class="ann-body md">{@html renderMarkdown(a.body)}</div>
+					{#if a.ctaUrl}<p class="ann-cta"><LinkIcon size={13} /> {a.ctaText || 'Open'} → <span class="mono">{a.ctaUrl}</span></p>{/if}
 
 					{#if rowMsg[a.id]}<p class="rowmsg">{rowMsg[a.id]}</p>{/if}
 
@@ -333,6 +354,28 @@
 />
 
 <style>
+	.ann-body.md :global(p) {
+		margin: 0 0 0.4rem;
+	}
+	.ann-body.md :global(ul) {
+		margin: 0 0 0.4rem;
+		padding-left: 1.2rem;
+	}
+	.ann-cta {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		font-size: 0.8rem;
+		color: var(--muted);
+	}
+	.mono {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+	}
+	.fld small {
+		font-weight: 400;
+		margin-left: 0.4rem;
+	}
 	.head {
 		margin-bottom: 1.1rem;
 	}

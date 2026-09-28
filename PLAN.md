@@ -404,7 +404,7 @@ targeted mail tool.
    matches followed, restore put it back. Open: the registry cannot merge
    two rows the key does not pair (a renamed club), and a team edit does
    not touch the crest.
-4. **Comms**: announcement creator (Markdown body with a live preview of
+4. ✅ 2026-09-28 — **Comms**: announcement creator (Markdown body with a live preview of
    the themed mail, CTA button, per-message channels banner / mail / push,
    audience, optional schedule) and **mailings**: an audience selector
    (verified, role, plays competition X, member of pool Y, last seen
@@ -412,6 +412,20 @@ targeted mail tool.
    test send to self, a `mailings` record keeping the audience snapshot,
    delivery through the existing dispatch (prefs, dedup ledger, provider).
    mailto/BCC rejected (spam-flagged, no theme, no record).
+   *Built:* `internal/markdown` (tiny safe subset, mirrored in
+   `lib/markdown.ts` for the app banner and admin lists), migration 0047
+   (`mailings`; `ctaText`/`ctaUrl` on announcements), `notify.Audience`
+   + `Resolve`, `/api/admin/mailings` (CRUD, `audience` count + names,
+   `render` with the real template, `{id}/test`, `{id}/send` through
+   `dispatchEmail` with ledger event `mailing` and dedup `mailing:<id>`),
+   templates `mailing.html/.txt`, `BodyHTML` on the template data, the
+   "mailing" preference in both event lists, `MailPreview` (sandboxed
+   iframe of the server render), the Mailings page and the announcement
+   form's button + preview. *Not built:* per-announcement channels and
+   audience (announcements still go to everyone; use a mailing for a
+   subset), scheduling, a "last seen" filter (users carry no such field
+   yet; "joined" dates stand in), and an unsubscribe link that works
+   without signing in (the mail footer points at the settings page).
 5. **WC26 outreach**: import the consenting WC26 players as dormant
    accounts (release data plan below), then a mailing to the "not claimed
    yet" segment whose CTA is the claim path (Google sign-in on the same

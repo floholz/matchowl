@@ -1,0 +1,8 @@
+{{.Title}}
+
+{{.Body}}
+
+{{.CTAText}}: {{.CTAUrl}}
+
+—
+No more mail like this: {{.SettingsUrl}}

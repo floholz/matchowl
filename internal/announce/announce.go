@@ -86,6 +86,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		rec.Set("active", body.activeOrDefault())
 		rec.Set("highPriority", body.HighPriority != nil && *body.HighPriority)
 		rec.Set("persistent", body.Persistent != nil && *body.Persistent)
+		if err := body.applyCTA(rec); err != nil {
+			return apis.NewBadRequestError(err.Error(), nil)
+		}
 		if err := app.Save(rec); err != nil {
 			return err
 		}
@@ -119,6 +122,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		if body.Persistent != nil {
 			rec.Set("persistent", *body.Persistent)
+		}
+		if err := body.applyCTA(rec); err != nil {
+			return apis.NewBadRequestError(err.Error(), nil)
 		}
 		if err := app.Save(rec); err != nil {
 			return err
@@ -172,6 +178,23 @@ type payload struct {
 	Active       *bool   `json:"active"`
 	HighPriority *bool   `json:"highPriority"`
 	Persistent   *bool   `json:"persistent"`
+	CTAText      *string `json:"ctaText"`
+	CTAUrl       *string `json:"ctaUrl"`
+}
+
+// applyCTA stores the optional call-to-action (button text + link).
+func (p payload) applyCTA(rec *core.Record) error {
+	if p.CTAText != nil {
+		rec.Set("ctaText", strings.TrimSpace(*p.CTAText))
+	}
+	if p.CTAUrl != nil {
+		u := strings.TrimSpace(*p.CTAUrl)
+		if u != "" && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") && !strings.HasPrefix(u, "/") {
+			return errMsg("the button link must be a URL or a path")
+		}
+		rec.Set("ctaUrl", u)
+	}
+	return nil
 }
 
 func (p payload) normalize() (title, body, level string, err error) {
@@ -216,6 +239,8 @@ func view(r *core.Record) map[string]any {
 		"active":       r.GetBool("active"),
 		"highPriority": r.GetBool("highPriority"),
 		"persistent":   r.GetBool("persistent"),
+		"ctaText":      r.GetString("ctaText"),
+		"ctaUrl":       r.GetString("ctaUrl"),
 		"notifiedAt":   notifiedAt(r),
 		"created":      r.GetDateTime("created").Time().UTC().Format(time.RFC3339),
 	}

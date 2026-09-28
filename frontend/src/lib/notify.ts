@@ -55,6 +55,11 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 		hint: 'At kick-off, when your head-to-head rival has banned that match for you.'
 	},
 	{
+		key: 'mailing',
+		label: 'News from Matchowl',
+		hint: 'Occasional mail from the people who run Matchowl: what is new, what is coming, the odd question.'
+	},
+	{
 		key: 'pool_chat',
 		label: 'Pool chat',
 		hint: 'New messages in your pool chats — push is prompt; email is a periodic digest.'

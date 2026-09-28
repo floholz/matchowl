@@ -11,6 +11,7 @@
 	//    (per-id in localStorage). A new announcement (new id) always shows.
 	import { onMount } from 'svelte';
 	import { api, type Announcement } from '$lib/api';
+	import { renderMarkdown } from '$lib/markdown';
 	import {
 		Megaphone,
 		Info,
@@ -107,7 +108,7 @@
 						/>{/if}
 				</button>
 				{#if open}
-					<div class="pabody">{a.body}</div>
+					<div class="pabody md">{@html renderMarkdown(a.body)}{#if a.ctaUrl}<a class="cta" href={a.ctaUrl}>{a.ctaText || 'Open'} →</a>{/if}</div>
 				{/if}
 			</div>
 		{/each}
@@ -123,7 +124,8 @@
 				<span class="ico"><Icon size={18} /></span>
 				<span class="text">
 					<strong class="t">{a.title}</strong>
-					<span class="b">{a.body}</span>
+					<span class="b md">{@html renderMarkdown(a.body)}</span>
+					{#if a.ctaUrl}<a class="cta" href={a.ctaUrl}>{a.ctaText || 'Open'} →</a>{/if}
 				</span>
 				<button class="x" aria-label="Dismiss" onclick={() => dismiss(a.id)}>
 					<X size={16} />
@@ -134,6 +136,26 @@
 {/if}
 
 <style>
+	.md :global(p) {
+		margin: 0 0 0.35rem;
+	}
+	.md :global(p:last-child) {
+		margin-bottom: 0;
+	}
+	.md :global(ul) {
+		margin: 0 0 0.35rem;
+		padding-left: 1.2rem;
+	}
+	.md :global(h1),
+	.md :global(h2) {
+		font-size: 1rem;
+		margin: 0.3rem 0 0.2rem;
+	}
+	.cta {
+		display: inline-block;
+		margin-top: 0.4rem;
+		font-weight: 700;
+	}
 	/* ============ persistent: sticky ribbon + grown-out body ============ */
 	.pinned {
 		position: sticky;

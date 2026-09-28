@@ -34,6 +34,8 @@ export interface Announcement {
 	active: boolean;
 	highPriority: boolean; // high-urgency push when broadcast
 	persistent: boolean; // can't be dismissed — only collapsed
+	ctaText: string; // button text ('' = the default "Open Matchowl")
+	ctaUrl: string; // button link (URL or in-app path)
 	notifiedAt: string; // RFC3339, empty if never broadcast
 	created: string;
 }
@@ -45,6 +47,42 @@ export interface AnnouncePayload {
 	active?: boolean;
 	highPriority?: boolean;
 	persistent?: boolean;
+	ctaText?: string;
+	ctaUrl?: string;
+}
+
+// ---- Mailings: one targeted email to an audience ----
+
+/** Recipient filter; every set criterion narrows. */
+export interface Audience {
+	roles?: string[]; // member | admin | owner
+	playing?: string; // tournament id
+	pool?: string; // pool id
+	joinedAfter?: string; // YYYY-MM-DD
+	joinedBefore?: string;
+	emails?: string[]; // only these
+	exclude?: string[]; // never these
+}
+export interface Mailing {
+	id: string;
+	subject: string;
+	body: string; // Markdown; {{name}} = the recipient's first name
+	ctaText: string;
+	ctaUrl: string;
+	audience: Audience;
+	status: 'draft' | 'sent';
+	sentAt: string;
+	recipients: number;
+	result: { considered: number; sent: number; failed: number; skipped: number } | null;
+	created: string;
+	updated: string;
+}
+export interface MailingPayload {
+	subject?: string;
+	body?: string;
+	ctaText?: string;
+	ctaUrl?: string;
+	audience?: Audience;
 }
 
 export type NotifyChannel = 'email' | 'push';
@@ -382,4 +420,17 @@ export const api = {
 	adminTeams: () => get<{ teams: RegistryTeam[] }>('/api/admin/teams'),
 	adminTeamUpdate: (id: string, body: { name?: string; fifaCode?: string; iso2?: string; applyToAll?: boolean }) =>
 		post<{ updated: number }>(`/api/admin/teams/${id}`, body),
+	// Mailings.
+	mailings: () => get<{ mailings: Mailing[] }>('/api/admin/mailings'),
+	createMailing: (p: MailingPayload) => post<Mailing>('/api/admin/mailings', p),
+	updateMailing: (id: string, p: MailingPayload) => post<Mailing>(`/api/admin/mailings/${id}`, p),
+	deleteMailing: (id: string) => del<{ ok: boolean }>(`/api/admin/mailings/${id}`),
+	mailingAudience: (audience: Audience) =>
+		post<{ count: number; recipients: { id: string; name: string; email: string }[] }>('/api/admin/mailings/audience', { audience }),
+	/** The mail as a recipient sees it (event: 'mailing' or 'announcement'). */
+	mailRender: (p: { subject: string; body: string; ctaText: string; ctaUrl: string; event?: 'mailing' | 'announcement' }) =>
+		post<{ subject: string; html: string; text: string }>('/api/admin/mailings/render', p),
+	mailingTest: (id: string) => post<{ to: string; provider: string }>(`/api/admin/mailings/${id}/test`, {}),
+	mailingSend: (id: string) =>
+		post<{ mailing: Mailing; recipients: number; result: { considered: number; sent: number; failed: number; skipped: number } }>(`/api/admin/mailings/${id}/send`, {}),
 };

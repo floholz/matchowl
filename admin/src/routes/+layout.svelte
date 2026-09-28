@@ -14,6 +14,7 @@
 		Users,
 		Megaphone,
 		Bell,
+		Mail,
 		FlaskConical,
 		ExternalLink,
 		LogOut,
@@ -46,6 +47,7 @@
 		{ href: '/sync', label: 'Sync', icon: RefreshCw },
 		{ href: '/people', label: 'People', icon: Users },
 		{ href: '/announcements', label: 'Announcements', icon: Megaphone },
+		{ href: '/mailings', label: 'Mailings', icon: Mail },
 		{ href: '/notifications', label: 'Notifications', icon: Bell },
 		...(serverClock.dev ? [{ href: '/dev', label: 'Dev', icon: FlaskConical }] : [])
 	]);

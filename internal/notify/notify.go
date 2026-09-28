@@ -103,6 +103,7 @@ func Register(app core.App, se *core.ServeEvent) {
 	// Global delivery-policy endpoints (read for all, write for admins). Wired
 	// unconditionally so the switches work even when the scheduler is disabled.
 	registerPolicy(app, se)
+	registerMailings(app, se)
 
 	// NOTIFY_DISABLED skips the scheduler entirely so local/test runs never fire
 	// automated notifications. The dev manual-trigger and preview routes below

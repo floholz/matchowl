@@ -79,9 +79,11 @@ type tplData struct {
 	Verdict string
 	Match   string
 
-	// Title/Body back the free-text "announcement" broadcast event.
-	Title string
-	Body  string
+	// Title/Body back the free-text "announcement" broadcast event and
+	// mailings; BodyHTML is the Markdown body rendered (safe HTML).
+	Title    string
+	Body     string
+	BodyHTML htmltemplate.HTML
 	// HighPriority lifts the push to high urgency + keeps it on screen until
 	// acted on (announcement broadcasts that opt in).
 	HighPriority bool

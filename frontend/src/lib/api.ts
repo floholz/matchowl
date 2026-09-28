@@ -317,6 +317,8 @@ export interface Announcement {
 	active: boolean;
 	highPriority: boolean; // high-urgency push when broadcast
 	persistent: boolean; // can't be dismissed — only collapsed
+	ctaText: string; // button text ('' = none)
+	ctaUrl: string; // button link (URL or in-app path)
 	notifiedAt: string; // RFC3339, empty if never broadcast
 	created: string;
 }
