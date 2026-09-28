@@ -42,7 +42,7 @@
 </div>
 
 {#if !auth.isOwner}
-	<p class="muted">Competitions, sync, people and comms are in the sidebar. The usage stats on this page are for the owner.</p>
+	<p class="muted">Competitions, sync, people, announcements and notifications are in the sidebar. The usage stats on this page are for the owner.</p>
 {:else if !loaded}
 	<p class="muted">Loading…</p>
 {:else if error}

@@ -19,7 +19,7 @@ matching section of this file.
   on `admin.localhost:8090`). Own origin, own sign-in (an admin or owner
   account), no PWA. Sidebar: Dashboard (owner stats) · Competitions (the
   tournament browser and import wizard) · Sync & services · People
-  (registration links) · Comms (announcements, delivery policy) · Dev (the
+  (registration links) · Announcements · Notifications (the delivery policy) · Dev (the
   harness, when `MATCHOWL_DEV=1`). The app's user menu links to it; the
   in-app `/admin`, `/owner`, `/announcements` and `/dev` pages are gone.
   `GET /api/appconfig` now carries `appUrl` and `adminUrl`.

@@ -12,6 +12,7 @@
 		RefreshCw,
 		Users,
 		Megaphone,
+		Bell,
 		FlaskConical,
 		ExternalLink,
 		LogOut,
@@ -42,7 +43,8 @@
 		{ href: '/competitions', label: 'Competitions', icon: Trophy },
 		{ href: '/sync', label: 'Sync', icon: RefreshCw },
 		{ href: '/people', label: 'People', icon: Users },
-		{ href: '/comms', label: 'Comms', icon: Megaphone },
+		{ href: '/announcements', label: 'Announcements', icon: Megaphone },
+		{ href: '/notifications', label: 'Notifications', icon: Bell },
 		...(serverClock.dev ? [{ href: '/dev', label: 'Dev', icon: FlaskConical }] : [])
 	]);
 	const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
@@ -230,7 +232,11 @@
 	}
 	@media (max-width: 899px) {
 		.shell {
+			/* One column: the bar, then the page. Rows must not stretch to
+			   fill the viewport, or the bar grows on short pages. */
 			grid-template-columns: 1fr;
+			grid-template-rows: auto 1fr;
+			align-content: start;
 		}
 		.side {
 			position: fixed;

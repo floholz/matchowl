@@ -7,7 +7,6 @@
 		type AnnounceLevel
 	} from '$lib/api';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import NotifyPolicyCard from '$lib/components/NotifyPolicyCard.svelte';
 	import {
 		Megaphone,
 		Info,
@@ -333,15 +332,7 @@
 	oncancel={() => (confirmSend = null)}
 />
 
-
-<section class="policy">
-	<NotifyPolicyCard />
-</section>
-
 <style>
-	.policy {
-		margin-top: 1.5rem;
-	}
 	.head {
 		margin-bottom: 1.1rem;
 	}

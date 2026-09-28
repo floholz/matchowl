@@ -117,7 +117,7 @@ make dev-frontend   # the app's dev server on :5173 (proxies /api to the backend
 make dev-admin      # the admin app's dev server on :5174 (same proxy)
 ```
 
-The admin app (competitions, sync, people, comms, dev harness) is its own
+The admin app (competitions, sync, people, announcements, notifications, dev harness) is its own
 SPA with its own sign-in — an account with role `admin` or `owner`. The
 binary serves it by host: `admin.<app host>` (see `ADMIN_URL` in
 [DEPLOY.md](DEPLOY.md)); with a single local binary that is

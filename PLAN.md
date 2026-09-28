@@ -360,7 +360,7 @@ targeted mail tool.
 
 1. **Alpha fixes** (h2h presence — see findings below).
 2. ✅ 2026-09-28 — **Admin app skeleton**: a second SvelteKit SPA in `admin/`, desktop-first
-   (sidebar: Dashboard · Competitions · Sync · People · Comms · Dev),
+   (sidebar: Dashboard · Competitions · Sync · People · Announcements · Notifications · Dev),
    embedded in the same Go binary and served on its own origin
    `admin.matchowl.app` (Traefik host rule → same container). Own origin =
    own service-worker scope and localStorage; no PWA, no i18n (English
@@ -374,7 +374,7 @@ targeted mail tool.
    rejected (auth propagation, a second thing to keep alive, no gain).
    *Built:* `admin/` (own package, adapter-static into `internal/web/admin`,
    vite on :5174), sidebar shell + `/login`, the six pages moved over
-   (`/`, `/competitions`, `/sync`, `/people`, `/comms`, `/dev`), shared
+   (`/`, `/competitions`, `/sync`, `/people`, `/announcements`, `/notifications`, `/dev`), shared
    lib copied (theme, app.css, api slice, auth, ConfirmDialog,
    NotifyPolicyCard, Avatar), `web.AdminFS` + host switch in `main.go`
    (`appconfig.IsAdminHost`), `ADMIN_URL` env + `adminUrl`/`appUrl` in
