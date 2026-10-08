@@ -11,6 +11,15 @@ matching section of this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **App icon:** the maskable icon's lines now run to the edges instead of
+  stopping at a padded border; the owl keeps its size inside the safe
+  zone. Source in `docs/matchowl-maskable.svg`, all six sizes redrawn
+  from it. Dev builds get their own icon, the raven in yellow and blue on
+  orange (`docs/matchowl-maskable-dev.svg`), so a dev install is easy to
+  tell from the real one.
+
 ## [1.0.0-alpha.7] - 2026-10-08
 
 The guide release. Testers get walked through tipping and head-to-head
