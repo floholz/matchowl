@@ -11,6 +11,12 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.6] - 2026-10-08
+
+The tester release. Head-to-head holds steady around the roster and the
+calendar, registration links bring testers straight into their pools,
+and profile pictures get the raven.
+
 **Deploy:** migrations 0048–0050 run at boot.
 
 ### Added
@@ -33,7 +39,6 @@ matching section of this file.
   `lib/avatars.ts` (art + palettes, so a retouch reaches everyone) and
   stored as a choice only (migration 0050, `users.avatarPreset`, e.g.
   `raven:ember`). Friends' tips on a match now show avatars too.
-
 - **The next duel takes over between matchdays.** Home's duel card and
   the pool page put the next matchday first once it is close: at the
   later of a day after the last one closed and three days before the next

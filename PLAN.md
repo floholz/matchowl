@@ -704,6 +704,13 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.6** (2026-10-08): the tester release — registration
+  links that join pools on verification (migration 0048), head-to-head
+  pairings patched instead of reshuffled on a join or leave (migration
+  0049, `pools.h2hNext`), the next duel taking the focus between
+  matchdays (`h2h/focus.go`), raven profile pictures with palettes and a
+  way back to the photo (migration 0050); fixes the sign-up links'
+  domain and the WM-Tips logo in emails.
 - **v1.0.0-alpha.5** (2026-09-28): the admin release — `admin/` SPA on
   `admin.matchowl.app` (same binary, host switch), group editor, teams
   registry with provider ids (migration 0046), mailings with audiences
