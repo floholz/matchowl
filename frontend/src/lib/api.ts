@@ -70,6 +70,7 @@ export interface H2HPerson {
 	userId: string;
 	name: string;
 	avatar: string;
+	avatarPreset?: string; // drawn picture when there is no photo
 	role: string;
 }
 export interface H2HPair {
@@ -220,6 +221,7 @@ export interface H2HTableRow {
 	userId: string;
 	name: string;
 	avatar: string;
+	avatarPreset?: string; // drawn picture when there is no photo
 	role: string;
 	played: number;
 	won: number;
@@ -253,6 +255,7 @@ export interface Person {
 	userId: string;
 	name: string;
 	avatar?: string;
+	avatarPreset?: string; // drawn picture when there is no photo
 	/** Search results: '' | 'pending' (you asked) | 'incoming' (they asked) | 'accepted'. */
 	state?: string;
 }
@@ -261,6 +264,7 @@ export interface LeaderboardRow {
 	userId: string;
 	name: string;
 	avatar?: string; // file name in the users.avatar field; empty/absent => none
+	avatarPreset?: string; // drawn picture when there is no photo
 	role?: string; // "admin" | "bot"; empty/absent => normal member
 	total: number;
 	tipsPoints: number;
@@ -276,6 +280,7 @@ export interface BotSummary {
 	userId: string;
 	name: string;
 	avatar?: string;
+	avatarPreset?: string; // drawn picture when there is no photo
 	botKind?: string;
 }
 
@@ -308,6 +313,7 @@ export interface ChatMember {
 	userId: string;
 	name: string;
 	avatar?: string;
+	avatarPreset?: string; // drawn picture when there is no photo
 	role?: string;
 }
 

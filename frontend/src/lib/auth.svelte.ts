@@ -12,6 +12,8 @@ class Auth {
 		// verifies automatically). Unverified accounts receive no emails.
 		verified: boolean;
 		avatarUrl: string | null;
+		// The drawn picture shown without a photo (lib/avatars.ts).
+		avatarPreset: string;
 		role: string; // "owner" | "admin" | "bot"; empty => normal member
 		// Per-event email toggles; absent/missing entries default to ON.
 		notifyPrefs: Record<string, { email?: boolean }>;
@@ -44,6 +46,7 @@ class Auth {
 			email: r.email,
 			verified: !!r.verified,
 			avatarUrl,
+			avatarPreset: (r.avatarPreset as string) || '',
 			role: (r.role as string) || 'member',
 			notifyPrefs:
 				(r.notifyPrefs as Record<string, { email?: boolean }>) || {},
@@ -87,11 +90,15 @@ class Auth {
 	// FormData carries the text field and the optional image in one request;
 	// authRefresh re-pulls the auth record so onChange → sync() propagates the
 	// change to the UserMenu and anywhere else reading auth.user.
-	async updateProfile(opts: { name: string; avatarFile?: File | null }) {
+	// avatarPreset: a raven to show ("raven:ember"), '' to show the photo,
+	// undefined to leave it. The photo is never deleted by a pick, so the
+	// user can switch back to it (a Google picture is hard to re-upload).
+	async updateProfile(opts: { name: string; avatarFile?: File | null; avatarPreset?: string }) {
 		if (!this.user) throw new Error('Not signed in.');
 		const body = new FormData();
 		body.set('name', opts.name.trim());
 		if (opts.avatarFile) body.set('avatar', opts.avatarFile);
+		if (opts.avatarPreset !== undefined) body.set('avatarPreset', opts.avatarPreset);
 		await pb.collection('users').update(this.user.id, body);
 		await pb.collection('users').authRefresh();
 	}

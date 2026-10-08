@@ -23,9 +23,10 @@ func bad(e *core.RequestEvent, code int, msg string) error {
 }
 
 type person struct {
-	UserID string `json:"userId"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar,omitempty"`
+	UserID       string `json:"userId"`
+	Name         string `json:"name"`
+	Avatar       string `json:"avatar,omitempty"`
+	AvatarPreset string `json:"avatarPreset,omitempty"`
 }
 
 func personOf(app core.App, id string) (person, bool) {
@@ -33,7 +34,7 @@ func personOf(app core.App, id string) (person, bool) {
 	if err != nil {
 		return person{}, false
 	}
-	return person{UserID: u.Id, Name: u.GetString("name"), Avatar: u.GetString("avatar")}, true
+	return person{UserID: u.Id, Name: u.GetString("name"), Avatar: u.GetString("avatar"), AvatarPreset: u.GetString("avatarPreset")}, true
 }
 
 // edge finds the friendship row between two users in either direction.
@@ -131,7 +132,7 @@ func Register(app core.App, se *core.ServeEvent) {
 				}
 			}
 			out = append(out, map[string]any{
-				"userId": u.Id, "name": u.GetString("name"), "avatar": u.GetString("avatar"), "state": state,
+				"userId": u.Id, "name": u.GetString("name"), "avatar": u.GetString("avatar"), "avatarPreset": u.GetString("avatarPreset"), "state": state,
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"users": out})

@@ -401,7 +401,7 @@
 		<div class="card list">
 			{#each results as p (p.userId)}
 				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={28} />
 					<span class="bname">{p.name}</span>
 					<span class="spacer"></span>
 					{#if p.state === 'accepted'}
@@ -424,7 +424,7 @@
 		<div class="card list">
 			{#each incoming as p (p.userId)}
 				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={28} />
 					<span class="bname">{p.name}</span>
 					<span class="spacer"></span>
 					<button class="tbtn p" onclick={() => accept(p)}><Check size={14} /> Accept</button>
@@ -457,7 +457,7 @@
 		{#each boardRows as r, i (r.userId)}
 			<div class="brow" class:me={r.userId === auth.user?.id}>
 				<span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span>
-				<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={28} />
+				<Avatar name={r.name} id={r.userId} preset={r.avatarPreset} src={avatarUrl(r.userId, r.avatar)} size={28} />
 				<span class="bname">{r.name}{#if r.userId === auth.user?.id}<span class="pill ok you">you</span>{/if}</span>
 				<span class="spacer"></span>
 				<span class="bpts digits">{r.total}</span>
@@ -477,7 +477,7 @@
 		<div class="card list">
 			{#each friends as p (p.userId)}
 				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={28} />
 					<span class="bname">{p.name}</span>
 					<span class="spacer"></span>
 					<button class="ibtn" onclick={() => remove(p)} aria-label="Remove friend"><X size={16} /></button>
@@ -485,7 +485,7 @@
 			{/each}
 			{#each outgoing as p (p.userId)}
 				<div class="brow">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={28} />
+					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={28} />
 					<span class="bname">{p.name}</span>
 					<span class="pill">requested</span>
 					<span class="spacer"></span>

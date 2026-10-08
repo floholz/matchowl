@@ -11,7 +11,7 @@ matching section of this file.
 
 ## [Unreleased]
 
-**Deploy:** migrations 0048 and 0049 run at boot.
+**Deploy:** migrations 0048–0050 run at boot.
 
 ### Added
 
@@ -23,6 +23,16 @@ matching section of this file.
   Migration 0048 (`signup_links.pools`).
 
 ### Changed
+
+- **Raven profile pictures replace the letter circles.** Without a photo,
+  a user shows the Matchowl raven in one of ten palettes (among them the
+  classic colours inverted and the two WM-Tips ones), picked from their
+  id until they choose one in Settings. A picked raven shows instead of
+  an uploaded or Google photo without deleting it: the photo stays a tile
+  in the picker to switch back to. Drawn in the browser from
+  `lib/avatars.ts` (art + palettes, so a retouch reaches everyone) and
+  stored as a choice only (migration 0050, `users.avatarPreset`, e.g.
+  `raven:ember`). Friends' tips on a match now show avatars too.
 
 - **The next duel takes over between matchdays.** Home's duel card and
   the pool page put the next matchday first once it is close: at the

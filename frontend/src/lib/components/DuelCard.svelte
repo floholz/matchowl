@@ -84,7 +84,7 @@
 	{:else if cur && cur.paired}
 		<div class="vs">
 			<span class="side">
-				<Avatar name={myName} src={myAvatar} size={40} />
+				<Avatar name={myName} id={auth.user?.id} preset={auth.user?.avatarPreset} src={myAvatar} size={40} />
 				<span class="sname">You</span>
 			</span>
 			<span class="score digits" class:win={cur.pts === 3} class:draw={cur.pts === 1} class:loss={cur.pts === 0 && ((cur.mine ?? 0) > 0 || (cur.theirs ?? 0) > 0)}>
@@ -92,7 +92,7 @@
 			</span>
 			<span class="side">
 				{#if cur.rival}
-					<Avatar name={cur.rival.name} src={avatarUrl(cur.rival)} size={40} />
+					<Avatar name={cur.rival.name} id={cur.rival.userId} preset={cur.rival.avatarPreset} src={avatarUrl(cur.rival)} size={40} />
 					<span class="sname">{cur.rival.name}</span>
 				{:else}
 					<span class="ghost"><GhostIcon size={20} /></span>
@@ -110,13 +110,13 @@
 	{#if ahead && next}
 		<div class="vs">
 			<span class="side">
-				<Avatar name={myName} src={myAvatar} size={40} />
+				<Avatar name={myName} id={auth.user?.id} preset={auth.user?.avatarPreset} src={myAvatar} size={40} />
 				<span class="sname">You</span>
 			</span>
 			<span class="score digits muted"><i>vs</i></span>
 			<span class="side">
 				{#if next.rival}
-					<Avatar name={next.rival.name} src={avatarUrl(next.rival)} size={40} />
+					<Avatar name={next.rival.name} id={next.rival.userId} preset={next.rival.avatarPreset} src={avatarUrl(next.rival)} size={40} />
 					<span class="sname">{next.rival.name}</span>
 				{:else if next.ghost}
 					<span class="ghost"><GhostIcon size={20} /></span>

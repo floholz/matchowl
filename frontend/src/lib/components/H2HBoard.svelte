@@ -194,7 +194,7 @@
 				{#if f}
 					<span class="mscore digits">{f.mine}<i>–</i>{f.theirs}</span>
 					<span class="mwho">
-						{#if f.them}<Avatar name={f.them.name} src={avatarUrl(f.them)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
+						{#if f.them}<Avatar name={f.them.name} id={f.them.userId} preset={f.them.avatarPreset} src={avatarUrl(f.them)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
 						<span class="mname">{f.them ? f.them.name : 'The Ghost'}</span>
 					</span>
 					<span class="mfoot">{open ? `${r.counted} of ${r.matches} in` : f.pts === 3 ? 'won · +3' : f.pts === 1 ? 'draw · +1' : 'lost'}</span>
@@ -211,7 +211,7 @@
 				<span class="mvs">vs</span>
 				<span class="mwho">
 					{#if myNext}
-						{#if n}<Avatar name={n.name} src={avatarUrl(n)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
+						{#if n}<Avatar name={n.name} id={n.userId} preset={n.avatarPreset} src={avatarUrl(n)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
 						<span class="mname">{n ? n.name : 'The Ghost'}</span>
 					{:else}
 						<span class="mname muted">not paired</span>
@@ -248,7 +248,7 @@
 					{#each round.pairs as p (p.a.userId)}
 						<li class:mine={p.a.userId === me || p.b?.userId === me}>
 							<span class="pa" class:won={p.ptsA === 3} class:lost={p.ptsA === 0 && p.ptsB === 3}>
-								<Avatar name={p.a.name} src={avatarUrl(p.a)} size={24} />
+								<Avatar name={p.a.name} id={p.a.userId} preset={p.a.avatarPreset} src={avatarUrl(p.a)} size={24} />
 								<span class="pn">{p.a.name}</span>
 								{#if p.savesA}<span class="mark" title="Save Calls revealed"><ShieldCheck size={11} />{p.savesA}</span>{/if}
 								{#if p.bannedA}<span class="mark ban" title="A match banned by the rival"><Ban size={11} /></span>{/if}
@@ -259,7 +259,7 @@
 								{#if p.savesB}<span class="mark" title="Save Calls revealed"><ShieldCheck size={11} />{p.savesB}</span>{/if}
 								{#if p.b}
 									<span class="pn">{p.b.name}</span>
-									<Avatar name={p.b.name} src={avatarUrl(p.b)} size={24} />
+									<Avatar name={p.b.name} id={p.b.userId} preset={p.b.avatarPreset} src={avatarUrl(p.b)} size={24} />
 								{:else}
 									<span class="pn">Ghost</span>
 									<span class="ghost sm"><GhostIcon size={14} /></span>
@@ -277,9 +277,9 @@
 				<ul class="pairs preview">
 					{#each data.next.pairs as p (p.a.userId)}
 						<li class:mine={p.a.userId === me || p.b?.userId === me}>
-							<span class="pa"><Avatar name={p.a.name} src={avatarUrl(p.a)} size={24} /><span class="pn">{p.a.name}</span></span>
+							<span class="pa"><Avatar name={p.a.name} id={p.a.userId} preset={p.a.avatarPreset} src={avatarUrl(p.a)} size={24} /><span class="pn">{p.a.name}</span></span>
 							<span class="ps muted">v</span>
-							<span class="pb">{#if p.b}<span class="pn">{p.b.name}</span><Avatar name={p.b.name} src={avatarUrl(p.b)} size={24} />{:else}<span class="pn">Ghost</span><span class="ghost sm"><GhostIcon size={14} /></span>{/if}</span>
+							<span class="pb">{#if p.b}<span class="pn">{p.b.name}</span><Avatar name={p.b.name} id={p.b.userId} preset={p.b.avatarPreset} src={avatarUrl(p.b)} size={24} />{:else}<span class="pn">Ghost</span><span class="ghost sm"><GhostIcon size={14} /></span>{/if}</span>
 						</li>
 					{/each}
 				</ul>
@@ -361,7 +361,7 @@
 						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
 						<td class="player">
 							<div class="pwrap">
-								<Avatar name={r.name} src={avatarUrl(r)} size={28} />
+								<Avatar name={r.name} id={r.userId} preset={r.avatarPreset} src={avatarUrl(r)} size={28} />
 								<span class="pname">{r.name}</span>
 								{#if r.role === 'bot'}<span class="rolepill" title="Bot player"><Bot size={11} /> Bot</span>{/if}
 							</div>

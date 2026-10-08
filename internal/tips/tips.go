@@ -194,15 +194,17 @@ func Register(app core.App, se *core.ServeEvent) {
 
 		rowFor := func(t *core.Record, u *core.Record) map[string]any {
 			row := map[string]any{
-				"userId":    u.Id,
-				"name":      u.GetString("name"),
-				"ftHome":    t.GetInt("ftHome"),
-				"ftAway":    t.GetInt("ftAway"),
-				"etHome":    t.GetInt("etHome"),
-				"etAway":    t.GetInt("etAway"),
-				"penWinner": t.GetString("penWinner"),
-				"advancer":  t.GetString("advancer"),
-				"rationale": t.GetString("rationale"),
+				"userId":       u.Id,
+				"name":         u.GetString("name"),
+				"avatar":       u.GetString("avatar"),
+				"avatarPreset": u.GetString("avatarPreset"),
+				"ftHome":       t.GetInt("ftHome"),
+				"ftAway":       t.GetInt("ftAway"),
+				"etHome":       t.GetInt("etHome"),
+				"etAway":       t.GetInt("etAway"),
+				"penWinner":    t.GetString("penWinner"),
+				"advancer":     t.GetString("advancer"),
+				"rationale":    t.GetString("rationale"),
 			}
 			if scored {
 				row["points"] = scoring.ScoreTip(cfg, knockout, match, t)

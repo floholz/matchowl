@@ -39,7 +39,7 @@
 		aria-haspopup="menu"
 		aria-expanded={open}
 	>
-		<Avatar name={auth.user?.name ?? '?'} src={auth.user?.avatarUrl} size={36} />
+		<Avatar name={auth.user?.name ?? '?'} id={auth.user?.id} preset={auth.user?.avatarPreset} src={auth.user?.avatarUrl} size={36} />
 		{#if showName}<span class="tname">{auth.user?.name}</span>{/if}
 		<ChevronDown size={16} class="chev {open ? 'up' : ''}" />
 	</button>
@@ -52,7 +52,7 @@
 			role="menu"
 		>
 			<a class="who" href="/settings" onclick={() => (open = false)}>
-				<Avatar name={auth.user?.name ?? '?'} src={auth.user?.avatarUrl} size={40} />
+				<Avatar name={auth.user?.name ?? '?'} id={auth.user?.id} preset={auth.user?.avatarPreset} src={auth.user?.avatarUrl} size={40} />
 				<div class="meta">
 					<div class="name">{auth.user?.name}</div>
 					<div class="email">{auth.user?.email}</div>

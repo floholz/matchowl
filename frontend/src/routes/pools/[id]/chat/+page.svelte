@@ -367,7 +367,7 @@
 					{#if !mine}
 						<div class="ava">
 							{#if !grouped}
-								<Avatar name={mem?.name ?? '?'} src={avatarUrl(m.user, mem?.avatar)} size={28} />
+								<Avatar name={mem?.name ?? '?'} id={m.user} preset={mem?.avatarPreset} src={avatarUrl(m.user, mem?.avatar)} size={28} />
 							{/if}
 						</div>
 					{/if}

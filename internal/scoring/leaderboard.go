@@ -11,8 +11,9 @@ import (
 type Row struct {
 	UserID         string `json:"userId"`
 	Name           string `json:"name"`
-	Avatar         string `json:"avatar"` // file name in the users.avatar field; "" => none
-	Role           string `json:"role"`   // "admin" | "bot"; empty => normal member
+	Avatar         string `json:"avatar"`       // file name in the users.avatar field; "" => none
+	AvatarPreset   string `json:"avatarPreset"` // drawn picture when there is no photo
+	Role           string `json:"role"`         // "admin" | "bot"; empty => normal member
 	Total          int    `json:"total"`
 	TipsPoints     int    `json:"tipsPoints"`
 	ForecastPoints int    `json:"forecastPoints"`
@@ -85,7 +86,7 @@ func Board(app core.App, userIDs []string, cfgID string, tournamentIDs []string)
 		if err != nil {
 			continue
 		}
-		row := Row{UserID: uid, Name: u.GetString("name"), Avatar: u.GetString("avatar"), Role: u.GetString("role")}
+		row := Row{UserID: uid, Name: u.GetString("name"), Avatar: u.GetString("avatar"), AvatarPreset: u.GetString("avatarPreset"), Role: u.GetString("role")}
 		for _, tournamentID := range tournamentIDs {
 			addTournament(app, &row, uid, cfgID, tournamentID)
 		}

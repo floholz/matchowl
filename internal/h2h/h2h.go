@@ -397,6 +397,7 @@ type TableRow struct {
 	UserID       string `json:"userId"`
 	Name         string `json:"name"`
 	Avatar       string `json:"avatar"`
+	AvatarPreset string `json:"avatarPreset"`
 	Role         string `json:"role"`
 	Played       int    `json:"played"`
 	Won          int    `json:"won"`
@@ -421,7 +422,7 @@ func Table(app core.App, lg *core.Record, rows []*core.Record) []TableRow {
 	byID := map[string]*TableRow{}
 	for i, b := range board {
 		rank[b.UserID] = i
-		out = append(out, TableRow{UserID: b.UserID, Name: b.Name, Avatar: b.Avatar, Role: b.Role, TipsPoints: b.TipsPoints})
+		out = append(out, TableRow{UserID: b.UserID, Name: b.Name, Avatar: b.Avatar, AvatarPreset: b.AvatarPreset, Role: b.Role, TipsPoints: b.TipsPoints})
 	}
 	for i := range out {
 		byID[out[i].UserID] = &out[i]

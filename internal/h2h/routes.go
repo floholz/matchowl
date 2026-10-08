@@ -14,10 +14,11 @@ import (
 
 // person is the member slice the client renders; nil = the Ghost.
 type person struct {
-	UserID string `json:"userId"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
-	Role   string `json:"role"`
+	UserID       string `json:"userId"`
+	Name         string `json:"name"`
+	Avatar       string `json:"avatar"`
+	AvatarPreset string `json:"avatarPreset"`
+	Role         string `json:"role"`
 }
 
 type people struct {
@@ -35,7 +36,7 @@ func (p *people) get(uid string) *person {
 	u, err := p.app.FindRecordById("users", uid)
 	v := &person{UserID: uid, Name: "Former member"}
 	if err == nil {
-		v.Name, v.Avatar, v.Role = u.GetString("name"), u.GetString("avatar"), u.GetString("role")
+		v.Name, v.Avatar, v.AvatarPreset, v.Role = u.GetString("name"), u.GetString("avatar"), u.GetString("avatarPreset"), u.GetString("role")
 	}
 	p.cache[uid] = v
 	return v

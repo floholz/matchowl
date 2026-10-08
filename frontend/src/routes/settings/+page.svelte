@@ -4,6 +4,7 @@
 	import { theme } from '$lib/theme.svelte';
 	import { goto } from '$app/navigation';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import { PALETTES, TEMPLATES, knownPreset, presetId, resolvePreset } from '$lib/avatars';
 	import { NOTIFY_EVENTS } from '$lib/notify';
 	import { api, type NotifyPolicy } from '$lib/api';
 
@@ -12,6 +13,26 @@
 	let name = $state(auth.user?.name ?? '');
 	let avatarFile = $state<File | null>(null);
 	let previewUrl = $state<string | null>(null);
+	// What to show, picked here and saved with the form: a raven's preset
+	// id, '' for the photo, null = no change. The photo is never deleted by
+	// a pick — it stays one tap away (a Google picture is hard to re-upload).
+	let picked = $state<string | null>(null);
+	let photoUrl = $derived(previewUrl ?? auth.user?.avatarUrl ?? null);
+	let choice = $derived(picked ?? (knownPreset(auth.user?.avatarPreset) ? auth.user!.avatarPreset : ''));
+	/** The tile that is on: the photo, else the picked or default raven. */
+	let onTile = $derived(
+		choice || (photoUrl ? 'photo' : presetId(TEMPLATES[0].id, resolvePreset('', auth.user?.id ?? '').palette.id))
+	);
+	function pick(id: string) {
+		picked = id;
+		saved = false;
+		if (id && avatarFile) {
+			// A raven over a photo not uploaded yet: drop the upload.
+			avatarFile = null;
+			previewUrl = null;
+			if (fileInput) fileInput.value = '';
+		}
+	}
 	let error = $state('');
 	let saved = $state(false);
 	let busy = $state(false);
@@ -187,6 +208,7 @@
 		saved = false;
 		avatarFile = file;
 		previewUrl = URL.createObjectURL(file);
+		picked = '';
 	}
 
 	async function submit(e: Event) {
@@ -200,8 +222,9 @@
 		}
 		busy = true;
 		try {
-			await auth.updateProfile({ name: trimmed, avatarFile });
+			await auth.updateProfile({ name: trimmed, avatarFile, avatarPreset: picked ?? undefined });
 			avatarFile = null;
+			picked = null;
 			previewUrl = null;
 			if (fileInput) fileInput.value = '';
 			saved = true;
@@ -223,7 +246,9 @@
 		<div class="avatar-row">
 			<Avatar
 				name={name || auth.user?.name || '?'}
-				src={previewUrl ?? auth.user?.avatarUrl}
+				id={auth.user?.id}
+				preset={choice}
+				src={photoUrl}
 				size={96}
 			/>
 			<div>
@@ -233,9 +258,47 @@
 					onclick={() => fileInput.click()}
 					disabled={busy}
 				>
-					Change photo
+					{photoUrl ? 'Upload a new photo' : 'Upload a photo'}
 				</button>
 				<p class="muted hint">PNG or JPG, up to 5 MB.</p>
+			</div>
+		</div>
+		<div class="presets" role="radiogroup" aria-label={photoUrl ? 'Your photo or a raven' : 'Or pick a raven'}>
+			<span class="plbl muted">{photoUrl ? 'Your photo or a raven' : 'Or pick a raven'}</span>
+			<div class="pgrid">
+				{#if photoUrl}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={onTile === 'photo'}
+						aria-label="Your photo"
+						title="Your photo"
+						class="pp"
+						class:on={onTile === 'photo'}
+						onclick={() => pick('')}
+						disabled={busy}
+					>
+						<Avatar name="Your photo" src={photoUrl} size={44} />
+					</button>
+					<span class="psep" aria-hidden="true"></span>
+				{/if}
+				{#each PALETTES as p (p.id)}
+					{@const id = presetId(TEMPLATES[0].id, p.id)}
+					{@const on = onTile === id}
+					<button
+						type="button"
+						role="radio"
+						aria-checked={on}
+						aria-label={p.name}
+						title={p.name}
+						class="pp"
+						class:on
+						onclick={() => pick(id)}
+						disabled={busy}
+					>
+						<Avatar name={p.name} preset={id} size={44} />
+					</button>
+				{/each}
 			</div>
 			<input
 				bind:this={fileInput}
@@ -517,6 +580,40 @@
 		align-items: center;
 		gap: 1rem;
 		margin-bottom: 1.25rem;
+	}
+	.presets {
+		margin: -0.25rem 0 1.25rem;
+	}
+	.plbl {
+		display: block;
+		margin-bottom: 0.5rem;
+		font-size: 0.8rem;
+	}
+	.pgrid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.psep {
+		width: 1px;
+		align-self: stretch;
+		margin: 0.4rem 0.15rem;
+		background: var(--border);
+	}
+	.pp {
+		padding: 2px;
+		border: 2px solid transparent;
+		border-radius: 50%;
+		background: none;
+		cursor: pointer;
+		line-height: 0;
+	}
+	.pp.on {
+		border-color: var(--accent);
+	}
+	.pp:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
 	}
 	.hint {
 		margin: 0.5rem 0 0;

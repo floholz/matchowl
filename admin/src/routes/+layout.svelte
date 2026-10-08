@@ -91,7 +91,7 @@
 				{/if}
 				<a class="ni" href="/_/" target="_blank" rel="noopener"><ExternalLink size={18} /><span>PocketBase</span></a>
 				<div class="me">
-					<Avatar name={auth.user?.name ?? '?'} src={auth.user?.avatarUrl} size={30} />
+					<Avatar name={auth.user?.name ?? '?'} id={auth.user?.id} preset={auth.user?.avatarPreset} src={auth.user?.avatarUrl} size={30} />
 					<span class="who"><b>{auth.user?.name}</b><small class="muted">{auth.user?.role}</small></span>
 					<button class="iconb" title="Sign out" aria-label="Sign out" onclick={logout}><LogOut size={16} /></button>
 				</div>

@@ -9,6 +9,8 @@ class Auth {
 		name: string;
 		email: string;
 		avatarUrl: string | null;
+		// The drawn picture shown without a photo (lib/avatars.ts).
+		avatarPreset: string;
 		role: string; // "owner" | "admin" | "bot"; empty => normal member
 	} | null>(null);
 
@@ -28,6 +30,7 @@ class Auth {
 			name: (r.name as string) || r.email,
 			email: r.email,
 			avatarUrl: r.avatar ? pb.files.getURL(r, r.avatar as string) : null,
+			avatarPreset: (r.avatarPreset as string) || '',
 			role: (r.role as string) || 'member'
 		};
 	}

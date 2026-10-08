@@ -1,29 +1,29 @@
 <script lang="ts">
-	// Classic user-circle. Renders the avatar image when present (e.g. from
-	// Google OAuth later), otherwise initials on a generated colour so users
-	// stay visually distinguishable.
+	// Classic user-circle: the user's picked raven (lib/avatars.ts), else
+	// their uploaded or Google photo, else the raven in a palette chosen
+	// from their id so users stay visually distinguishable.
+	import { knownPreset, resolvePreset } from '$lib/avatars';
+
 	let {
 		name,
 		src = null,
+		id = '',
+		preset = '',
 		size = 36
-	}: { name: string; src?: string | null; size?: number } = $props();
+	}: {
+		name: string;
+		src?: string | null;
+		/** The user id: seeds the default palette. */
+		id?: string;
+		/** users.avatarPreset, "<template>:<palette>". */
+		preset?: string | null;
+		size?: number;
+	} = $props();
 
-	let initials = $derived(
-		name
-			.trim()
-			.split(/\s+/)
-			.slice(0, 2)
-			.map((p) => p[0]?.toUpperCase() ?? '')
-			.join('') || '?'
-	);
-
-	// Deterministic hue from the name.
-	let hue = $derived(
-		[...name].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7)
-	);
+	let drawn = $derived(resolvePreset(preset, id || name));
 </script>
 
-{#if src}
+{#if src && !knownPreset(preset)}
 	<img
 		class="avatar"
 		{src}
@@ -32,14 +32,18 @@
 		referrerpolicy="no-referrer"
 	/>
 {:else}
-	<span
-		class="avatar fallback"
-		style="width:{size}px;height:{size}px;font-size:{size *
-			0.4}px;background:hsl({hue} 55% 32%)"
+	<svg
+		class="avatar"
+		viewBox="0 0 256 256"
+		width={size}
+		height={size}
+		role="img"
 		aria-label={name}
+		style="--pp-h:{drawn.palette.h};--pp-a:{drawn.palette.a};--pp-d:{drawn.palette.d}"
 	>
-		{initials}
-	</span>
+		<!-- eslint-disable-next-line svelte/no-at-html-tags — static art from lib/avatars.ts -->
+		{@html drawn.template.svg}
+	</svg>
 {/if}
 
 <style>
@@ -51,9 +55,7 @@
 		border: 2px solid var(--border);
 		flex: none;
 	}
-	.fallback {
-		color: var(--accent-fg);
-		font-weight: 700;
-		letter-spacing: 0.02em;
+	svg.avatar {
+		overflow: hidden;
 	}
 </style>

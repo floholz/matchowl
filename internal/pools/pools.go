@@ -727,7 +727,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			_, pending := app.FindFirstRecordByFilter("pool_invites", "pool = {:l} && user = {:u}",
 				map[string]any{"l": id, "u": fid})
 			out = append(out, map[string]any{
-				"userId": u.Id, "name": u.GetString("name"), "avatar": u.GetString("avatar"), "invited": pending == nil,
+				"userId": u.Id, "name": u.GetString("name"), "avatar": u.GetString("avatar"), "avatarPreset": u.GetString("avatarPreset"), "invited": pending == nil,
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"friends": out})
@@ -952,10 +952,11 @@ func Register(app core.App, se *core.ServeEvent) {
 				continue // already a member
 			}
 			out = append(out, map[string]any{
-				"userId":  b.Id,
-				"name":    b.GetString("name"),
-				"avatar":  b.GetString("avatar"),
-				"botKind": b.GetString("botKind"),
+				"userId":       b.Id,
+				"name":         b.GetString("name"),
+				"avatar":       b.GetString("avatar"),
+				"avatarPreset": b.GetString("avatarPreset"),
+				"botKind":      b.GetString("botKind"),
 			})
 		}
 		return e.JSON(http.StatusOK, map[string]any{"bots": out})

@@ -641,7 +641,7 @@
 			<div class="botsep">Invite friends</div>
 			{#each invitable as p (p.userId)}
 				<div class="mem">
-					<Avatar name={p.name} src={avatarUrl(p.userId, p.avatar)} size={30} />
+					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={30} />
 					<span class="pname">{p.name}</span>
 					<span class="spacer"></span>
 					{#if p.invited}
@@ -708,7 +708,7 @@
 	<section class="card members">
 		{#each rows as r (r.userId)}
 			<div class="mem">
-				<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={30} />
+				<Avatar name={r.name} id={r.userId} preset={r.avatarPreset} src={avatarUrl(r.userId, r.avatar)} size={30} />
 				<span class="pname">{r.name}</span>
 				{#if r.userId === auth.user?.id}<span class="pill ok">you</span>{/if}
 				{#if r.role === 'bot'}
@@ -731,7 +731,7 @@
 			<div class="botsep">Add a bot player</div>
 			{#each availableBots as b (b.userId)}
 				<div class="mem">
-					<Avatar name={b.name} src={avatarUrl(b.userId, b.avatar)} size={30} />
+					<Avatar name={b.name} id={b.userId} preset={b.avatarPreset} src={avatarUrl(b.userId, b.avatar)} size={30} />
 					<span class="pname">{b.name}</span>
 					<span class="rolepill" title="Bot player"><Bot size={11} /> {b.botKind || 'Bot'}</span>
 					<span class="spacer"></span>
@@ -803,7 +803,7 @@
 						<td class="rank"><span class="medal" class:g={i === 0} class:s={i === 1} class:b={i === 2}>{i + 1}</span></td>
 						<td class="player">
 							<div class="pwrap">
-								<Avatar name={r.name} src={avatarUrl(r.userId, r.avatar)} size={28} />
+								<Avatar name={r.name} id={r.userId} preset={r.avatarPreset} src={avatarUrl(r.userId, r.avatar)} size={28} />
 								<span class="pname">{r.name}</span>
 								{#if r.role === 'bot'}
 									<span class="rolepill" title="Bot player"><Bot size={11} /> Bot</span>
@@ -872,7 +872,7 @@
 	{#if meRow && !meVisible}
 		<button class="pin" onclick={() => document.querySelector('tr.main.lead')?.scrollIntoView({ block: 'center', behavior: 'smooth' })}>
 			<span class="medal" class:g={meIndex === 0} class:s={meIndex === 1} class:b={meIndex === 2}>{meIndex + 1}</span>
-			<Avatar name={meRow.name} src={avatarUrl(meRow.userId, meRow.avatar)} size={26} />
+			<Avatar name={meRow.name} id={meRow.userId} preset={meRow.avatarPreset} src={avatarUrl(meRow.userId, meRow.avatar)} size={26} />
 			<span class="pname">{meRow.name}</span>
 			<span class="pill ok you">you</span>
 			<span class="spacer"></span>

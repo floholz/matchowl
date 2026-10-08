@@ -139,6 +139,8 @@ export interface Tip {
 export interface FriendTip {
 	userId: string;
 	name: string;
+	avatar?: string;
+	avatarPreset?: string;
 	ftHome: number;
 	ftAway: number;
 	etHome: number;

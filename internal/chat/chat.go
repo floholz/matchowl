@@ -358,9 +358,10 @@ func msgView(r *core.Record, mod bool) map[string]any {
 
 func userView(u *core.Record) map[string]any {
 	return map[string]any{
-		"userId": u.Id,
-		"name":   u.GetString("name"),
-		"avatar": u.GetString("avatar"),
-		"role":   u.GetString("role"),
+		"userId":       u.Id,
+		"name":         u.GetString("name"),
+		"avatar":       u.GetString("avatar"),
+		"avatarPreset": u.GetString("avatarPreset"),
+		"role":         u.GetString("role"),
 	}
 }

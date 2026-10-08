@@ -249,6 +249,8 @@
 	}
 
 	// ---- friends' picks + bots (after kick-off) ----
+	const tipAvatar = (f: FriendTip) =>
+		f.avatar ? pb.files.getURL({ id: f.userId, collectionName: 'users' }, f.avatar) : null;
 	let friends = $state<FriendTip[] | null>(null);
 	let bots = $state<FriendTip[]>([]);
 	let botsOpen = $state(false);
@@ -473,7 +475,7 @@
 			<div class="card list">
 				{#each friends as f (f.userId)}
 					<div class="frow">
-						<Avatar name={f.name} size={28} />
+						<Avatar name={f.name} id={f.userId} preset={f.avatarPreset} src={tipAvatar(f)} size={28} />
 						<span class="fname">{f.name}</span>
 						{#if f.points !== undefined && maxPts > 0 && f.points === maxPts}
 							<span class="pill ok"><Target size={10} /> exact</span>
@@ -516,7 +518,7 @@
 				<div class="card list">
 					{#each bots as f (f.userId)}
 						<div class="frow">
-							<Avatar name={f.name} size={28} />
+							<Avatar name={f.name} id={f.userId} preset={f.avatarPreset} src={tipAvatar(f)} size={28} />
 							<span class="fname">{f.name}</span>
 							<span class="spacer"></span>
 							<span class="cap">
