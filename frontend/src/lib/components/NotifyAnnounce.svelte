@@ -5,6 +5,7 @@
 	// it's read — only ticking "Don't show again" persists the dismissal
 	// (localStorage). Once push is enabled it never shows again regardless.
 	import { auth } from '$lib/auth.svelte';
+	import { guide } from '$lib/guide.svelte';
 	import { push } from '$lib/push.svelte';
 	import { pwa } from '$lib/pwa.svelte';
 	import { BellRing, X } from '@lucide/svelte';
@@ -41,8 +42,11 @@
 	// subscribed/dismissed. Unverified users see the verify-email prompt
 	// instead — never both sheets at once.
 	let open = $derived(
-		push.ready && !dismissed && !push.subscribed && !!auth.user?.verified
+		push.ready && !dismissed && !push.subscribed && !!auth.user?.verified && !guide.active
 	);
+	// A guide waits while this sheet is up, and the sheet while a guide
+	// plays (lib/guide.svelte.ts).
+	$effect(() => guide.hold('notify', open));
 
 	async function enable() {
 		await push.enable();

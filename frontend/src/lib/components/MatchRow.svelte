@@ -28,6 +28,7 @@
 	import Flag from './Flag.svelte';
 	import LedBoard from './LedBoard.svelte';
 	import TipCapsule from './TipCapsule.svelte';
+	import { offerTipGuide } from '$lib/guides';
 	import Stepper from './Stepper.svelte';
 	import H2HPickButtons from './H2HPickButtons.svelte';
 	import { h2hStore } from '$lib/h2h.svelte';
@@ -94,6 +95,10 @@
 	let isKO = $derived(knockout ?? tournamentStore.isKnockout(match.stage));
 	let pts = $derived(points ?? tipsStore.scores[match.id]);
 	let editable = $derived(!locked && !live && !played && (!isKO || resolved));
+	// The first tip editor an account opens plays the tipping guide.
+	$effect(() => {
+		if (open && editable) offerTipGuide(match.id);
+	});
 
 	$effect(() => {
 		if (locked || live || played) return;
@@ -326,7 +331,7 @@
 
 	{#if open && editable}
 		<div class="drawer">
-			<div class="enter">
+			<div class="enter" data-guide="tip-enter">
 				<Stepper bind:value={ftH} onchange={mark} />
 				<span class="sep">:</span>
 				<Stepper bind:value={ftA} onchange={mark} />

@@ -8,6 +8,10 @@
 	import { pageChrome } from '$lib/shell.svelte';
 	import { defaultScoring, type ScoringConfig } from '$lib/scoring';
 	import Logo from '$lib/components/Logo.svelte';
+	import { goto } from '$app/navigation';
+	import { guide } from '$lib/guide.svelte';
+	import { h2hStore } from '$lib/h2h.svelte';
+	import { H2H_GUIDE, TIP_GUIDE } from '$lib/guides';
 	import {
 		Trophy,
 		Target,
@@ -17,7 +21,9 @@
 		Bell,
 		Smartphone,
 		UserCheck,
-		Mail
+		Mail,
+		Swords,
+		PlayCircle
 	} from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Help' }));
@@ -26,7 +32,22 @@
 	onMount(() => {
 		appConfig.load();
 		defaultScoring().then((s) => (scoring = s));
+		if (auth.isAuthed) h2hStore.load();
 	});
+
+	// Replay a guide where it plays: the tipping one with the next tip
+	// editor that opens, the head-to-head one on the member's first
+	// head-to-head pool (?guide=h2h).
+	let tipReplay = $state(false);
+	async function replayTip() {
+		await guide.forget(TIP_GUIDE);
+		tipReplay = true;
+	}
+	let h2hPool = $derived(h2hStore.pools[0]?.poolId ?? '');
+	async function replayH2H() {
+		await guide.forget(H2H_GUIDE);
+		goto(`/pools/${h2hPool}?guide=h2h`);
+	}
 
 	const sections = [
 		{ id: 'play', label: 'Play' },
@@ -34,6 +55,7 @@
 		{ id: 'forecast', label: 'Forecast' },
 		{ id: 'friends', label: 'Friends' },
 		{ id: 'pools', label: 'Pools' },
+		{ id: 'h2h', label: 'Head-to-head' },
 		{ id: 'notify', label: 'Notifications' },
 		{ id: 'account', label: 'Account' }
 	];
@@ -100,6 +122,15 @@
 				</p>
 			</div>
 		{/if}
+		{#if auth.isAuthed}
+			<p>
+				{#if tipReplay}
+					<span class="muted">The tipping guide plays the next time you open a tip.</span>
+				{:else}
+					<button class="replay" onclick={replayTip}><PlayCircle size={15} /> Replay the tipping guide</button>
+				{/if}
+			</p>
+		{/if}
 	</section>
 
 	<section id="forecast">
@@ -126,19 +157,40 @@
 	<section id="pools">
 		<h2><MessagesSquare size={18} /> Pools</h2>
 		<p>
-			A pool is your private table: a name, the seasons it counts, an invite
-			code or link, a chat. Start one under Friends, share the code, and the
-			board sums everyone's points over the pool's seasons. Chips on the board
-			narrow it to a single season. Whoever starts a pool runs it: rename,
-			change the seasons, regenerate the code, remove members, add a bot or
-			two.
+			A pool is your private table for one season: a name, an invite code or
+			link, a chat. Start one under Friends, pick the season and how it plays —
+			<b>Classic</b>, a table of everyone's points, or <b>Head-to-head</b>,
+			matchday duels (below) — and share the code. Whoever starts a pool runs
+			it: rename, regenerate the code, remove members, add a bot or two.
 		</p>
 		<p>
-			When every season a pool counts is over, the pool is finished: the board
+			When the pool's season is over, the pool is finished: the board
 			stays as history, the chat stays open for a month, and the owner can set
 			the pool up again for the next season with one tap — same members,
 			same settings, fresh invites.
 		</p>
+	</section>
+
+	<section id="h2h">
+		<h2><Swords size={18} /> Head-to-head</h2>
+		<p>
+			A head-to-head pool plays duels. Every matchday you face one pool mate,
+			and whoever scores more tip points over that matchday's matches wins: 3
+			points for a win, 1 for a draw. With an odd number of players one of you
+			plays the <b>Ghost</b>, which scores the average of everyone else. Level
+			on points, the better tipper overall goes ahead.
+		</p>
+		<p>
+			Each matchday you get <b>Save Calls</b> — a match that counts double for
+			you — and one <b>ban</b>: a match whose points don't count for your
+			rival. A ban on a match your rival made a Save Call only cancels the
+			double. Your rival sees your picks only once that match kicks off; until
+			then you can move them. Set them on the pool page or right in the tip
+			drawer.
+		</p>
+		{#if h2hPool}
+			<p><button class="replay" onclick={replayH2H}><PlayCircle size={15} /> Replay the head-to-head guide</button></p>
+		{/if}
 	</section>
 
 	<section id="notify">
@@ -245,6 +297,18 @@
 		color: var(--accent);
 		flex: none;
 		margin-top: 0.2rem;
+	}
+	.replay {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0;
+		border: none;
+		background: none;
+		color: var(--accent);
+		font: inherit;
+		font-weight: 700;
+		cursor: pointer;
 	}
 	.pts {
 		margin-top: 0.75rem;

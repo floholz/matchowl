@@ -43,7 +43,7 @@
 </script>
 
 {#if pools && pools.length}
-	<div class="h2h" class:lg={size === 'lg'}>
+	<div class="h2h" class:lg={size === 'lg'} data-guide="tip-h2h">
 		{#each pools as p (p.poolId)}
 			<div class="line">
 				<span class="lbl">

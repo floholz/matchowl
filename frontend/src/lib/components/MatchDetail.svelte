@@ -29,6 +29,7 @@
 	import TipCapsule from './TipCapsule.svelte';
 	import Stepper from './Stepper.svelte';
 	import H2HPickButtons from './H2HPickButtons.svelte';
+	import { offerTipGuide } from '$lib/guides';
 	import { h2hStore } from '$lib/h2h.svelte';
 	import Avatar from './Avatar.svelte';
 	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
@@ -95,6 +96,10 @@
 	});
 	let phased = $derived(isKO && !(legView?.first ?? false));
 	let editable = $derived(!!match && !locked && (!isKO || resolved));
+	// The first tip editor an account opens plays the tipping guide.
+	$effect(() => {
+		if (match && editable) offerTipGuide(match.id);
+	});
 
 	$effect(() => {
 		if (!match || locked) return;
@@ -393,7 +398,7 @@
 						{#if savedOk}<Check size={13} /> saved{:else if dirty}unsaved{:else if existing}saved{:else}not placed{/if}
 					</span>
 				</div>
-				<div class="enter">
+				<div class="enter" data-guide="tip-enter">
 					<Stepper bind:value={ftH} onchange={mark} size="lg" />
 					<span class="sep">:</span>
 					<Stepper bind:value={ftA} onchange={mark} size="lg" />

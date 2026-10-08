@@ -11,6 +11,30 @@ matching section of this file.
 
 ## [Unreleased]
 
+**Deploy:** migration 0051 runs at boot.
+
+### Added
+
+- **Guides for tipping and head-to-head.** The first time a member opens a
+  tip editor, a short guide walks through entering a tip, how points are
+  earned (from the scoring settings), the Save Call and ban in the drawer
+  when the match counts in a head-to-head pool, and friends' tips after
+  kick-off. The first time they open a head-to-head pool, a guide points
+  at the matchday strip, the duels, the Save Call and ban buttons, when
+  picks are revealed, and the table. Built in-house (`lib/guide.svelte.ts`,
+  `components/GuideHost.svelte`; the wording lives in `lib/guides.ts`): a
+  dimmed page with the element cut out, Back / Next / Skip, arrow keys
+  and Escape; a step whose element is not on screen is skipped. Played
+  once per account (migration 0051, `users.guides`), never on top of the
+  notifications or verify-email sheet, and replayable from Help, which
+  gains a Head-to-head section and an up-to-date Pools one.
+
+### Fixed
+
+- The bots pick their tips for the current rules (result 3, goal
+  difference +1, exact +3) instead of the WC26 ones with the total-goals
+  point; the README's scoring table says the same.
+
 ## [1.0.0-alpha.6] - 2026-10-08
 
 The tester release. Head-to-head holds steady around the roster and the

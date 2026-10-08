@@ -5,6 +5,7 @@
 	// closing hides it for the session but it returns on the next visit; only
 	// "Don't show again" persists the dismissal. Never shows once verified.
 	import { auth } from '$lib/auth.svelte';
+	import { guide } from '$lib/guide.svelte';
 	import { MailCheck, X } from '@lucide/svelte';
 
 	const KEY = 'verify-announce-v1';
@@ -39,7 +40,10 @@
 		if (auth.user?.verified) dismissed = true;
 	});
 
-	let open = $derived(!!auth.user && !auth.user.verified && !dismissed);
+	let open = $derived(!!auth.user && !auth.user.verified && !dismissed && !guide.active);
+	// A guide waits while this sheet is up, and the sheet while a guide
+	// plays (lib/guide.svelte.ts).
+	$effect(() => guide.hold('verify-email', open));
 
 	async function send() {
 		error = '';

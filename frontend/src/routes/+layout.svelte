@@ -11,6 +11,7 @@
 	import NotifyAnnounce from '$lib/components/NotifyAnnounce.svelte';
 	import VerifyEmailAnnounce from '$lib/components/VerifyEmailAnnounce.svelte';
 	import AnnounceBanner from '$lib/components/AnnounceBanner.svelte';
+	import GuideHost from '$lib/components/GuideHost.svelte';
 	import UpdateToast from '$lib/components/UpdateToast.svelte';
 	import { termsCurrent } from '$lib/legal';
 	import { serverClock } from '$lib/serverclock.svelte';
@@ -138,3 +139,4 @@
 	{@render children()}
 </div>
 <UpdateToast />
+<GuideHost />

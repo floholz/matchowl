@@ -10,6 +10,8 @@
 	import { goto } from '$app/navigation';
 	import { teamLogoUrl } from '$lib/tips.svelte';
 	import Avatar from './Avatar.svelte';
+	import { guide } from '$lib/guide.svelte';
+	import { h2hGuide } from '$lib/guides';
 	import { Bot, Ghost as GhostIcon, ShieldCheck, Ban, ChevronRight } from '@lucide/svelte';
 
 	let {
@@ -145,6 +147,26 @@
 			})
 			.catch(() => (pickErr = 'Could not load your calls.'));
 	});
+	// The head-to-head guide (lib/guides.ts): the first time a member sees
+	// this board, once the picks it points at have loaded. ?guide=h2h
+	// (from /help) replays it.
+	let guided = false;
+	$effect(() => {
+		if (guided || !data || mode !== 'overview') return;
+		if (pickRound && !picks && !pickErr) return;
+		guided = true;
+		const g = h2hGuide(data.saveCalls || 1);
+		if ($page.url.searchParams.get('guide') === 'h2h') {
+			const u = new URL($page.url);
+			u.searchParams.delete('guide');
+			goto(u, { replaceState: true, noScroll: true, keepFocus: true });
+			guide.play(g);
+		} else guide.offer(g);
+	});
+	/** The match the guide's Save Call and ban steps point at: the first
+	 *  that still takes picks. */
+	let guideMatch = $derived(picks ? (picks.matches.find((m) => !m.locked) ?? picks.matches[0])?.id : '');
+
 	async function setPick(m: { id: string; saved: boolean; banned: boolean }, kind: 'save' | 'ban') {
 		if (!picks || pickBusy) return;
 		pickBusy = m.id + kind;
@@ -175,7 +197,7 @@
 	     flick apart, never a mode switch. The selected card's duels and
 	     checklist follow, then the table. -->
 	{#if mode === 'overview'}
-	<div class="strip" bind:this={stripEl}>
+	<div class="strip" bind:this={stripEl} data-guide="h2h-strip">
 		{#each data.rounds as r (r.key)}
 			{@const p = mine(r) as H2HPair | null}
 			{@const open = r.status === 'open'}
@@ -232,7 +254,7 @@
 	{/if}
 
 	{#if round || (data.next && selected === data.next.key)}
-		<section class="card rounds">
+		<section class="card rounds" data-guide="h2h-duels">
 			{#if round}
 				<div class="rhead">
 					{#if hubRound(round.key)}<a class="rlink" href={hubRound(round.key)}><b>{roundName(round)}</b><ChevronRight size={14} /></a>{:else}<b>{roundName(round)}</b>{/if}
@@ -295,7 +317,7 @@
 			{:else if !picks}
 				<p class="muted small">Loading your calls…</p>
 			{:else}
-				<div class="rhead">
+				<div class="rhead" data-guide="h2h-calls">
 					{#if hubRound(picks.round.key)}<a class="rlink" href={hubRound(picks.round.key)}><b>Your matchday · {roundName(picks.round)}</b><ChevronRight size={14} /></a>{:else}<b>Your matchday · {roundName(picks.round)}</b>{/if}
 					<span class="muted small">
 						{#if picks.closed}
@@ -329,9 +351,9 @@
 								{#if m.rivalBanned}<span class="mark ban" title="{picks.rival?.name} banned this for you"><Ban size={11} /> banned</span>{/if}
 							</a>
 							<span class="cbtns">
-								<button class="pk" class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the Save Call back' : 'Save Call'} title={m.saved ? 'Take the Save Call back' : 'Save Call: counts double for you'} onclick={() => setPick(m, 'save')}><ShieldCheck size={15} /></button>
+								<button class="pk" data-guide={m.id === guideMatch ? 'h2h-save' : undefined} class:on={m.saved} disabled={m.locked || picks.closed || !!pickBusy || (!m.saved && picks.saveCallsLeft === 0)} aria-label={m.saved ? 'Take the Save Call back' : 'Save Call'} title={m.saved ? 'Take the Save Call back' : 'Save Call: counts double for you'} onclick={() => setPick(m, 'save')}><ShieldCheck size={15} /></button>
 								{#if !picks.ghost && picks.paired}
-									<button class="pk ban" class:on={m.banned} disabled={m.locked || picks.closed || !!pickBusy} aria-label={m.banned ? 'Lift the ban' : 'Ban for your rival'} title={m.banned ? 'Lift the ban' : `Ban: does not count for ${picks.rival?.name ?? 'your rival'}`} onclick={() => setPick(m, 'ban')}><Ban size={15} /></button>
+									<button class="pk ban" data-guide={m.id === guideMatch ? 'h2h-ban' : undefined} class:on={m.banned} disabled={m.locked || picks.closed || !!pickBusy} aria-label={m.banned ? 'Lift the ban' : 'Ban for your rival'} title={m.banned ? 'Lift the ban' : `Ban: does not count for ${picks.rival?.name ?? 'your rival'}`} onclick={() => setPick(m, 'ban')}><Ban size={15} /></button>
 								{/if}
 							</span>
 						</li>
@@ -341,7 +363,7 @@
 		</section>
 	{/if}
 
-	<section class="card board">
+	<section class="card board" data-guide="h2h-table">
 		<table class="lb">
 			<thead>
 				<tr>

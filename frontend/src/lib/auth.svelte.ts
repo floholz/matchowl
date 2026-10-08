@@ -14,6 +14,8 @@ class Auth {
 		avatarUrl: string | null;
 		// The drawn picture shown without a photo (lib/avatars.ts).
 		avatarPreset: string;
+		// In-app guides already played, by id (lib/guide.svelte.ts).
+		guides: Record<string, string>;
 		role: string; // "owner" | "admin" | "bot"; empty => normal member
 		// Per-event email toggles; absent/missing entries default to ON.
 		notifyPrefs: Record<string, { email?: boolean }>;
@@ -47,6 +49,7 @@ class Auth {
 			verified: !!r.verified,
 			avatarUrl,
 			avatarPreset: (r.avatarPreset as string) || '',
+			guides: (r.guides as Record<string, string>) || {},
 			role: (r.role as string) || 'member',
 			notifyPrefs:
 				(r.notifyPrefs as Record<string, { email?: boolean }>) || {},
