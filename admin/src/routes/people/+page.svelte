@@ -64,8 +64,13 @@
 	}
 
 	// ---- share ----
+	// Links point at the player app, never this admin origin: APP_URL when
+	// set, else the current origin with a leading "admin." dropped
+	// (admin.localhost:8090 → localhost:8090 in a local build).
+	const playerOrigin = () =>
+		appConfig.appUrl || window.location.origin.replace('://admin.', '://');
 	const urlOf = (l: SignupLink) =>
-		`${window.location.origin}/register?token=${encodeURIComponent(l.token)}`;
+		`${playerOrigin()}/register?token=${encodeURIComponent(l.token)}`;
 	let copiedId = $state('');
 	let copyTimer: ReturnType<typeof setTimeout> | undefined;
 	function copy(l: SignupLink) {
