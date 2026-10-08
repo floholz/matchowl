@@ -2,13 +2,14 @@ package main
 
 import "sort"
 
-// ScoringWeights mirrors the app's DEFAULT scoring_configs for WC2026 (per-match
-// Tips, max 6 pts). A user's tip is global — one per match, shared across every
-// league they're in — so the bot can't honor per-league overrides; it optimizes
-// for the global default.
+// ScoringWeights mirrors the app's DEFAULT scoring_configs (per-match Tips,
+// max 7 pts since 2026-09-13: result 3, goal difference +1, exact +3, no
+// total-goals point). A user's tip is global — one per match, shared across
+// every pool they're in — so the bot can't honor per-pool overrides; it
+// optimizes for the global default.
 //
-// NOTE: hardcoded for this World Cup. Keep in sync with the app default
-// (internal/scoring + seed.DefaultScoringConfig). Revisit if that default changes.
+// NOTE: hardcoded. Keep in sync with the app default (internal/scoring +
+// seed.DefaultScoringConfig).
 type ScoringWeights struct {
 	Result int // correct tendency (group 1/X/2) or knockout advancer
 	Exact  int // exact reference score
@@ -16,7 +17,7 @@ type ScoringWeights struct {
 	Diff   int // correct goal difference
 }
 
-var defaultWeights = ScoringWeights{Result: 3, Exact: 1, Total: 1, Diff: 1}
+var defaultWeights = ScoringWeights{Result: 3, Exact: 3, Total: 0, Diff: 1}
 
 // ScoreProb is one candidate scoreline with the model's subjective probability.
 type ScoreProb struct {

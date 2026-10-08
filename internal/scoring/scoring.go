@@ -94,7 +94,8 @@ type tipComponents struct {
 	GdDev      int `json:"gdDev"` // |predicted GD - actual GD| (tiebreaker only)
 }
 
-// points — max 6 per game (3 + 1 + 1 + 1).
+// points — the sum of the components the config pays for (default: max 7,
+// result 3 + goal difference 1 + exact 3).
 func (c tipComponents) points() int {
 	return c.Tendency + c.Exact + c.TotalGoals + c.GoalDiff
 }
@@ -136,10 +137,11 @@ type TipPrediction struct {
 	Advancer string
 }
 
-// scoreValues is the pure scoring core (see scoring_test.go). Max 6 per game:
+// scoreValues is the pure scoring core (see scoring_test.go); the weights
+// come from the config (seed.DefaultScoringConfig):
 //   - "correct result" (Tendency): group = 1/X/2 on 90'; knockout = the team
 //     that advances (no draw outcome).
-//   - exact / total goals / goal difference (1 each) compare the reference
+//   - exact / total goals / goal difference compare the reference
 //     score: 90' for group and KO decided in 90'; the after-extra-time score
 //     when a KO goes to extra time (using the user's ET prediction if they
 //     predicted a 90' draw, else their decisive 90' prediction).

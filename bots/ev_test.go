@@ -3,9 +3,9 @@ package main
 import "testing"
 
 func TestPoints(t *testing.T) {
-	// 2-1 vs 2-1: result+exact+total+diff = 6. 2-1 vs 1-0: result+diff = 4.
-	if p := points(Scoreline{Home: 2, Away: 1}, Scoreline{Home: 2, Away: 1}, defaultWeights); p != 6 {
-		t.Errorf("exact match = %d, want 6", p)
+	// 2-1 vs 2-1: result+diff+exact = 7. 2-1 vs 1-0: result+diff = 4.
+	if p := points(Scoreline{Home: 2, Away: 1}, Scoreline{Home: 2, Away: 1}, defaultWeights); p != 7 {
+		t.Errorf("exact match = %d, want 7", p)
 	}
 	if p := points(Scoreline{Home: 2, Away: 1}, Scoreline{Home: 1, Away: 0}, defaultWeights); p != 4 {
 		t.Errorf("2-1 vs 1-0 = %d, want 4 (result+diff)", p)

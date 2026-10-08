@@ -52,14 +52,17 @@ added from the admin API without touching the codebase (see
   always overridable by an admin; fully playable on the seeded fixtures
   without any key.
 
-## Scoring (config-driven, max 6 points per match)
+## Scoring (config-driven, max 7 points per match)
 
 | Per match | Pts |
 |---|---|
 | Correct result — group `1/X/2`; knockout: the team that advances | 3 |
-| Exact score | +1 |
-| Correct total goals | +1 |
 | Correct goal difference | +1 |
+| Exact score | +3 |
+
+A perfect tip scores 7, the right result with the right margin 4, the
+result alone 3. (The WC26 rules also paid +1 for the total goals; it was
+dropped on 2026-09-13 — the config still supports it.)
 
 Knockout games have no draw; the score points use the after-extra-time score
 when a tie goes to extra time.
