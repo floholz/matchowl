@@ -11,6 +11,11 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.8] - 2026-10-08
+
+The icon release. The installed app's icon gets its lines all the way to
+the edges, and dev builds get an icon of their own.
+
 ### Changed
 
 - **App icon:** the maskable icon's lines now run to the edges instead of

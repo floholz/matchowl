@@ -704,6 +704,10 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.8** (2026-10-08): the icon release — the maskable icon
+  redrawn with its lines running to the edges (source
+  `docs/matchowl-maskable.svg`), and a raven icon for dev builds
+  (`docs/matchowl-maskable-dev.svg`). No migrations.
 - **v1.0.0-alpha.7** (2026-10-08): the guide release — in-house guides
   for tipping (first tip editor) and head-to-head (first h2h pool), played
   once per account (migration 0051, `users.guides`), queued behind the
