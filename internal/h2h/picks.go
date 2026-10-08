@@ -101,7 +101,7 @@ func roundOf(app core.App, lg *core.Record, m *core.Record) (*tournaments.Round,
 }
 
 // rivalOf is who the member faces in a round: from the frozen pairings once
-// the round has opened, else the pairing the current roster would get.
+// the round has opened, else the next round's preview (next.go).
 // Returns Ghost for the odd member out and "" when the member is not in
 // the round at all.
 func rivalOf(app core.App, lg *core.Record, roundKey string, uid string) (string, bool) {
@@ -115,7 +115,7 @@ func rivalOf(app core.App, lg *core.Record, roundKey string, uid string) (string
 		}
 	}
 	if !found {
-		pairs = Pairings(roster(app, lg.Id), len(rows))
+		pairs = upcoming(app, lg, len(rows))
 	}
 	for _, p := range pairs {
 		if p.A == uid {

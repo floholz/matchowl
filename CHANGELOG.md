@@ -11,7 +11,7 @@ matching section of this file.
 
 ## [Unreleased]
 
-**Deploy:** migration 0048 runs at boot.
+**Deploy:** migrations 0048 and 0049 run at boot.
 
 ### Added
 
@@ -24,6 +24,12 @@ matching section of this file.
 
 ### Fixed
 
+- **Head-to-head pairings hold when the roster changes.** A join or leave
+  no longer reshuffles the next matchday's duels: a newcomer takes the
+  Ghost's place (or plays the Ghost), a leaver's rival gets the Ghost's
+  opponent (or the Ghost). The preview is kept on the pool (migration
+  0049, `pools.h2hNext`, hidden) and is what the round opens with; the
+  rotation picks up again from the round after.
 - Registration links point at the player app (`APP_URL`), not the admin
   host they were minted on.
 - Emails carry the Matchowl mark instead of the old WM-Tips logo.

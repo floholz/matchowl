@@ -209,7 +209,7 @@ func open(app core.App, lg *core.Record, r tournaments.Round, ordinal int) (*cor
 	row.Set("firstKickoff", r.First)
 	row.Set("closesAt", r.Last.Add(CloseGrace))
 	row.Set("status", "open")
-	row.Set("pairings", Pairings(roster(app, lg.Id), ordinal))
+	row.Set("pairings", upcoming(app, lg, ordinal))
 	row.Set("matches", r.MatchIDs)
 	if err := app.Save(row); err != nil {
 		return nil, err

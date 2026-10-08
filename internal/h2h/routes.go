@@ -168,7 +168,7 @@ func picksView(app core.App, lg *core.Record, uid string, r tournaments.Round, p
 }
 
 // nextView previews the round that opens next: which matchday, when, and
-// the pairings the current roster would get — the "who do I play next".
+// its pairings (the kept preview, next.go) — the "who do I play next".
 func nextView(app core.App, lg *core.Record, rows []*core.Record, pp *people) map[string]any {
 	now := clock.Now(app)
 	have := map[string]bool{}
@@ -180,7 +180,7 @@ func nextView(app core.App, lg *core.Record, rows []*core.Record, pp *people) ma
 			continue
 		}
 		pairs := make([]map[string]any, 0)
-		for _, p := range Pairings(roster(app, lg.Id), len(rows)) {
+		for _, p := range upcoming(app, lg, len(rows)) {
 			pairs = append(pairs, map[string]any{"a": pp.get(p.A), "b": pp.get(p.B)})
 		}
 		return map[string]any{
@@ -241,6 +241,7 @@ func matchPoolView(app core.App, lg *core.Record, uid string, m *core.Record, r 
 func Register(app core.App, se *core.ServeEvent) {
 	app.Cron().MustAdd("h2h-tick", "*/5 * * * *", func() { Tick(app) })
 	registerMe(app, se)
+	registerRosterHooks(app)
 
 	// GET /api/h2h/match/{id} — the caller's head-to-head pools that play
 	// this match's season, each with the caller's picks on the match. Empty

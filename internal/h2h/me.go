@@ -193,7 +193,7 @@ func duelState(app core.App, lg *core.Record, uid string, row *core.Record, up *
 		v["closesAt"] = iso(up.Last.Add(CloseGrace))
 		v["counted"] = 0
 		rival, in := "", false
-		for _, p := range Pairings(roster(app, lg.Id), ordinal) {
+		for _, p := range upcoming(app, lg, ordinal) {
 			if p.A == uid {
 				rival, in = p.B, true
 			} else if p.B == uid {
