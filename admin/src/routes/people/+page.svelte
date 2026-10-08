@@ -3,13 +3,15 @@
 	// note on who it's for, copy or share it, and see who came in through
 	// which one. Links only matter while REGISTRATION_OPEN=0 (the server
 	// gate); with sign-up open they are harmless and simply unnecessary.
+	// A link can also put its account into pools (the alpha / beta tester
+	// pools), joined once the account is verified.
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/auth.svelte';
-	import { api, type SignupLink } from '$lib/api';
+	import { api, type PoolSummary, type SignupLink } from '$lib/api';
 	import { appConfig } from '$lib/appconfig.svelte';
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { onMount } from 'svelte';
-	import { Plus, Copy, Share2, Trash2, Check, Ticket } from '@lucide/svelte';
+	import { Plus, Copy, Share2, Trash2, Check, Ticket, Users } from '@lucide/svelte';
 
 	$effect(() => {
 		if (!auth.isAdmin) goto('/');
@@ -20,9 +22,15 @@
 	let loaded = $state(false);
 	let loadError = $state('');
 
+	// Pools a link can put its account into: the admin's own, minus Global
+	// (everyone is in it) and finished ones.
+	let pools = $state<PoolSummary[]>([]);
+
 	async function load() {
 		try {
-			links = (await api.signupLinks()).links ?? [];
+			const [l, p] = await Promise.all([api.signupLinks(), api.myPools()]);
+			links = l.links ?? [];
+			pools = (p.pools ?? []).filter((x) => x.inviteCode !== 'GLOBAL' && x.status !== 'finished');
 			loadError = '';
 		} catch (e) {
 			loadError = msg(e);
@@ -42,6 +50,10 @@
 	// ---- mint ----
 	let label = $state('');
 	let expiresInDays = $state(14);
+	// Kept between links: a batch of tester invites shares the same pools.
+	let picked = $state<string[]>([]);
+	const togglePool = (id: string) =>
+		(picked = picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
 	let creating = $state(false);
 	let createError = $state('');
 	let justCreated = $state<SignupLink | null>(null);
@@ -51,7 +63,7 @@
 		createError = '';
 		creating = true;
 		try {
-			const l = await api.createSignupLink(label.trim(), expiresInDays);
+			const l = await api.createSignupLink(label.trim(), expiresInDays, picked);
 			links = [l, ...links];
 			justCreated = l;
 			label = '';
@@ -119,6 +131,7 @@
 		if (l.status === 'expired') return `expired ${fmt(l.expiresAt)}`;
 		return l.expiresAt ? `valid until ${fmt(l.expiresAt)}` : 'no expiry';
 	}
+	const poolNames = (l: SignupLink) => (l.pools ?? []).map((p) => p.name).join(', ');
 	let open = $derived(links.filter((l) => l.status === 'open'));
 	let rest = $derived(links.filter((l) => l.status !== 'open'));
 </script>
@@ -169,6 +182,22 @@
 				<Plus size={16} />
 				{creating ? 'Creating…' : 'Create link'}
 			</button>
+			{#if pools.length > 0}
+				<div class="field pools">
+					<span class="plbl">Joins pools <span class="muted">· once the email is verified</span></span>
+					<div class="chips">
+						{#each pools as p (p.id)}
+							<button
+								type="button"
+								class="chip"
+								class:on={picked.includes(p.id)}
+								aria-pressed={picked.includes(p.id)}
+								onclick={() => togglePool(p.id)}>{p.name}</button
+							>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		</form>
 		{#if createError}<p class="error">{createError}</p>{/if}
 		{#if justCreated}
@@ -210,6 +239,7 @@
 								created {fmt(l.created)}{#if l.createdBy?.name}{' '}by {l.createdBy.name}{/if}
 								· {statusText(l)}
 							</span>
+							{#if l.pools?.length}<span class="pjoin muted small"><Users size={13} /> {poolNames(l)}</span>{/if}
 						</div>
 						<div class="acts">
 							<button class="ibtn" onclick={() => copy(l)} aria-label="Copy link" title="Copy link">
@@ -247,6 +277,7 @@
 								created {fmt(l.created)} · {statusText(l)}
 								{#if l.usedBy?.email}{' '}<span class="email">({l.usedBy.email})</span>{/if}
 							</span>
+							{#if l.pools?.length}<span class="pjoin muted small"><Users size={13} /> {poolNames(l)}</span>{/if}
 						</div>
 						<div class="acts">
 							<span class="pill" class:ok={l.status === 'used'}>{l.status}</span>
@@ -339,6 +370,56 @@
 	.mint .btn {
 		width: auto;
 		flex: none;
+	}
+	.mint .pools {
+		flex: 1 1 100%;
+	}
+	/* Pools sit above the button: picked before the link is made. */
+	.mint .pools {
+		order: 1;
+	}
+	.mint .btn {
+		order: 2;
+	}
+	.plbl {
+		display: block;
+		margin-bottom: 0.4rem;
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.plbl .muted {
+		letter-spacing: normal;
+		text-transform: none;
+		font-weight: 500;
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+	.chip {
+		padding: 0.3rem 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-pill);
+		background: transparent;
+		color: var(--muted);
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.chip.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-fg);
+	}
+	.pjoin {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
 	}
 	.fresh {
 		margin-top: 1rem;

@@ -21,6 +21,9 @@ import (
 
 const (
 	signupLinksCollection = "signup_links"
+	// globalInviteCode mirrors pools.GlobalInviteCode (pools imports this
+	// package): Global is joined by everyone, never through a link.
+	globalInviteCode = "GLOBAL"
 	// SignupTokenHeader carries the link token on the users create call and
 	// on the OAuth2 auth call (the JS SDK forwards custom headers on both).
 	SignupTokenHeader = "X-Signup-Token"
@@ -93,7 +96,7 @@ func signupTokenError(e *core.RequestEvent, reason error) error {
 //
 //	GET    /api/signup-links/{token}      anonymous: is this token usable?
 //	GET    /api/admin/signup-links        list (newest first)
-//	POST   /api/admin/signup-links        mint {label, expiresInDays}
+//	POST   /api/admin/signup-links        mint {label, expiresInDays, pools}
 //	DELETE /api/admin/signup-links/{id}   revoke an unused link
 func RegisterSignupLinks(app core.App, se *core.ServeEvent) {
 	// The register page calls this before showing the form. Anonymous on
@@ -121,7 +124,7 @@ func RegisterSignupLinks(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return err
 		}
-		if errs := app.ExpandRecords(recs, []string{"createdBy", "usedBy"}, nil); len(errs) > 0 {
+		if errs := app.ExpandRecords(recs, []string{"createdBy", "usedBy", "pools"}, nil); len(errs) > 0 {
 			for _, err := range errs {
 				return err
 			}
@@ -135,14 +138,27 @@ func RegisterSignupLinks(app core.App, se *core.ServeEvent) {
 
 	g.POST("", func(e *core.RequestEvent) error {
 		var body struct {
-			Label         string `json:"label"`
-			ExpiresInDays int    `json:"expiresInDays"`
+			Label         string   `json:"label"`
+			ExpiresInDays int      `json:"expiresInDays"`
+			Pools         []string `json:"pools"` // joined once the account is verified
 		}
 		if err := e.BindBody(&body); err != nil {
 			return apis.NewBadRequestError(err.Error(), nil)
 		}
 		if body.ExpiresInDays < 0 || body.ExpiresInDays > 365 {
 			return apis.NewBadRequestError("expiresInDays must be between 0 (never) and 365", nil)
+		}
+		if len(body.Pools) > 20 {
+			return apis.NewBadRequestError("at most 20 pools per link", nil)
+		}
+		for _, id := range body.Pools {
+			p, err := app.FindRecordById("pools", id)
+			if err != nil {
+				return apis.NewBadRequestError("unknown pool", nil)
+			}
+			if p.GetString("inviteCode") == globalInviteCode {
+				return apis.NewBadRequestError("everyone joins Global already", nil)
+			}
 		}
 		col, err := app.FindCollectionByNameOrId(signupLinksCollection)
 		if err != nil {
@@ -152,13 +168,18 @@ func RegisterSignupLinks(app core.App, se *core.ServeEvent) {
 		rec.Set("token", security.RandomStringWithAlphabet(24, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ23456789"))
 		rec.Set("label", strings.TrimSpace(body.Label))
 		rec.Set("createdBy", e.Auth.Id)
+		rec.Set("pools", body.Pools)
 		if body.ExpiresInDays > 0 {
 			rec.Set("expiresAt", types.NowDateTime().Add(time.Duration(body.ExpiresInDays)*24*time.Hour))
 		}
 		if err := app.Save(rec); err != nil {
 			return err
 		}
-		rec.Expand()["createdBy"] = e.Auth
+		if errs := app.ExpandRecord(rec, []string{"createdBy", "pools"}, nil); len(errs) > 0 {
+			for _, err := range errs {
+				return err
+			}
+		}
 		return e.JSON(http.StatusOK, signupLinkView(rec))
 	})
 
@@ -195,6 +216,11 @@ func signupLinkView(r *core.Record) map[string]any {
 		"expiresAt": dateOrEmpty(r.GetDateTime("expiresAt")),
 		"usedAt":    dateOrEmpty(r.GetDateTime("usedAt")),
 	}
+	pools := []map[string]any{}
+	for _, p := range r.ExpandedAll("pools") {
+		pools = append(pools, map[string]any{"id": p.Id, "name": p.GetString("name")})
+	}
+	v["pools"] = pools
 	if u := r.ExpandedOne("createdBy"); u != nil {
 		v["createdBy"] = map[string]any{"id": u.Id, "name": u.GetString("name")}
 	}

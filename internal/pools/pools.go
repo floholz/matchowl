@@ -309,6 +309,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
 				log.Printf("[pools] auto-join global failed for %s: %v", e.Record.Id, err)
 			}
+			joinLinkPools(e.App, e.Record.Id)
 		}
 		return e.Next()
 	})
@@ -318,6 +319,20 @@ func Register(app core.App, se *core.ServeEvent) {
 				if err := ensureGlobalMember(e.App, e.Record.Id); err != nil {
 					log.Printf("[pools] join global on verify failed for %s: %v", e.Record.Id, err)
 				}
+				joinLinkPools(e.App, e.Record.Id)
+			}
+		}
+		return e.Next()
+	})
+	// A sign-up link binds to its account only after the create succeeded,
+	// so a Google sign-up (verified at creation) is past the hook above by
+	// then: join its pools when the link is bound to an already verified
+	// account.
+	app.OnRecordAfterUpdateSuccess("signup_links").BindFunc(func(e *core.RecordEvent) error {
+		uid := e.Record.GetString("usedBy")
+		if orig := e.Record.Original(); uid != "" && (orig == nil || orig.GetString("usedBy") == "") {
+			if u, err := e.App.FindRecordById("users", uid); err == nil && u.Verified() {
+				joinLinkPools(e.App, uid)
 			}
 		}
 		return e.Next()
@@ -1035,6 +1050,31 @@ func addMember(app core.App, leagueID, userID, role string) error {
 		}
 	}
 	return nil
+}
+
+// joinLinkPools adds a verified account to the pools of the sign-up link
+// it came in through (the alpha / beta tester pools). Idempotent; a pool
+// that is gone or finished by then is skipped.
+func joinLinkPools(app core.App, userID string) {
+	links, err := app.FindRecordsByFilter("signup_links", "usedBy = {:u}", "", 0, 0, map[string]any{"u": userID})
+	if err != nil {
+		return
+	}
+	for _, l := range links {
+		for _, pid := range l.GetStringSlice("pools") {
+			lg, err := app.FindRecordById("pools", pid)
+			if err != nil || Finished(app, lg) {
+				continue
+			}
+			if m, _ := app.FindFirstRecordByFilter("pool_members", "pool = {:l} && user = {:u}",
+				map[string]any{"l": pid, "u": userID}); m != nil {
+				continue
+			}
+			if err := addMember(app, pid, userID, "member"); err != nil {
+				log.Printf("[pools] join link pool %s for %s: %v", pid, userID, err)
+			}
+		}
+	}
 }
 
 // ensureGlobal idempotently creates the "Global" league (owner left empty so

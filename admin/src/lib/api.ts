@@ -22,6 +22,8 @@ export interface PoolSummary {
 	id: string;
 	name: string;
 	mode?: string;
+	inviteCode?: string; // 'GLOBAL' marks the everyone pool
+	status?: string; // open | live | upcoming | finished
 }
 
 export type AnnounceLevel = 'info' | 'success' | 'warn';
@@ -144,6 +146,7 @@ export interface SignupLink {
 	usedAt: string; // '' = not yet
 	createdBy?: { id: string; name: string };
 	usedBy?: { id: string; name: string; email: string };
+	pools: { id: string; name: string }[]; // joined once the account is verified
 }
 
 export interface OwnerStats {
@@ -383,8 +386,8 @@ export const api = {
 	// One-time registration links for the closed test (admin), plus the
 	// anonymous check the register page runs on the token it was opened with.
 	signupLinks: () => get<{ links: SignupLink[] }>('/api/admin/signup-links'),
-	createSignupLink: (label: string, expiresInDays = 0) =>
-		post<SignupLink>('/api/admin/signup-links', { label, expiresInDays }),
+	createSignupLink: (label: string, expiresInDays = 0, pools: string[] = []) =>
+		post<SignupLink>('/api/admin/signup-links', { label, expiresInDays, pools }),
 	revokeSignupLink: (id: string) =>
 		del<{ ok: boolean }>(`/api/admin/signup-links/${encodeURIComponent(id)}`),
 	checkSignupLink: (token: string) =>

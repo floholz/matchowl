@@ -11,6 +11,23 @@ matching section of this file.
 
 ## [Unreleased]
 
+**Deploy:** migration 0048 runs at boot.
+
+### Added
+
+- **Registration links join pools.** Admin → People: pick any of your
+  pools (Global and finished pools aside) when minting a link, and the
+  account it creates joins them as a member once its email is verified —
+  the same moment it joins Global; a Google sign-up joins right away. The
+  pick carries over to the next link, and each link lists its pools.
+  Migration 0048 (`signup_links.pools`).
+
+### Fixed
+
+- Registration links point at the player app (`APP_URL`), not the admin
+  host they were minted on.
+- Emails carry the Matchowl mark instead of the old WM-Tips logo.
+
 ## [1.0.0-alpha.5] - 2026-09-28
 
 The admin release. The admin tooling moves into its own app on its own
