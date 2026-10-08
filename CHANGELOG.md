@@ -11,7 +11,15 @@ matching section of this file.
 
 ## [Unreleased]
 
-**Deploy:** migration 0051 runs at boot.
+## [1.0.0-alpha.7] - 2026-10-08
+
+The guide release. Testers get walked through tipping and head-to-head
+the first time they use them, Help explains head-to-head, and the bots
+tip for the current scoring rules.
+
+**Deploy:** migration 0051 runs at boot. The tipping guide quotes the
+live scoring config: check that the Default one pays result 3, goal
+difference +1, exact +3 (the `/help` points table shows it).
 
 ### Added
 

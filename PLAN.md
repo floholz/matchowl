@@ -704,6 +704,13 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.7** (2026-10-08): the guide release — in-house guides
+  for tipping (first tip editor) and head-to-head (first h2h pool), played
+  once per account (migration 0051, `users.guides`), queued behind the
+  notifications / verify-email sheets, replayable from Help (new
+  Head-to-head section, Pools rewritten for one season per pool); the
+  bots and README on the 3 / +1 / +3 scoring. Next for onboarding (beta):
+  welcome cards and a "Get started" checklist on Home.
 - **v1.0.0-alpha.6** (2026-10-08): the tester release — registration
   links that join pools on verification (migration 0048), head-to-head
   pairings patched instead of reshuffled on a join or leave (migration
