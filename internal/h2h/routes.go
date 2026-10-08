@@ -170,15 +170,7 @@ func picksView(app core.App, lg *core.Record, uid string, r tournaments.Round, p
 // nextView previews the round that opens next: which matchday, when, and
 // its pairings (the kept preview, next.go) — the "who do I play next".
 func nextView(app core.App, lg *core.Record, rows []*core.Record, pp *people) map[string]any {
-	now := clock.Now(app)
-	have := map[string]bool{}
-	for _, r := range rows {
-		have[r.GetString("key")] = true
-	}
-	for _, r := range playable(app, lg, pools.Season(lg)) {
-		if have[r.Key] || !r.First.After(now) {
-			continue
-		}
+	if r := nextRound(app, lg, rows, clock.Now(app)); r != nil {
 		pairs := make([]map[string]any, 0)
 		for _, p := range upcoming(app, lg, len(rows)) {
 			pairs = append(pairs, map[string]any{"a": pp.get(p.A), "b": pp.get(p.B)})
@@ -289,7 +281,8 @@ func Register(app core.App, se *core.ServeEvent) {
 	g.Bind(apis.RequireAuth())
 
 	// GET /api/pools/{id}/h2h — the table, every round (open ones with
-	// provisional scores), the round to show first, and the next pairing.
+	// provisional scores), the round to show first (an opened round's key,
+	// or the next round's once it has the focus), and the next pairing.
 	g.GET("", func(e *core.RequestEvent) error {
 		lg, err := member(e)
 		if err != nil {
@@ -315,6 +308,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 		if firstOpen != "" {
 			current = firstOpen
+		} else if now := clock.Now(app); focusNext(rows, nextRound(app, lg, rows, now), now) {
+			// Between rounds the next duel takes over (focus.go).
+			current = nextRound(app, lg, rows, now).Key
 		}
 		var first tournaments.Round
 		if pr := playable(app, lg, pools.Season(lg)); len(pr) > 0 {

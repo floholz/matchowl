@@ -189,6 +189,10 @@ export interface H2HMePool {
 	current: H2HDuelState | null;
 	/** The round that opens next. */
 	next: H2HDuelState | null;
+	/** Which to headline: 'next' once the upcoming duel has taken over
+	 *  from the last result (a day after it closed, and within 3 days of
+	 *  the next kick-off). */
+	focus: 'current' | 'next';
 	/** Every pick I may see, by match id. */
 	picks: Record<string, H2HPickMark>;
 }

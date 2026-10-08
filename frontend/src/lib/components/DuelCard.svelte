@@ -1,7 +1,9 @@
 <!-- One head-to-head pool on Home: the duel this matchday (or the last
      one), how it stands, who is next and what is left to do — the pool at
      a glance, the biggest thing on the page. "All duels" unfolds the rest
-     of the matchday. Data comes from the shared h2h store (GET /api/h2h/me). -->
+     of the matchday. Between matchdays the next duel takes the headline
+     once the server says so (`focus`), the last result shrinks to a line.
+     Data comes from the shared h2h store (GET /api/h2h/me). -->
 <script lang="ts">
 	import type { H2HMePool, H2HDuelState, H2HPerson } from '$lib/api';
 	import { pb } from '$lib/pb';
@@ -44,25 +46,42 @@
 		return `${next.name} · ${who} · ${day(next.firstKickoff)}`;
 	});
 	let nextTodo = $derived(next ? todo(next) : '');
+	/** The next duel headlines: before the first round, and between rounds
+	 *  once it has taken over from the last result. */
+	let ahead = $derived(!!next && (!cur || pool.focus === 'next'));
+	/** The last result, as the line under a headlined next duel. */
+	let lastLine = $derived.by(() => {
+		if (!cur || !cur.paired) return '';
+		const p = cur.pts ?? 0;
+		const how = p === 3 ? 'won' : p === 1 ? 'drew' : 'lost';
+		return `${cur.name} · ${how} ${cur.mine ?? 0}–${cur.theirs ?? 0} vs ${rivalName(cur)}`;
+	});
+	/** The pool page, opened on the matchday this card shows. */
+	const poolHref = (key?: string) => `/pools/${pool.poolId}${key ? `?md=${encodeURIComponent(key)}` : ''}`;
+	/** The competition hub's match list for a matchday. */
+	const matchesHref = (key: string) =>
+		`/competitions/${pool.competition}?s=${encodeURIComponent(pool.seasonSlug)}&tab=matches&round=${encodeURIComponent(key)}`;
 	let showAll = $state(false);
-	let others = $derived(cur?.pairs ?? []);
+	let others = $derived(ahead ? [] : (cur?.pairs ?? []));
 </script>
 
 <div class="card dc" class:open>
-	<a class="head" href={`/pools/${pool.poolId}`}>
+	<a class="head" href={poolHref(ahead ? next?.key : cur?.key)}>
 		<span class="ic"><Swords size={16} /></span>
 		<span class="htxt">
 			<b>{pool.name}</b>
-			{#if cur}
+			{#if ahead && next}
+				<span class="muted">{cur ? next.name : `Kicks off with ${next.name}`} · {day(next.firstKickoff)}</span>
+			{:else if cur}
 				<span class="muted">{cur.name} · {open ? `${cur.counted} of ${cur.matches} in` : 'final'}</span>
-			{:else if next}
-				<span class="muted">Kicks off with {next.name}</span>
 			{/if}
 		</span>
 		<ChevronRight size={16} class="cv" />
 	</a>
 
-	{#if cur && cur.paired}
+	{#if ahead}
+		<!-- The next duel headlines (rendered below). -->
+	{:else if cur && cur.paired}
 		<div class="vs">
 			<span class="side">
 				<Avatar name={myName} src={myAvatar} size={40} />
@@ -87,7 +106,8 @@
 		</p>
 	{:else if cur}
 		<p class="line muted">You are not paired this matchday.</p>
-	{:else if next}
+	{/if}
+	{#if ahead && next}
 		<div class="vs">
 			<span class="side">
 				<Avatar name={myName} src={myAvatar} size={40} />
@@ -107,10 +127,26 @@
 				{/if}
 			</span>
 		</div>
+		{#if pool.competition}
+			<a class="next" href={matchesHref(next.key)}>
+				<span class="nlbl">Tips</span>
+				<span class="ntxt">
+					{#if nextTodo}<span class="todo">{nextTodo}</span>{:else}<b>{next.matches} matches · all set</b>{/if}
+				</span>
+				<ChevronRight size={14} class="cv" />
+			</a>
+		{/if}
+		{#if lastLine && cur}
+			<a class="next" href={poolHref(cur.key)}>
+				<span class="nlbl">Last</span>
+				<span class="ntxt"><b>{lastLine}</b></span>
+				<ChevronRight size={14} class="cv" />
+			</a>
+		{/if}
 	{/if}
 
-	{#if next && (cur || nextTodo)}
-		<a class="next" href={pool.competition ? `/competitions/${pool.competition}?s=${encodeURIComponent(pool.seasonSlug)}&tab=matches&round=${encodeURIComponent(next.key)}` : `/pools/${pool.poolId}`}>
+	{#if next && !ahead && (cur || nextTodo)}
+		<a class="next" href={pool.competition ? matchesHref(next.key) : poolHref(next.key)}>
 			<span class="nlbl">Next</span>
 			<span class="ntxt">
 				<b>{nextLine}</b>

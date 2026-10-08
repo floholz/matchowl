@@ -22,6 +22,17 @@ matching section of this file.
   pick carries over to the next link, and each link lists its pools.
   Migration 0048 (`signup_links.pools`).
 
+### Changed
+
+- **The next duel takes over between matchdays.** Home's duel card and
+  the pool page put the next matchday first once it is close: at the
+  later of a day after the last one closed and three days before the next
+  kick-off (so a weekly round hands over around Wednesday, an
+  international break only in its last three days). The card then
+  headlines the upcoming duel with its to-dos and a link to its matches,
+  with last week's result as a "Last" line; the card's links open the
+  pool on the matchday they show.
+
 ### Fixed
 
 - **Head-to-head pairings hold when the roster changes.** A join or leave

@@ -111,19 +111,7 @@ func meView(app core.App, lg *core.Record, uid string, pp *people) map[string]an
 		}
 	}
 	// The round that opens next.
-	have := map[string]bool{}
-	for _, r := range rows {
-		have[r.GetString("key")] = true
-	}
-	var next *tournaments.Round
-	for _, r := range playable(app, lg, pools.Season(lg)) {
-		if have[r.Key] || !r.First.After(now) {
-			continue
-		}
-		rr := r
-		next = &rr
-		break
-	}
+	next := nextRound(app, lg, rows, now)
 
 	v := map[string]any{
 		"poolId":      lg.Id,
@@ -135,6 +123,12 @@ func meView(app core.App, lg *core.Record, uid string, pp *people) map[string]an
 		"picks":       marks,
 		"current":     nil,
 		"next":        nil,
+		// Which of the two to headline (focus.go): "next" once the
+		// upcoming duel has taken over from the last result.
+		"focus": "current",
+	}
+	if focusNext(rows, next, now) {
+		v["focus"] = "next"
 	}
 	if current != nil {
 		v["current"] = duelState(app, lg, uid, current, nil, len(rows), allow, pp)
