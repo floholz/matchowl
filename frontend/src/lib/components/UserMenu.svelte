@@ -61,6 +61,7 @@
 			{#if auth.isAdmin && appConfig.adminUrl}
 				<a class="item" href={appConfig.adminUrl} target="_blank" rel="noopener" onclick={() => (open = false)}>
 					<LayoutDashboard size={17} /> Admin
+					<ExternalLink size={14} class="ext" />
 				</a>
 				<a
 					class="item"
