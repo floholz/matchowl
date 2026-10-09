@@ -86,8 +86,8 @@ export function tipGuide(scoring: ScoringConfig | null, inH2H: boolean): Guide {
 					]
 				: []),
 			{
-				title: 'After kick-off',
-				body: "Open a match once it has started to see what your friends tipped — and later, how many points each tip earned."
+				title: "Friends' tips",
+				body: "Before kick-off the match shows which friends have tipped; once it has started, what they tipped — and later, how many points each tip earned."
 			}
 		]
 	};

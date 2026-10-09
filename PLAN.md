@@ -704,6 +704,10 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.9** (2026-10-09): the tipped release — friends who have
+  tipped an unstarted match are listed on it (identity only; picks still
+  revealed at kick-off), and the Admin menu entry gets the external-link
+  icon. No migrations.
 - **v1.0.0-alpha.8** (2026-10-08): the icon release — the maskable icon
   redrawn with its lines running to the edges (source
   `docs/matchowl-maskable.svg`), and a raven icon for dev builds

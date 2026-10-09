@@ -11,6 +11,22 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.9] - 2026-10-09
+
+The tipped release. A match shows which friends have already tipped it
+before kick-off, with the picks themselves still hidden until it starts.
+
+### Changed
+
+- **Friends' picks before kick-off:** instead of an empty "shown at
+  kick-off" card, the match page lists the league mates who have tipped,
+  each with a locked "tipped" pill. The scores stay on the server until
+  kick-off (`/api/tips/others/{matchId}` sends only names and avatars
+  before then), and the page reveals the picks when the match locks. The
+  tipping guide and README say so.
+- **User menu:** Admin carries the external-link icon, like PB
+  Dashboard, now that it opens its own app.
+
 ## [1.0.0-alpha.8] - 2026-10-08
 
 The icon release. The installed app's icon gets its lines all the way to

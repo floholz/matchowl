@@ -24,7 +24,8 @@ added from the admin API without touching the codebase (see
 
 - **Tips** — predict the score of every match of the tournament. Editable
   until kickoff; knockout entry is progressive (90′ → extra time → penalty
-  winner). After kickoff your tip locks and you can see friends' picks.
+  winner). You can see which friends have tipped; after kickoff your tip locks
+  and their picks are revealed.
 - **Forecast** — one pre-tournament call: full group standings, any
   extra qualifiers (WC2026: the 8 best thirds), and the whole knockout
   bracket. Locks at the
