@@ -160,8 +160,19 @@ export interface PerfectScorers {
 	points: number;
 }
 
+// A league mate who has tipped a match that hasn't kicked off — identity
+// only; the pick itself stays hidden until kick-off.
+export interface FriendTipped {
+	userId: string;
+	name: string;
+	avatar?: string;
+	avatarPreset?: string;
+}
+
 export interface FriendsResult {
 	tips: FriendTip[];
+	// Before kick-off: who has tipped (no scores). Empty after kick-off.
+	tipped: FriendTipped[];
 	// Bot tips: global (not league-scoped), shown in their own list.
 	bots: FriendTip[];
 	perfect: PerfectScorers | null;
@@ -292,7 +303,7 @@ class TipsStore {
 		const r = await pb.send(`/api/tips/others/${matchId}`, {
 			method: 'GET'
 		});
-		return { tips: r.tips ?? [], bots: r.bots ?? [], perfect: r.perfect ?? null };
+		return { tips: r.tips ?? [], tipped: r.tipped ?? [], bots: r.bots ?? [], perfect: r.perfect ?? null };
 	}
 }
 

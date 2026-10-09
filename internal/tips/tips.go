@@ -3,12 +3,14 @@
 //   - knockout Tips are only allowed once both teams are resolved
 //   - the knockout advancer is derived from the phased prediction
 //   - other players' Tips are visible only AFTER kickoff and only to people
-//     who share a League (the /api/tips/others/{matchId} endpoint)
+//     who share a League (the /api/tips/others/{matchId} endpoint); before
+//     kickoff that endpoint only reveals which league mates have tipped
 package tips
 
 import (
 	"net/http"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -164,17 +166,14 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.JSON(http.StatusOK, map[string]any{"scores": out})
 	}).Bind(apis.RequireAuth())
 
-	// GET /api/tips/others/{matchId} — other members' Tips, but only after
-	// kickoff and only for users who share at least one League with you.
+	// GET /api/tips/others/{matchId} — other members' Tips, only for users who
+	// share at least one League with you. Before kickoff only *who* has tipped
+	// is revealed (identity, no scores); the picks themselves after kickoff.
 	se.Router.GET("/api/tips/others/{matchId}", func(e *core.RequestEvent) error {
 		matchID := e.Request.PathValue("matchId")
 		match, err := app.FindRecordById("matches", matchID)
 		if err != nil {
 			return apis.NewNotFoundError("match not found", nil)
-		}
-		if !locked(app, match) {
-			// Not started: never reveal others' picks.
-			return e.JSON(http.StatusOK, map[string]any{"locked": false, "tips": []any{}})
 		}
 
 		coMembers, err := sharedLeagueUserIDs(app, e.Auth.Id)
@@ -185,6 +184,31 @@ func Register(app core.App, se *core.ServeEvent) {
 			"match = {:m}", "", 0, 0, map[string]any{"m": matchID})
 		if err != nil {
 			return err
+		}
+
+		if !locked(app, match) {
+			// Not started: never reveal others' picks — just who has tipped.
+			tipped := make([]map[string]any, 0)
+			for _, t := range allTips {
+				uid := t.GetString("user")
+				if uid == e.Auth.Id || !coMembers[uid] {
+					continue
+				}
+				u, err := app.FindRecordById("users", uid)
+				if err != nil || users.IsBot(u) {
+					continue
+				}
+				tipped = append(tipped, map[string]any{
+					"userId":       u.Id,
+					"name":         u.GetString("name"),
+					"avatar":       u.GetString("avatar"),
+					"avatarPreset": u.GetString("avatarPreset"),
+				})
+			}
+			sort.SliceStable(tipped, func(i, j int) bool {
+				return strings.ToLower(tipped[i]["name"].(string)) < strings.ToLower(tipped[j]["name"].(string))
+			})
+			return e.JSON(http.StatusOK, map[string]any{"locked": false, "tips": []any{}, "tipped": tipped})
 		}
 
 		// On a finished match we can attach each tip's points (and sort by them).

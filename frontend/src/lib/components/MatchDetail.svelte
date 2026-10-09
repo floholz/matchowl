@@ -2,7 +2,7 @@
      nothing is designed twice). Hero with crests and the kick-off or the
      LED board large, the tie strip for two-legged ties, your tip (big
      steppers before lock, capsule + line + points breakdown after),
-     friends' picks (list after kick-off), bots, and the mini table for the
+     friends' picks (who tipped before kick-off, the picks after), bots, and the mini table for the
      group. Resolves the match's season into the shared stores itself. -->
 <script lang="ts">
 	import { pb } from '$lib/pb';
@@ -17,6 +17,7 @@
 		type Match,
 		type Tip,
 		type FriendTip,
+		type FriendTipped,
 		type PerfectScorers,
 		type OtherLeg
 	} from '$lib/tips.svelte';
@@ -253,29 +254,35 @@
 		}
 	}
 
-	// ---- friends' picks + bots (after kick-off) ----
-	const tipAvatar = (f: FriendTip) =>
+	// ---- friends' picks + bots (who tipped before kick-off, picks after) ----
+	const tipAvatar = (f: FriendTip | FriendTipped) =>
 		f.avatar ? pb.files.getURL({ id: f.userId, collectionName: 'users' }, f.avatar) : null;
 	let friends = $state<FriendTip[] | null>(null);
+	let tipped = $state<FriendTipped[] | null>(null);
 	let bots = $state<FriendTip[]>([]);
 	let botsOpen = $state(false);
 	let perfect = $state<PerfectScorers | null>(null);
 	let friendsFor = '';
 	$effect(() => {
 		const m = match;
-		if (!m || !locked) return;
-		if (friendsFor === m.id) return;
-		friendsFor = m.id;
+		if (!m) return;
+		// Refetch when the match locks so the hidden picks reveal at kick-off.
+		const key = `${m.id}:${locked}`;
+		if (friendsFor === key) return;
+		friendsFor = key;
 		friends = null;
+		tipped = null;
 		tipsStore
 			.friends(m.id)
 			.then((r) => {
 				friends = r.tips;
+				tipped = r.tipped;
 				bots = r.bots;
 				perfect = r.perfect;
 			})
 			.catch(() => {
 				friends = [];
+				tipped = [];
 				bots = [];
 				perfect = null;
 			});
@@ -471,7 +478,22 @@
 			{#if !locked}<span class="muted small">shown at kick-off</span>{/if}
 		</div>
 		{#if !locked}
-			<div class="card quiet muted"><Lock size={14} /> Your league mates’ picks show once the match kicks off.</div>
+			{#if tipped && tipped.length > 0}
+				<div class="card list">
+					{#each tipped as f (f.userId)}
+						<div class="frow">
+							<Avatar name={f.name} id={f.userId} preset={f.avatarPreset} src={tipAvatar(f)} size={28} />
+							<span class="fname">{f.name}</span>
+							<span class="spacer"></span>
+							<span class="pill" title="Pick revealed at kick-off"><Lock size={11} /> tipped</span>
+						</div>
+					{/each}
+				</div>
+			{:else if tipped}
+				<div class="card quiet muted"><Lock size={14} /> None of your league mates has tipped yet — picks show once the match kicks off.</div>
+			{:else}
+				<p class="muted small">Loading…</p>
+			{/if}
 		{:else if friends === null}
 			<p class="muted small">Loading…</p>
 		{:else if friends.length === 0}
