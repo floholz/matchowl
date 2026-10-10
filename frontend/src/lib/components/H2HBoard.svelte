@@ -206,6 +206,7 @@
 				class="mcard"
 				class:on={r.key === selected}
 				class:live={open}
+				class:void={r.counts === false}
 				class:win={!!f && f.pts === 3}
 				class:draw={!!f && f.pts === 1}
 				class:loss={!!f && f.pts === 0 && (f.mine > 0 || f.theirs > 0)}
@@ -219,7 +220,7 @@
 						{#if f.them}<Avatar name={f.them.name} id={f.them.userId} preset={f.them.avatarPreset} src={avatarUrl(f.them)} size={18} />{:else}<span class="ghost xs"><GhostIcon size={11} /></span>{/if}
 						<span class="mname">{f.them ? f.them.name : 'The Ghost'}</span>
 					</span>
-					<span class="mfoot">{open ? `${r.counted} of ${r.matches} in` : f.pts === 3 ? 'won · +3' : f.pts === 1 ? 'draw · +1' : 'lost'}</span>
+					<span class="mfoot">{open ? `${r.counted} of ${r.matches} in` : r.counts === false ? 'not counted' : f.pts === 3 ? 'won · +3' : f.pts === 1 ? 'draw · +1' : 'lost'}</span>
 				{:else}
 					<span class="mscore digits muted">–</span>
 					<span class="mfoot">not paired</span>
@@ -264,6 +265,7 @@
 						{:else}
 							final · {round.counted} of {round.matches} matches counted{round.counted < round.matches ? ' (the rest kicked off too late)' : ''}
 						{/if}
+						{#if round.counts === false} · before the pool's restart, not on the table{/if}
 					</span>
 				</div>
 				<ul class="pairs">
@@ -472,6 +474,9 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--muted);
+	}
+	.mcard.void {
+		opacity: 0.55;
 	}
 	.mst.islive {
 		color: var(--live, #e0443e);

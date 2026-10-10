@@ -3,8 +3,11 @@ package scoring
 import (
 	"encoding/json"
 	"sort"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/floholz/matchowl/internal/forecast"
 )
 
 // Row is one player's standing in a League.
@@ -38,6 +41,8 @@ type Row struct {
 // list is consumed only by the frontend legend for display. Keep the two in
 // sync when changing tiebreakers (update this function, the seeded default
 // in internal/seed, and add a migration for existing DBs).
+//
+// A pool with a startDate counts only from then on (see BoardSince).
 func Leaderboard(app core.App, leagueID string, tournamentIDs []string) (map[string]any, error) {
 	league, err := app.FindRecordById("pools", leagueID)
 	if err != nil {
@@ -53,7 +58,7 @@ func Leaderboard(app core.App, leagueID string, tournamentIDs []string) (map[str
 	for _, m := range members {
 		userIDs = append(userIDs, m.GetString("user"))
 	}
-	rows := Board(app, userIDs, cfgID, tournamentIDs)
+	rows := BoardSince(app, userIDs, cfgID, tournamentIDs, league.GetDateTime("startDate").Time())
 	return map[string]any{
 		"pool": map[string]any{"id": league.Id, "name": league.GetString("name")},
 		"rows": rows,
@@ -75,6 +80,13 @@ func PoolTournaments(app core.App, leagueID, fallback string) []string {
 // seasons summed, or a single one) under a scoring config ("" = default).
 // Shared by pool leaderboards and the friends board.
 func Board(app core.App, userIDs []string, cfgID string, tournamentIDs []string) []Row {
+	return BoardSince(app, userIDs, cfgID, tournamentIDs, time.Time{})
+}
+
+// BoardSince is Board counting only matches that kick off at or after
+// since (zero = all). A season whose Forecast closed before since leaves
+// its Forecast out: whoever joined after the start never had one to make.
+func BoardSince(app core.App, userIDs []string, cfgID string, tournamentIDs []string, since time.Time) []Row {
 	if cfgID == "" {
 		if def, err := app.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {
 			cfgID = def.Id
@@ -88,7 +100,7 @@ func Board(app core.App, userIDs []string, cfgID string, tournamentIDs []string)
 		}
 		row := Row{UserID: uid, Name: u.GetString("name"), Avatar: u.GetString("avatar"), AvatarPreset: u.GetString("avatarPreset"), Role: u.GetString("role")}
 		for _, tournamentID := range tournamentIDs {
-			addTournament(app, &row, uid, cfgID, tournamentID)
+			addTournament(app, &row, uid, cfgID, tournamentID, since, forecastCounts(app, tournamentID, since))
 		}
 		row.Total = row.TipsPoints + row.ForecastPoints
 		rows = append(rows, row)
@@ -97,12 +109,32 @@ func Board(app core.App, userIDs []string, cfgID string, tournamentIDs []string)
 	return rows
 }
 
+// forecastCounts reports whether a season's Forecast still counts on a
+// board starting at since: only when since is not after the season's start.
+func forecastCounts(app core.App, tournamentID string, since time.Time) bool {
+	if since.IsZero() {
+		return true
+	}
+	t, err := app.FindRecordById("tournaments", tournamentID)
+	if err != nil {
+		return true
+	}
+	start, err := forecast.StartOf(app, t)
+	return err != nil || start.IsZero() || !since.After(start)
+}
+
 // addTournament accumulates one tournament's tips, forecast and tiebreak
 // counters onto the row. Forecast breakdown counters sum across seasons.
-func addTournament(app core.App, row *Row, uid, cfgID, tournamentID string) {
+// Matches kicking off before since are left out (zero = none).
+func addTournament(app core.App, row *Row, uid, cfgID, tournamentID string, since time.Time, withForecast bool) {
+	sinceFilter := ""
+	params := map[string]any{"u": uid, "c": cfgID, "t": tournamentID}
+	if !since.IsZero() {
+		sinceFilter = " && match.kickoff >= {:s}"
+		params["s"] = since.UTC().Format("2006-01-02 15:04:05.000Z")
+	}
 	ms, _ := app.FindRecordsByFilter("match_scores",
-		"user = {:u} && config = {:c} && match.tournament = {:t}", "", 0, 0,
-		map[string]any{"u": uid, "c": cfgID, "t": tournamentID})
+		"user = {:u} && config = {:c} && match.tournament = {:t}"+sinceFilter, "", 0, 0, params)
 	for _, s := range ms {
 		row.TipsPoints += s.GetInt("points")
 		var comp tipComponents
@@ -116,42 +148,50 @@ func addTournament(app core.App, row *Row, uid, cfgID, tournamentID string) {
 		row.GdDeviation += comp.GdDev
 	}
 
-	if fs, err := app.FindFirstRecordByFilter("forecast_scores",
-		"user = {:u} && config = {:c} && tournament = {:t}",
-		map[string]any{"u": uid, "c": cfgID, "t": tournamentID}); err == nil {
-		row.ForecastPoints += fs.GetInt("points")
-		var bd struct {
-			GroupsCorrect   int            `json:"groupsCorrect"`
-			AdvanceCorrect  int            `json:"advanceCorrect"`
-			RoundCorrect    map[string]int `json:"roundCorrect"`
-			ChampionCorrect int            `json:"championCorrect"`
-			CallCorrect     map[string]int `json:"callCorrect"`
-		}
-		if json.Unmarshal([]byte(fs.GetString("breakdown")), &bd) == nil {
-			if row.Forecast == nil {
-				row.Forecast = map[string]int{}
-			}
-			row.Forecast["groups"] += bd.GroupsCorrect
-			row.Forecast["advance"] += bd.AdvanceCorrect
-			row.Forecast["champion"] += bd.ChampionCorrect
-			for k, v := range bd.RoundCorrect {
-				row.Forecast[k] += v
-			}
-			for k, v := range bd.CallCorrect {
-				row.Forecast["call:"+k] += v
-			}
-		}
+	if withForecast {
+		addForecast(app, row, uid, cfgID, tournamentID)
 	}
 
 	if tps, _ := app.FindRecordsByFilter("tips",
-		"user = {:u} && match.tournament = {:t}", "", 0, 0,
-		map[string]any{"u": uid, "t": tournamentID}); len(tps) > 0 {
+		"user = {:u} && match.tournament = {:t}"+sinceFilter, "", 0, 0, params); len(tps) > 0 {
 		row.Predicted += len(tps)
 		// Earliest last-edit across this user's tips (earlier = better).
 		for _, t := range tps {
 			if u := t.GetString("updated"); row.lastEdit == "" || u > row.lastEdit {
 				row.lastEdit = u
 			}
+		}
+	}
+}
+
+// addForecast adds one season's Forecast points and correct-pick counters.
+func addForecast(app core.App, row *Row, uid, cfgID, tournamentID string) {
+	fs, err := app.FindFirstRecordByFilter("forecast_scores",
+		"user = {:u} && config = {:c} && tournament = {:t}",
+		map[string]any{"u": uid, "c": cfgID, "t": tournamentID})
+	if err != nil {
+		return
+	}
+	row.ForecastPoints += fs.GetInt("points")
+	var bd struct {
+		GroupsCorrect   int            `json:"groupsCorrect"`
+		AdvanceCorrect  int            `json:"advanceCorrect"`
+		RoundCorrect    map[string]int `json:"roundCorrect"`
+		ChampionCorrect int            `json:"championCorrect"`
+		CallCorrect     map[string]int `json:"callCorrect"`
+	}
+	if json.Unmarshal([]byte(fs.GetString("breakdown")), &bd) == nil {
+		if row.Forecast == nil {
+			row.Forecast = map[string]int{}
+		}
+		row.Forecast["groups"] += bd.GroupsCorrect
+		row.Forecast["advance"] += bd.AdvanceCorrect
+		row.Forecast["champion"] += bd.ChampionCorrect
+		for k, v := range bd.RoundCorrect {
+			row.Forecast[k] += v
+		}
+		for k, v := range bd.CallCorrect {
+			row.Forecast["call:"+k] += v
 		}
 	}
 }

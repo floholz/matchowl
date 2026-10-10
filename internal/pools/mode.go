@@ -116,10 +116,15 @@ func modeView(app core.App, lg *core.Record) map[string]any {
 	if !la.IsZero() {
 		lockAt = la.UTC().Format(time.RFC3339)
 	}
+	startDate := ""
+	if sd := lg.GetDateTime("startDate").Time(); !sd.IsZero() {
+		startDate = sd.UTC().Format(time.RFC3339)
+	}
 	return map[string]any{
 		"mode":      mode,
 		"saveCalls": lg.GetInt("saveCalls"),
 		"lockAt":    lockAt,
 		"locked":    !la.IsZero() && !clock.Now(app).Before(la),
+		"startDate": startDate,
 	}
 }

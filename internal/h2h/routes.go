@@ -96,6 +96,8 @@ func roundView(app core.App, lg *core.Record, row *core.Record, pp *people, with
 		"matches":      len(ids),
 		"counted":      len(res.Counted),
 		"ghost":        res.Ghost,
+		// false: kicked off before the pool's startDate — off the table.
+		"counts": Counts(lg, row),
 	}
 	if withBreakdown {
 		v["matchIds"] = ids

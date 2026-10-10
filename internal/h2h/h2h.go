@@ -392,6 +392,13 @@ func matchPoints(app core.App, lg *core.Record, members, matches []string) (map[
 	return out, nil
 }
 
+// Counts reports whether a round adds to the pool's table: every round,
+// unless the pool restarts from a startDate after the round kicked off.
+func Counts(lg *core.Record, row *core.Record) bool {
+	since := lg.GetDateTime("startDate").Time()
+	return since.IsZero() || !row.GetDateTime("firstKickoff").Time().Before(since)
+}
+
 // TableRow is one member's line in the head-to-head table.
 type TableRow struct {
 	UserID       string `json:"userId"`
@@ -412,11 +419,14 @@ type TableRow struct {
 // Table builds the pool's head-to-head standings over its closed rounds:
 // h2h points, then the season's tip points, then the classic tiebreakers
 // (the order the points board already has). Current members only;
-// members without a round yet sit at the bottom with 0 played.
+// members without a round yet sit at the bottom with 0 played. A pool
+// with a startDate counts only the rounds that kicked off from then on,
+// and only those matches' tip points.
 func Table(app core.App, lg *core.Record, rows []*core.Record) []TableRow {
 	ids := roster(app, lg.Id)
 	cfgID := lg.GetString("scoringConfig")
-	board := scoring.Board(app, ids, cfgID, []string{pools.Season(lg)})
+	since := lg.GetDateTime("startDate").Time()
+	board := scoring.BoardSince(app, ids, cfgID, []string{pools.Season(lg)}, since)
 	rank := map[string]int{}
 	out := make([]TableRow, 0, len(board))
 	byID := map[string]*TableRow{}
@@ -429,7 +439,7 @@ func Table(app core.App, lg *core.Record, rows []*core.Record) []TableRow {
 	}
 	for _, row := range rows {
 		res := ResultsOf(row)
-		if res == nil {
+		if res == nil || !Counts(lg, row) {
 			continue
 		}
 		for _, p := range res.Pairs {

@@ -72,6 +72,8 @@
 	let saveCalls = $state(1);
 	let lockAt = $state('');
 	let locked = $state(false);
+	/** Classic: the board counts from here on (RFC3339); '' = the whole season. */
+	let startDate = $state('');
 	let chatOpen = $state(true);
 	let chatUntil = $state('');
 	const untilText = (iso: string) =>
@@ -185,6 +187,7 @@
 				saveCalls = lb.saveCalls ?? 1;
 				lockAt = lb.lockAt ?? '';
 				locked = lb.locked ?? false;
+				startDate = lb.startDate ?? '';
 				chatOpen = lb.chatOpen ?? true;
 				chatUntil = lb.chatUntil ?? '';
 				cfg = (lb.scoring as Cfg | undefined) ?? null;
@@ -254,6 +257,7 @@
 			saveCalls = lb.saveCalls ?? 1;
 			lockAt = lb.lockAt ?? '';
 			locked = lb.locked ?? false;
+			startDate = lb.startDate ?? '';
 		} catch {
 			/* keep current rows on a transient error */
 		}
@@ -317,6 +321,30 @@
 			await refreshRows();
 		} catch {
 			mgmtError = 'Could not save the settings.';
+		} finally {
+			mgmtBusy = false;
+		}
+	}
+	// Restart the board: a date input (local day) ↔ the RFC3339 the API keeps.
+	const dayOf = (iso: string) => {
+		if (!iso) return '';
+		const d = new Date(iso);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	};
+	let draftStart = $state('');
+	$effect(() => {
+		draftStart = dayOf(startDate);
+	});
+	async function saveStart(day: string) {
+		if (!league) return;
+		mgmtBusy = true;
+		mgmtError = '';
+		try {
+			const r = await api.setPoolStart(league.id, day ? new Date(`${day}T00:00`).toISOString() : '');
+			startDate = r.startDate;
+			await refreshRows();
+		} catch {
+			mgmtError = 'Could not set the start date.';
 		} finally {
 			mgmtBusy = false;
 		}
@@ -600,6 +628,23 @@
 				<button class="btn secondary slim" onclick={saveSettings} disabled={mgmtBusy || !draftSeason || !settingsDirty}>Save settings</button>
 			{/if}
 		</section>
+		{#if bound.length}
+			<section class="card vis">
+				<div class="muted small">Count from</div>
+				<div class="regrow">
+					<input class="input" type="date" bind:value={draftStart} aria-label="Count from" />
+					<button class="btn secondary slim" onclick={() => saveStart(draftStart)} disabled={mgmtBusy || draftStart === dayOf(startDate)}>Save</button>
+					{#if startDate}<button class="btn secondary slim" onclick={() => saveStart('')} disabled={mgmtBusy}>Whole season</button>{/if}
+				</div>
+				<p class="muted small hint">{startDate
+					? poolMode === 'h2h'
+						? `The table counts the matchdays kicking off from ${untilText(startDate)} on; earlier duels stay in the history but don't count.`
+						: `The leaderboard counts matches kicking off from ${untilText(startDate)} on. Earlier matches don't count, and neither does the Forecast once the season had started.`
+					: poolMode === 'h2h'
+						? 'Restart the table part-way through the season: only matchdays kicking off from the date you pick will count.'
+						: 'Restart the leaderboard part-way through the season: only matches kicking off from the date you pick will count.'}</p>
+			</section>
+		{/if}
 		<section class="card vis">
 			<div class="muted small">Next season</div>
 			{#if cloning}
@@ -760,6 +805,9 @@
 			<span class="qtxt"><b>This pool is finished.</b><span class="muted small">{isOwner ? 'Set it up again for the next season under Members.' : 'The final standings stay here.'}</span></span>
 			{#if isOwner}<button class="btn secondary slim" onclick={() => { view = 'members'; startClone(); }}>Next season</button>{/if}
 		</div>
+	{/if}
+	{#if startDate}
+		<p class="muted small countfrom">Counting {poolMode === 'h2h' && boardKind === 'h2h' ? 'matchdays' : 'matches'} from {untilText(startDate)} on.</p>
 	{/if}
 	{#if poolMode === 'h2h' && boardKind === 'h2h'}
 		<H2HBoard poolId={id} season={bound[0] ?? null} mode="table" />
@@ -1235,6 +1283,10 @@
 	}
 	.card.manage {
 		padding: 0.75rem 0.9rem;
+	}
+	.countfrom {
+		margin: 0 0 8px;
+		text-align: center;
 	}
 	.seasonsline {
 		margin-bottom: 0.4rem;

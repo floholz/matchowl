@@ -608,6 +608,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		if mode, saveCalls, err = resolveSettings(season, mode, saveCalls); err != nil {
 			return bad(e, http.StatusBadRequest, err.Error())
 		}
+		if season.Id != Season(lg) {
+			lg.Set("startDate", "") // a restart point belongs to the old season
+		}
 		lg.Set("tournaments", []string{season.Id})
 		lg.Set("mode", mode)
 		lg.Set("saveCalls", saveCalls)
@@ -623,6 +626,36 @@ func Register(app core.App, se *core.ServeEvent) {
 		out := map[string]any{"tournaments": seasonViews(app, lg)}
 		maps.Copy(out, modeView(app, lg))
 		return e.JSON(http.StatusOK, out)
+	})
+
+	// POST /api/pools/{id}/start { "startDate": RFC3339 | "" } — restart a
+	// pool's standings (owner only): only matches kicking off from then on
+	// count — head-to-head, only the rounds that kicked off from then on.
+	// "" counts the whole season again.
+	g.POST("/{id}/start", func(e *core.RequestEvent) error {
+		lg, err := ownedOpenLeague(app, e, e.Request.PathValue("id"))
+		if err != nil {
+			return err
+		}
+		var body struct {
+			StartDate string `json:"startDate"`
+		}
+		if err := e.BindBody(&body); err != nil {
+			return bad(e, http.StatusBadRequest, err.Error())
+		}
+		if body.StartDate == "" {
+			lg.Set("startDate", "")
+		} else {
+			t, err := time.Parse(time.RFC3339, body.StartDate)
+			if err != nil {
+				return bad(e, http.StatusBadRequest, "startDate: RFC3339 expected")
+			}
+			lg.Set("startDate", t.UTC())
+		}
+		if err := app.Save(lg); err != nil {
+			return err
+		}
+		return e.JSON(http.StatusOK, modeView(app, lg))
 	})
 
 	// POST /api/pools/{id}/clone { "name"?, "tournament"?, "mode"?, "saveCalls"? }

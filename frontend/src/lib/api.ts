@@ -37,6 +37,9 @@ export interface PoolModeInfo {
 	 *  of the pool's first round. '' when the pool binds no season. */
 	lockAt: string;
 	locked: boolean;
+	/** Classic: the board counts matches kicking off from here on (RFC3339);
+	 *  '' = the whole season. */
+	startDate: string;
 }
 
 /** A pool (the API still calls them leagues). */
@@ -210,6 +213,8 @@ export interface H2HRound {
 	matches: number;
 	counted: number;
 	ghost: number;
+	/** false: kicked off before the pool's start date, so off the table. */
+	counts: boolean;
 }
 export interface H2HRoundDetail extends H2HRound {
 	matchIds: string[];
@@ -603,6 +608,8 @@ export const api = {
 	/** Owner: the season the pool plays and how — until its first round kicks off. */
 	setPoolSettings: (id: string, settings: Partial<PoolSettings>) =>
 		post<{ tournaments: PoolSeason[] } & PoolModeInfo>(`/api/pools/${id}/settings`, settings),
+	/** Restart a classic pool's board from a date ('' = the whole season again). */
+	setPoolStart: (id: string, startDate: string) => post<PoolModeInfo>(`/api/pools/${id}/start`, { startDate }),
 	clonePool: (id: string, name: string, settings: Partial<PoolSettings>) =>
 		post<{ id: string; name: string; inviteCode: string; mode: PoolMode }>(`/api/pools/${id}/clone`, { name, ...settings }),
 	// ---- pool invites: members bring friends in without a code ----
