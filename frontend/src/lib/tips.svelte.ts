@@ -38,6 +38,11 @@ export interface Match {
 	penAway: number;
 	advancer: string;
 	finalizedAt: string;
+	/** Live clock at the last sync (liveclock.ts); empty unless live. */
+	livePhase?: string;
+	liveMinute?: number;
+	liveExtra?: number;
+	liveAt?: string;
 }
 
 /** The raw fields of a tie's other leg (a subset of Match; the feed sends

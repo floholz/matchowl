@@ -3,6 +3,7 @@ package scoring
 import (
 	"encoding/json"
 	"log"
+	"reflect"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -87,12 +88,37 @@ func Recompute(app core.App) error {
 	})
 }
 
+// clockFields are the live-clock fields the sync refreshes every reading.
+var clockFields = map[string]bool{"livePhase": true, "liveMinute": true, "liveExtra": true, "liveAt": true, "updated": true}
+
+// clockOnly reports whether a match save changed nothing but its live clock.
+func clockOnly(rec *core.Record) bool {
+	orig := rec.Original()
+	if orig == nil || orig.IsNew() {
+		return false
+	}
+	for _, f := range rec.Collection().Fields {
+		n := f.GetName()
+		if clockFields[n] {
+			continue
+		}
+		if !reflect.DeepEqual(rec.Get(n), orig.Get(n)) {
+			return false
+		}
+	}
+	return true
+}
+
 // Register wires automatic recompute on result changes and a manual
 // superuser trigger.
 func Register(app core.App, se *core.ServeEvent) {
 	app.OnRecordAfterUpdateSuccess("matches").BindFunc(func(e *core.RecordEvent) error {
 		// Recompute when a result is finalized/corrected, or when a knockout
-		// match's teams resolve (affects Forecast round scoring).
+		// match's teams resolve (affects Forecast round scoring). A save that
+		// only moves a live match's clock changes no score: skip it.
+		if clockOnly(e.Record) {
+			return e.Next()
+		}
 		if e.Record.GetString("finalizedAt") != "" ||
 			tournaments.NewStructureCache(e.App).IsKnockoutMatch(e.Record) {
 			if err := Recompute(e.App); err != nil {

@@ -24,6 +24,7 @@
 	} from '$lib/tips.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
+	import { liveMinute } from '$lib/liveclock';
 	import { tieStrip } from '$lib/tie';
 	import Flag from './Flag.svelte';
 	import LedBoard from './LedBoard.svelte';
@@ -110,6 +111,14 @@
 		const id = setInterval(() => (now = serverClock.now()), 1000);
 		return () => clearInterval(id);
 	});
+	// Live: the minute moves on between syncs (liveclock.ts).
+	$effect(() => {
+		if (!live) return;
+		now = serverClock.now();
+		const id = setInterval(() => (now = serverClock.now()), 10_000);
+		return () => clearInterval(id);
+	});
+	let minute = $derived(live ? liveMinute(match, now) : '');
 
 	// ---- two-legged ties ----
 	let legView = $derived.by((): OtherLeg | null => {
@@ -283,7 +292,7 @@
 	<svelte:element this={href ? 'a' : 'div'} class="main" href={href || undefined} onclick={href ? pick : undefined}>
 		<span class="when" class:islive={live}>
 			{#if live}
-				<b>Live</b><span class="ldot"></span>
+				<b class="lv">Live<span class="ldot"></span></b>{#if minute}<span class="stsub digits">{minute}</span>{/if}
 			{:else if played}
 				<b>{ending}</b>{#if statusSub}<span class="stsub" title={statusSub}>{statusSub}</span>{/if}
 			{:else}
@@ -445,6 +454,11 @@
 	.when.islive,
 	.when.islive b {
 		color: var(--live);
+	}
+	.when b.lv {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
 	}
 	.ldot {
 		width: 6px;

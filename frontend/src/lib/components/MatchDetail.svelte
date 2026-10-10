@@ -22,6 +22,7 @@
 		type OtherLeg
 	} from '$lib/tips.svelte';
 	import { serverClock } from '$lib/serverclock.svelte';
+	import { liveMinute } from '$lib/liveclock';
 	import { defaultScoring, scoreTip, type ScoringConfig } from '$lib/scoring';
 	import { tieStrip } from '$lib/tie';
 	import { groupTable } from '$lib/standings';
@@ -112,6 +113,14 @@
 		const i = setInterval(() => (now = serverClock.now()), 1000);
 		return () => clearInterval(i);
 	});
+	// Live: the minute moves on between syncs (liveclock.ts).
+	$effect(() => {
+		if (!live) return;
+		now = serverClock.now();
+		const i = setInterval(() => (now = serverClock.now()), 10_000);
+		return () => clearInterval(i);
+	});
+	let minute = $derived(live && match ? liveMinute(match, now) : '');
 
 	const teamOf = (tid: string) => tipsStore.team(tid);
 	const nameOf = (tid: string) => teamOf(tid)?.name ?? '—';
@@ -349,7 +358,7 @@
 					/>
 					<div class="pills">
 						{#if live}
-							<span class="pill live">Live</span>
+							<span class="pill live">Live{#if minute} · <span class="digits">{minute}</span>{/if}</span>
 						{:else}
 							{#if wentET}<span class="pill">AET</span>{/if}
 							{#if wentPens}<span class="pill">PEN</span>{/if}

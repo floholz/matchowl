@@ -524,11 +524,12 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 		// day), and fixtures get postponed. Follow the provider for anything
 		// not yet played so tips lock at the real time.
 		sched := applySchedule(rec, f, status)
+		clock := applyClock(rec, f, status)
 		// Skip if nothing changed (avoids needless recompute storms: every
 		// save of a finished or knockout match triggers a full score rebuild).
 		// A finished match without finalizedAt (e.g. hand-edited in the admin
 		// UI) still saves, so it gets finalized and scored.
-		if !sched && rec.GetString("status") == status &&
+		if !sched && !clock && rec.GetString("status") == status &&
 			(status != "finished" || rec.GetString("finalizedAt") != "") &&
 			(ftH == nil || rec.GetInt("ftHome") == *ftH) &&
 			(ftA == nil || rec.GetInt("ftAway") == *ftA) &&
@@ -784,6 +785,29 @@ func isKnockout(app core.App, rec *core.Record) bool {
 // tournament's structure.
 func ApplyResult(app core.App, rec *core.Record, status string, ftH, ftA, etH, etA, penH, penA *int) {
 	applyResult(rec, isKnockout(app, rec), status, ftH, ftA, etH, etA, penH, penA)
+}
+
+// applyClock records a live match's phase and minute as the provider has
+// them, stamped with the time of reading so the client can count on from
+// there (and clears them once the match is no longer live). Reports
+// whether anything changed; liveAt only moves with the reading itself.
+func applyClock(rec *core.Record, f football.Fixture, status string) bool {
+	phase, minute, extra := "", 0, 0
+	if status == "live" {
+		phase, minute, extra = f.Status, ip(f.Elapsed), ip(f.Extra)
+	}
+	if rec.GetString("livePhase") == phase && rec.GetInt("liveMinute") == minute && rec.GetInt("liveExtra") == extra {
+		return false
+	}
+	rec.Set("livePhase", phase)
+	rec.Set("liveMinute", minute)
+	rec.Set("liveExtra", extra)
+	if phase == "" {
+		rec.Set("liveAt", "")
+	} else {
+		rec.Set("liveAt", time.Now().UTC())
+	}
+	return true
 }
 
 // applyResult writes scores/status onto a match record and, for knockout

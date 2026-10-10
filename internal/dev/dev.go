@@ -107,8 +107,35 @@ func windowFor(knockout bool) time.Duration {
 	return groupWindow
 }
 
+// simClock is the live clock a simulated match shows after d: 45' and up
+// to 2' of stoppage, a 15' break, then the second half to 90+n'.
+func simClock(d time.Duration) (phase string, minute, extra int) {
+	el := int(d.Minutes()) + 1
+	switch {
+	case el <= 45:
+		return "1H", el, 0
+	case el <= 47:
+		return "1H", 45, el - 45
+	case el <= 62:
+		return "HT", 45, 0
+	case el-17 <= 90:
+		return "2H", el - 17, 0
+	default:
+		return "2H", 90, el - 17 - 90
+	}
+}
+
+// clearClock empties a match's live clock fields.
+func clearClock(m *core.Record) {
+	m.Set("livePhase", "")
+	m.Set("liveMinute", 0)
+	m.Set("liveExtra", 0)
+	m.Set("liveAt", "")
+}
+
 // resetMatch returns a match to its pre-result state.
 func resetMatch(m *core.Record, knockout bool) {
+	clearClock(m)
 	m.Set("status", "scheduled")
 	for _, f := range []string{"ftHome", "ftAway", "etHome", "etAway", "penHome", "penAway"} {
 		m.Set(f, 0)
@@ -167,9 +194,15 @@ func simulate(app core.App, simNow time.Time) error {
 				continue
 			}
 			if simNow.Before(ko.Add(windowFor(knockout))) {
-				if m.GetString("status") != "live" {
+				phase, minute, extra := simClock(simNow.Sub(ko))
+				if m.GetString("status") != "live" || m.GetString("livePhase") != phase ||
+					m.GetInt("liveMinute") != minute || m.GetInt("liveExtra") != extra {
 					m.Set("status", "live")
 					m.Set("finalizedAt", "")
+					m.Set("livePhase", phase)
+					m.Set("liveMinute", minute)
+					m.Set("liveExtra", extra)
+					m.Set("liveAt", simNow)
 					if err := app.Save(m); err != nil {
 						return err
 					}
@@ -206,6 +239,7 @@ func simulate(app core.App, simNow time.Time) error {
 						intp(h+1), intp(a), nil, nil)
 				}
 			}
+			clearClock(m)
 			if err := app.Save(m); err != nil {
 				return err
 			}

@@ -41,6 +41,8 @@ type Fixture struct {
 	Date      time.Time // kickoff (UTC)
 	Round     string    // e.g. "Group A - 1", "Round of 32"
 	Status    string    // NS, 1H, HT, 2H, ET, BT, P, FT, AET, PEN, PST, CANC, ...
+	Elapsed   *int      // minute of play while live (nil otherwise)
+	Extra     *int      // stoppage minutes past 45/90/120 (nil when none)
 	HomeID    int       // provider team ids (0 when the slot is still TBD)
 	AwayID    int
 	HomeName  string
@@ -83,7 +85,9 @@ type apiResponse struct {
 			ID     int       `json:"id"`
 			Date   time.Time `json:"date"`
 			Status struct {
-				Short string `json:"short"`
+				Short   string `json:"short"`
+				Elapsed *int   `json:"elapsed"`
+				Extra   *int   `json:"extra"`
 			} `json:"status"`
 		} `json:"fixture"`
 		League struct {
@@ -166,6 +170,8 @@ func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, erro
 			Date:      r.Fixture.Date.UTC(),
 			Round:     r.League.Round,
 			Status:    r.Fixture.Status.Short,
+			Elapsed:   r.Fixture.Status.Elapsed,
+			Extra:     r.Fixture.Status.Extra,
 			HomeID:    r.Teams.Home.ID,
 			AwayID:    r.Teams.Away.ID,
 			HomeName:  r.Teams.Home.Name,

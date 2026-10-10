@@ -207,6 +207,10 @@ func Register(app core.App, se *core.ServeEvent) {
 				"penHome":     m.GetInt("penHome"),
 				"penAway":     m.GetInt("penAway"),
 				"advancer":    m.GetString("advancer"),
+				"livePhase":   m.GetString("livePhase"),
+				"liveMinute":  m.GetInt("liveMinute"),
+				"liveExtra":   m.GetInt("liveExtra"),
+				"liveAt":      m.GetString("liveAt"),
 			}
 			// Two-legged ties: the other leg is usually outside the feed
 			// window, so denormalize what the card needs (result + which leg
