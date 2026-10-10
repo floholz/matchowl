@@ -85,6 +85,19 @@ export function localDayKey(iso: string): string {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** The matches-collection fields a realtime event refreshes on a feed row;
+ *  everything else on the row (tournament, stage name, leg, my tip) is the
+ *  feed's own and stays. */
+const LIVE_FIELDS = [
+	'kickoff', 'status', 'finalizedAt', 'homeTeam', 'awayTeam', 'homeLabel', 'awayLabel',
+	'ftHome', 'ftAway', 'etHome', 'etAway', 'penHome', 'penAway', 'advancer',
+	'livePhase', 'liveMinute', 'liveExtra', 'liveAt'
+] as const;
+
+/** How long the page may sit in the background before it refetches on
+ *  return (realtime events missed while asleep are not replayed). */
+const STALE_MS = 30_000;
+
 function groupByTournament(matches: FeedMatch[]): FeedGroup[] {
 	const byT = new Map<string, FeedGroup>();
 	for (const m of matches) {
@@ -155,11 +168,67 @@ class FeedStore {
 			this.teams = tmap;
 			this.suggestions = s.suggestions ?? [];
 			this.loaded = true;
+			this.subscribeLive();
 		} catch (e) {
 			this.error = e instanceof Error ? e.message : 'Could not load the feed.';
 			throw e;
 		} finally {
 			this.loading = false;
+		}
+	}
+
+	// ---- live updates ----
+	private subscribed = false;
+	private hiddenAt = 0;
+	private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+	/** Refetch soon, once — several events (a matchday's final whistles)
+	 *  collapse into one request. */
+	private reloadSoon(ms = 1500) {
+		if (this.reloadTimer) return;
+		this.reloadTimer = setTimeout(() => {
+			this.reloadTimer = null;
+			this.load().catch(() => {});
+		}, ms);
+	}
+
+	/** Mirror match saves (scores, status, the live clock) into the rows
+	 *  without a refetch. A final whistle refetches: the points were just
+	 *  computed server-side. So does a team the feed has no entry for (a
+	 *  knockout slot resolving), a reconnect, and a return from the
+	 *  background, since missed events are not replayed. */
+	private subscribeLive() {
+		if (this.subscribed) return;
+		this.subscribed = true;
+		pb.collection('matches')
+			.subscribe('*', (e) => {
+				const i = this.matches.findIndex((m) => m.id === e.record.id);
+				if (i < 0) return;
+				const prev = this.matches[i];
+				const next = { ...prev } as Record<string, unknown>;
+				for (const f of LIVE_FIELDS) if (f in e.record) next[f] = e.record[f];
+				this.matches[i] = next as unknown as FeedMatch;
+				const finalized = !prev.finalizedAt && !!e.record.finalizedAt;
+				const unknownTeam = [e.record.homeTeam, e.record.awayTeam].some((t) => t && !this.teams[t]);
+				if (finalized || unknownTeam) this.reloadSoon();
+			})
+			.catch(() => {
+				this.subscribed = false;
+			});
+		// The first connect is not a reconnect (it may already be up for the
+		// tips store's subscription).
+		let connected = pb.realtime.isConnected;
+		pb.realtime
+			.subscribe('PB_CONNECT', () => {
+				if (connected) this.reloadSoon(0);
+				connected = true;
+			})
+			.catch(() => {});
+		if (typeof document !== 'undefined') {
+			document.addEventListener('visibilitychange', () => {
+				if (document.hidden) this.hiddenAt = Date.now();
+				else if (this.hiddenAt && Date.now() - this.hiddenAt > STALE_MS) this.reloadSoon(0);
+			});
 		}
 	}
 
