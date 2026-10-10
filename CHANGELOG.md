@@ -11,6 +11,40 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.10] - 2026-10-10
+
+The live release. Live matches show their minute, the home feed follows
+them without a reload, and a pool owner can restart the standings from a
+date — so players who joined late start level.
+
+**Deploy:** migrations 0052 (`pools.startDate`) and 0053 (the match clock
+fields) run at boot. No env changes.
+
+### Added
+
+- **Pool start date:** the owner picks a date under Manage → Count from,
+  and the pool counts only from then on. The points board counts only
+  matches kicking off from that date, and drops the Forecast once the
+  season had already started. A head-to-head table counts only the
+  matchdays that kicked off from then on; earlier duels stay in the
+  history, greyed out and marked "not counted". "Whole season" undoes it,
+  and changing the pool's season clears it. Nothing is deleted: the
+  standings are worked out from the date each time.
+- **Live minute:** a live match shows "Live" with its pulsing dot on the
+  first line and the minute below (`67'`, `45+2'`, `HT`, `Pens`), on the
+  match rows and the match page. The sync keeps the minute the provider
+  already sends (no extra API requests) and the app counts on from it
+  between syncs, held at the end of each half. The dev simulator plays a
+  clock too.
+
+### Changed
+
+- **Home feed:** scores, kick-offs, the live minute and full time now
+  update without a reload. Full time refetches the feed for the points,
+  and so does coming back to the app after a while.
+- **Fewer recomputes:** a match save that only moves the live clock no
+  longer rebuilds every score.
+
 ## [1.0.0-alpha.9] - 2026-10-09
 
 The tipped release. A match shows which friends have already tipped it

@@ -35,8 +35,9 @@ added from the admin API without touching the codebase (see
   shareable `/join/<code>` link (with public preview + auth resume).
   Combined leaderboard plus separate **Overall / Tips / Forecast** views,
   with the tiebreaker stats exposed and a built-in scoring legend. Your
-  own row is highlighted. Every user is auto-joined to a shared **Global**
-  league.
+  own row is highlighted. The owner can restart a pool's standings from a
+  date, so latecomers start level. Every user is auto-joined to a shared
+  **Global** league.
 - **Live tournament view** — group tables and a knockout bracket that fill
   in from real results.
 - **Bot opponents** — `role=bot` accounts that play your leagues through the
@@ -51,7 +52,7 @@ added from the admin API without touching the codebase (see
   offline app shell, maskable icons + screenshots.
 - **Results** — auto-synced from API-Football (free tier) when a key is set;
   always overridable by an admin; fully playable on the seeded fixtures
-  without any key.
+  without any key. Live matches show their score and minute as they play.
 
 ## Scoring (config-driven, max 7 points per match)
 

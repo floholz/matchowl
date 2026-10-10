@@ -704,6 +704,11 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.10** (2026-10-10): the live release — a pool start date
+  restarts the standings (classic: matches from then on, no Forecast
+  mid-season; h2h: matchdays from then on), live matches show their
+  minute (stored from the sync, counted on client-side), and the home
+  feed takes realtime updates. Migrations 0052–0053.
 - **v1.0.0-alpha.9** (2026-10-09): the tipped release — friends who have
   tipped an unstarted match are listed on it (identity only; picks still
   revealed at kick-off), and the Admin menu entry gets the external-link
