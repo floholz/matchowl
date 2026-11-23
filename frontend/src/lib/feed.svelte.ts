@@ -35,6 +35,8 @@ export interface FeedMatch extends Match {
 	};
 }
 
+export type FeedScope = 'mine' | 'all' | 'competition';
+
 export interface FeedDeadline {
 	type: 'forecast';
 	tournament: FeedMatch['tournament'];
@@ -124,23 +126,41 @@ class FeedStore {
 
 	past = $state(2);
 	ahead = $state(7);
-	/** `mine` = my matches (default); `all` = every visible season. */
-	scope = $state<'mine' | 'all'>('mine');
+	/** `mine` = my matches (default); `all` = every visible season;
+	 *  `competition` = the open seasons of one competition (`competition`). */
+	scope = $state<FeedScope>('mine');
+	/** Competition key while `scope` is `competition`. */
+	competition = $state('');
 
-	/** Switch between my matches and all of them, then refetch. */
-	async setScope(scope: 'mine' | 'all') {
-		if (this.scope === scope) return;
+	/** Switch the filter, then refetch. */
+	async setScope(scope: FeedScope, competition = '') {
+		if (scope !== 'competition') competition = '';
+		if (this.scope === scope && this.competition === competition) return;
 		this.scope = scope;
+		this.competition = competition;
 		await this.load();
 	}
 
+	/** A load asked for while one was running (a filter switch): run it
+	 *  once that one is done, so the newest filter wins. */
+	private queued = false;
+
 	async load() {
-		if (this.loading) return;
+		if (this.loading) {
+			this.queued = true;
+			return;
+		}
 		this.loading = true;
 		this.error = '';
 		try {
 			await serverClock.refresh();
-			const q = `past=${this.past}&days=${this.ahead}${this.scope === 'all' ? '&all=1' : ''}`;
+			const q =
+				`past=${this.past}&days=${this.ahead}` +
+				(this.scope === 'all'
+					? '&scope=all'
+					: this.scope === 'competition'
+						? `&competition=${encodeURIComponent(this.competition)}`
+						: '');
 			const r = await pb.send(`/api/feed?${q}`, { method: 'GET' });
 			this.matches = (r.matches ?? []).map((m: FeedMatch) => ({ ...m, reasons: m.reasons ?? [] }));
 			this.poolSeasons = r.poolSeasons ?? [];
@@ -167,6 +187,10 @@ class FeedStore {
 			throw e;
 		} finally {
 			this.loading = false;
+			if (this.queued) {
+				this.queued = false;
+				this.load().catch(() => {});
+			}
 		}
 	}
 

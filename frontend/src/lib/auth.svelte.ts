@@ -16,6 +16,8 @@ class Auth {
 		avatarPreset: string;
 		// In-app guides already played, by id (lib/guide.svelte.ts).
 		guides: Record<string, string>;
+		// Competition keys pinned to the Matches filter row (lib/pins.svelte.ts).
+		pinnedCompetitions: string[];
 		role: string; // "owner" | "admin" | "bot"; empty => normal member
 		// Per-event email toggles; absent/missing entries default to ON.
 		notifyPrefs: Record<string, { email?: boolean }>;
@@ -50,6 +52,7 @@ class Auth {
 			avatarUrl,
 			avatarPreset: (r.avatarPreset as string) || '',
 			guides: (r.guides as Record<string, string>) || {},
+			pinnedCompetitions: Array.isArray(r.pinnedCompetitions) ? (r.pinnedCompetitions as string[]) : [],
 			role: (r.role as string) || 'member',
 			notifyPrefs:
 				(r.notifyPrefs as Record<string, { email?: boolean }>) || {},

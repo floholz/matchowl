@@ -1,11 +1,13 @@
-<!-- Matches: "my matches" (pools, tips; default) or every competition
-     ("All"), day by day, one card per competition
+<!-- Matches: one filter row — My matches (pools, tips; default) · All ·
+     pinned competitions · More — with Live pinned at the right end, narrowing
+     whatever is picked, and a clear button at the left once the filter isn't
+     the default. Day by day, one card per competition
      per day, today anchored. A Live chip appears only while something is
      live; the sticky day strip scrolls the list and follows it. Only lists
      matches — deadlines and suggestions live on Home / Competitions. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
-	import { feedStore, type FeedMatch, type FeedDay } from '$lib/feed.svelte';
+	import { feedStore, type FeedMatch, type FeedDay, type FeedScope } from '$lib/feed.svelte';
 	import { otherLegView } from '$lib/tips.svelte';
 	import { tournamentStore, competitionLogoUrl } from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
@@ -15,8 +17,10 @@
 	import MatchGroup from '$lib/components/MatchGroup.svelte';
 	import MatchRow from '$lib/components/MatchRow.svelte';
 	import MatchDetail from '$lib/components/MatchDetail.svelte';
+	import CompetitionSheet from '$lib/components/CompetitionSheet.svelte';
+	import { pins } from '$lib/pins.svelte';
 	import { tick, untrack } from 'svelte';
-	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Globe, Radio } from '@lucide/svelte';
+	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Globe, Radio, X, Ellipsis } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Matches', wide: true }));
 
@@ -33,9 +37,8 @@
 	$effect(() => {
 		if (selected && !media.panel) goto(`/m/${selected}`, { replaceState: true });
 	});
-	/** Rail: one competition only ('' = all in scope). */
-	let tid = $state('');
-
+	/** The "More" sheet (every competition, pin mode). */
+	let moreOpen = $state(false);
 	let openId = $state('');
 	let scrolled = $state(false);
 	let liveOnly = $state(false);
@@ -76,8 +79,8 @@
 		if (liveCount === 0) liveOnly = false;
 	});
 	let days = $derived.by((): FeedDay[] => {
-		if (!liveOnly && !tid) return feedStore.days;
-		const keep = (m: FeedMatch) => (!liveOnly || m.status === 'live') && (!tid || m.tournament.id === tid);
+		if (!liveOnly) return feedStore.days;
+		const keep = (m: FeedMatch) => m.status === 'live';
 		return feedStore.days
 			.map((d) => ({
 				...d,
@@ -88,15 +91,35 @@
 			}))
 			.filter((d) => d.matches.length);
 	});
-	/** Rail lists: your pools' seasons, and the rest (opens the "all" scope). */
-	let notPlaying = $derived(
-		tournamentStore.list.filter(
-			(t) => t.status !== 'draft' && !feedStore.poolSeasons.some((p) => p.id === t.id)
-		)
-	);
-	async function pickTournament(id: string, playing: boolean) {
-		tid = tid === id ? '' : id;
-		if (tid && !playing && feedStore.scope !== 'all') await setScope('all');
+	/** The filter is the default one: My matches, Live off. */
+	let isDefault = $derived(feedStore.scope === 'mine' && !liveOnly);
+	/** Competition chips: pools' and your pins, plus the one picked from the
+	 *  sheet while it is picked (so the selection stays visible). */
+	let compChips = $derived.by(() => {
+		const out = pins.pinned.map((p) => p.competition);
+		const cur = feedStore.scope === 'competition' ? feedStore.competition : '';
+		if (cur && !out.some((c) => c.key === cur)) {
+			const e = pins.entries.get(cur);
+			if (e) out.push(e.competition);
+		}
+		return out;
+	});
+	let chipsEl = $state<HTMLElement | null>(null);
+	// Keep the picked chip in view when the filter changes.
+	$effect(() => {
+		void feedStore.scope;
+		void feedStore.competition;
+		tick().then(() =>
+			chipsEl?.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+		);
+	});
+	function clearFilters() {
+		liveOnly = false;
+		setScope('mine');
+	}
+	function pickCompetition(key: string) {
+		moreOpen = false;
+		setScope('competition', key);
 	}
 	let strip = $derived.by(() => {
 		const has = new Set(days.map((d) => d.key));
@@ -312,8 +335,8 @@
 		const round = rounds.size === 1 ? ms[0].roundLabel : '';
 		return [stage, round !== stage ? round : ''].filter(Boolean).join(' · ');
 	}
-	async function setScope(scope: 'mine' | 'all') {
-		await feedStore.setScope(scope).catch(() => {});
+	async function setScope(scope: FeedScope, competition = '') {
+		await feedStore.setScope(scope, competition).catch(() => {});
 		await tick();
 		goDay(anchorKey, 'instant');
 	}
@@ -322,35 +345,44 @@
 <div class="layout" class:withpanel={media.panel && !!selected}>
 <aside class="rail">
 	<div class="railh">Show</div>
-	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> My matches</button>
-	<button class="raillink" class:on={feedStore.scope === 'all' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('all'); }}><Globe size={16} /> Everything</button>
-	{#if liveCount > 0}
+	<button class="raillink" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}><Check size={16} /> My matches</button>
+	<button class="raillink" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}><Globe size={16} /> All</button>
+	{#if liveCount > 0 || liveOnly}
 		<button class="raillink live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}><Radio size={16} /> Live · {liveCount}</button>
 	{/if}
-	{#if feedStore.poolSeasons.length}
-		<div class="railh">Your pools</div>
-		{#each feedStore.poolSeasons as t (t.id)}
-			<button class="raillink" class:on={tid === t.id} onclick={() => pickTournament(t.id, true)}>{t.shortName || t.name}</button>
+	{#if compChips.length}
+		<div class="railh">Pinned</div>
+		{#each compChips as c (c.key)}
+			<button class="raillink" class:on={feedStore.scope === 'competition' && feedStore.competition === c.key} onclick={() => setScope('competition', c.key)}>{c.shortName || c.name}</button>
 		{/each}
 	{/if}
-	{#if notPlaying.length}
-		<div class="railh">More</div>
-		{#each notPlaying as t (t.id)}
-			<button class="raillink dim" class:on={tid === t.id} onclick={() => pickTournament(t.id, false)}>{t.shortName || t.name}</button>
-		{/each}
+	<button class="raillink dim" onclick={() => (moreOpen = true)}><Ellipsis size={16} /> More competitions</button>
+	{#if !isDefault}
+		<button class="raillink dim" onclick={clearFilters}><X size={16} /> Clear filters</button>
 	{/if}
 </aside>
 <div class="col">
 <div class="subbar">
 	<div class="chips">
-		<button class="chip" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}>
-			{#if feedStore.scope === 'mine'}<Check size={14} />{/if} My matches
-		</button>
-		<button class="chip" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}>
-			{#if feedStore.scope === 'all'}<Check size={14} />{/if} All
-		</button>
-		<span class="spacer"></span>
-		{#if liveCount > 0}
+		{#if !isDefault}
+			<button class="chip clear" onclick={clearFilters} aria-label="Clear filters" title="Clear filters"><X size={15} /></button>
+		{/if}
+		<div class="scroller" bind:this={chipsEl}>
+			<button class="chip" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}>
+				{#if feedStore.scope === 'mine'}<Check size={14} />{/if} My matches
+			</button>
+			<button class="chip" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}>
+				{#if feedStore.scope === 'all'}<Check size={14} />{/if} All
+			</button>
+			{#each compChips as c (c.key)}
+				{@const on = feedStore.scope === 'competition' && feedStore.competition === c.key}
+				<button class="chip" class:on onclick={() => setScope('competition', c.key)}>
+					{#if on}<Check size={14} />{/if} {c.shortName || c.name}
+				</button>
+			{/each}
+			<button class="chip" onclick={() => (moreOpen = true)}>More <ChevronDown size={14} /></button>
+		</div>
+		{#if liveCount > 0 || liveOnly}
 			<button class="chip live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}>
 				<span class="dot"></span> Live · {liveCount}
 			</button>
@@ -453,6 +485,13 @@
 	{/if}
 </div>
 </div>
+{#if moreOpen}
+	<CompetitionSheet
+		current={feedStore.scope === 'competition' ? feedStore.competition : ''}
+		onPick={pickCompetition}
+		onClose={() => (moreOpen = false)}
+	/>
+{/if}
 {#if media.panel && selected}
 	<aside class="panel">
 		<MatchDetail id={selected} onClose={closePanel} onSaved={(t) => feedStore.applyTip(selected, t)} />
@@ -600,7 +639,24 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
+	.scroller {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+		/* Fade the edges so chips read as scrolling on under the pins. */
+		mask-image: linear-gradient(90deg, transparent 0, #000 10px, #000 calc(100% - 24px), transparent);
+		padding: 0 10px;
+		margin: 0 -10px;
+	}
+	.scroller::-webkit-scrollbar {
+		display: none;
+	}
 	.chip {
+		flex: none;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.35rem;
@@ -620,6 +676,14 @@
 		background: var(--accent);
 		border-color: var(--accent);
 		color: var(--accent-fg);
+	}
+	.chip.clear {
+		width: 34px;
+		padding: 0;
+		justify-content: center;
+		color: var(--accent);
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+		background: color-mix(in srgb, var(--accent) 12%, var(--surface));
 	}
 	.chip.live {
 		color: var(--live);
