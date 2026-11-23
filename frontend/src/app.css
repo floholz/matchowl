@@ -55,6 +55,15 @@ body {
 	text-rendering: optimizeLegibility;
 }
 
+/* Form controls don't inherit the page font by default — without this, any
+   button without its own `font: inherit` falls back to the system font. */
+button,
+input,
+select,
+textarea {
+	font-family: inherit;
+}
+
 body {
 	min-height: 100dvh;
 	background-image: var(--bg-atmosphere);

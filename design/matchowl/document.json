@@ -235486,7 +235486,7 @@
    "type": "text",
    "characters": "GIF",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "ExtraBold",
     "font_size": 11.52,
     "line_height": {"unit":"pixels","value":11.52},
@@ -260858,7 +260858,7 @@
    "type": "text",
    "characters": "1",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -260933,7 +260933,7 @@
    "type": "text",
    "characters": "2",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -261008,7 +261008,7 @@
    "type": "text",
    "characters": "3",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -261083,7 +261083,7 @@
    "type": "text",
    "characters": "4",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -261158,7 +261158,7 @@
    "type": "text",
    "characters": "5",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -261861,7 +261861,7 @@
    "type": "text",
    "characters": " Match tips ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -261936,7 +261936,7 @@
    "type": "text",
    "characters": " League chat ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -262011,7 +262011,7 @@
    "type": "text",
    "characters": " Forecast & bracket ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -262086,7 +262086,7 @@
    "type": "text",
    "characters": " Notifications ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -262161,7 +262161,7 @@
    "type": "text",
    "characters": " Leagues with friends ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -262236,7 +262236,7 @@
    "type": "text",
    "characters": " Look & feel ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -262311,7 +262311,7 @@
    "type": "text",
    "characters": " Something else… ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -263582,7 +263582,7 @@
    "type": "text",
    "characters": "Free, with optional donations",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -263627,7 +263627,7 @@
    "type": "text",
    "characters": "Like now — chip in if you feel like it",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -263702,7 +263702,7 @@
    "type": "text",
    "characters": "A small one-time fee per season",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -263747,7 +263747,7 @@
    "type": "text",
    "characters": "A few euros to cover servers & data",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -263822,7 +263822,7 @@
    "type": "text",
    "characters": "I wouldn't pay",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -263867,7 +263867,7 @@
    "type": "text",
    "characters": "Honest answer — that's useful too",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -495011,7 +495011,7 @@
    "type": "text",
    "characters": "GIF",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "ExtraBold",
     "font_size": 11.52,
     "line_height": {"unit":"pixels","value":11.52},
@@ -520388,7 +520388,7 @@
    "type": "text",
    "characters": "1",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -520463,7 +520463,7 @@
    "type": "text",
    "characters": "2",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -520538,7 +520538,7 @@
    "type": "text",
    "characters": "3",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -520613,7 +520613,7 @@
    "type": "text",
    "characters": "4",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -520688,7 +520688,7 @@
    "type": "text",
    "characters": "5",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -521391,7 +521391,7 @@
    "type": "text",
    "characters": " Match tips ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521466,7 +521466,7 @@
    "type": "text",
    "characters": " League chat ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521541,7 +521541,7 @@
    "type": "text",
    "characters": " Forecast & bracket ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521616,7 +521616,7 @@
    "type": "text",
    "characters": " Notifications ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521691,7 +521691,7 @@
    "type": "text",
    "characters": " Leagues with friends ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521766,7 +521766,7 @@
    "type": "text",
    "characters": " Look & feel ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -521841,7 +521841,7 @@
    "type": "text",
    "characters": " Something else… ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -523112,7 +523112,7 @@
    "type": "text",
    "characters": "Free, with optional donations",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -523157,7 +523157,7 @@
    "type": "text",
    "characters": "Like now — chip in if you feel like it",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -523232,7 +523232,7 @@
    "type": "text",
    "characters": "A small one-time fee per season",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -523277,7 +523277,7 @@
    "type": "text",
    "characters": "A few euros to cover servers & data",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -523352,7 +523352,7 @@
    "type": "text",
    "characters": "I wouldn't pay",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -523397,7 +523397,7 @@
    "type": "text",
    "characters": "Honest answer — that's useful too",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -758580,7 +758580,7 @@
    "type": "text",
    "characters": "GIF",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "ExtraBold",
     "font_size": 11.52,
     "line_height": {"unit":"pixels","value":11.52},
@@ -784359,7 +784359,7 @@
    "type": "text",
    "characters": "1",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -784434,7 +784434,7 @@
    "type": "text",
    "characters": "2",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -784509,7 +784509,7 @@
    "type": "text",
    "characters": "3",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -784584,7 +784584,7 @@
    "type": "text",
    "characters": "4",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -784659,7 +784659,7 @@
    "type": "text",
    "characters": "5",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Bold",
     "font_size": 16.0,
     "line_height": {"unit":"auto"},
@@ -785361,7 +785361,7 @@
    "type": "text",
    "characters": " Match tips ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785436,7 +785436,7 @@
    "type": "text",
    "characters": " League chat ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785511,7 +785511,7 @@
    "type": "text",
    "characters": " Forecast & bracket ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785586,7 +785586,7 @@
    "type": "text",
    "characters": " Notifications ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785661,7 +785661,7 @@
    "type": "text",
    "characters": " Leagues with friends ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785736,7 +785736,7 @@
    "type": "text",
    "characters": " Look & feel ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -785811,7 +785811,7 @@
    "type": "text",
    "characters": " Something else… ",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.6,
     "line_height": {"unit":"auto"},
@@ -787076,7 +787076,7 @@
    "type": "text",
    "characters": "Free, with optional donations",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -787121,7 +787121,7 @@
    "type": "text",
    "characters": "Like now — chip in if you feel like it",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -787196,7 +787196,7 @@
    "type": "text",
    "characters": "A small one-time fee per season",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -787241,7 +787241,7 @@
    "type": "text",
    "characters": "A few euros to cover servers & data",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
@@ -787316,7 +787316,7 @@
    "type": "text",
    "characters": "I wouldn't pay",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "SemiBold",
     "font_size": 13.3333,
     "line_height": {"unit":"auto"},
@@ -787361,7 +787361,7 @@
    "type": "text",
    "characters": "Honest answer — that's useful too",
    "style": {
-    "font_family": "Arial",
+    "font_family": "Figtree",
     "font_style": "Regular",
     "font_size": 12.48,
     "line_height": {"unit":"auto"},
