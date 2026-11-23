@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# MCP entry point for FigCraft (wired in .mcp.json). Makes sure the FigCraft
+# app is running with this project's design file open, then serves MCP on
+# stdio attached to it, so Claude edits the same window you're looking at.
+#
+# stdout belongs to the MCP protocol: everything else goes to stderr.
+set -euo pipefail
+
+PORT="${FIGCRAFT_PORT:-7979}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+FILE="$ROOT/design/matchowl.figcraft"
+
+log() { echo "[figcraft-mcp] $*" >&2; }
+up() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }
+
+command -v figcraft-cli >/dev/null || { log "figcraft-cli not found; install FigCraft"; exit 1; }
+
+if ! up; then
+	# Fresh clone or after a pull: build the .figcraft from design/matchowl/.
+	# pack refuses to overwrite unsynced FigCraft edits, and that's fine here.
+	python3 "$ROOT/design/tools/figcraft_sync.py" pack >&2 || true
+
+	log "starting FigCraft on port $PORT"
+	setsid figcraft --control "$PORT" \
+		--automation-read-root "$ROOT" \
+		--automation-write-root "$ROOT/design" \
+		"$FILE" </dev/null >/dev/null 2>&1 &
+
+	for _ in $(seq 1 60); do
+		up && break
+		sleep 0.5
+	done
+	up || { log "FigCraft didn't open port $PORT within 30 s"; exit 1; }
+fi
+
+exec figcraft-cli mcp --attach "$PORT" --timeout 120

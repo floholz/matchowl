@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "figcraft": {
+      "type": "stdio",
+      "command": "design/tools/figcraft-mcp",
+      "args": []
+    }
+  }
+}
