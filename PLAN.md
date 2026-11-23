@@ -41,6 +41,152 @@ backfill after the real draws (late January 2027).
 
 ---
 
+## Next: pools at the center (decided 2026-11-23)
+
+Real use by the alpha testers showed that "playing" a competition doesn't
+match how people use the app. Nobody commits to a league. People commit to
+the seasons their pools tip. **Pools are the center of the app**: they decide
+what's "mine". Following teams brings in the matches a pool doesn't cover, and
+1-on-1 challenges handle the occasional one-off match.
+
+**Design rule (from now on):** every UI change is drawn in the FigCraft mirror
+(`design/`, see `design/README.md`) first, or in the same change. Variants go
+on a Proposals page. The mirror always matches the shipped UI.
+
+### Decisions
+
+**"My matches"** has one server-side definition, used by Home, the Matches
+filter and notifications. It's the union of:
+1. matches of the seasons your active pools bind, from each pool's start date
+   on;
+2. matches of teams you follow;
+3. matches you have a challenge on;
+4. matches you've tipped.
+
+`tournament_players` and the `players` package go away: no Play button, no
+auto-subscribe hooks, no Playing toggle on the hub. The "playing" mailing
+audience becomes "in a pool of this season". **Any covered match can always
+be tipped.** A tip counts wherever it applies (pools, challenges) and stays
+ready if a pool or challenge comes along later.
+
+**Shell:** four tabs, **Home · Matches · Pools · Friends**. Competitions stops
+being a tab. Its pages stay, reached from match rows, search and team pages.
+Challenges live under Friends, next to each friend's record.
+
+**Home:**
+- **Your pools:** the h2h duel cards.
+- **Challenges:** incoming ones to accept, plus open ones.
+- **Tip now:** only matches from your pools and challenges, locking soonest.
+- **Live**, then **Results:** the whole "my matches" scope.
+- **Your teams:** one line per followed team with its next match.
+
+**Matches:**
+- **First-level filter:** one single-choice chip row that scrolls sideways:
+  `My matches · All · <your country> · competitions…`. The competitions of
+  your pools come first, and a trailing "More" chip opens a sheet with every
+  competition.
+- **Second level:** **Live** narrows whichever chip is picked, so "My matches
+  + Live" differs from "All + Live". The day-strip dots follow the active
+  filter. On desktop the rail shows the same structure as a list.
+- **Search:** a "search anything" bar on top finds competitions and teams
+  (later maybe friends and pools), backed by `/api/search`, with recent
+  searches.
+- **Country chip:** matches with a team from your country, in any competition.
+  Needs `users.country`.
+
+**Competition page:** the Playing toggle becomes "Start a pool for this
+season". The Forecast tab stays, because forecasts belong to classic pools.
+
+**Teams:**
+- **Identity:** teams are stored once per season today (`clubKey` is optional,
+  and codes collide: Austria and Austria Vienna are both `AUT`). Following and
+  team pages need a real **team identity record**. Each season's team row
+  points to it; it is backfilled from `clubKey`, the provider id, and the flag
+  code for national teams.
+- **Nationality:** the importer already calls `/teams?league&season`, which
+  returns `country` and `national` for each team, but drops them. New imports
+  store them, existing seasons get one backfill request each, and one
+  `/countries` request maps names to ISO codes.
+- **Team page** at `/teams/{key}`: a header with the crest and a follow star,
+  then Overview (next matches, latest results, current competitions with the
+  team's table row) and a Matches tab.
+
+**Challenges (1-on-1):**
+- **Scope:** one match per challenge, friends only, kept simple and quick.
+- **Stake:** a free-text note ("loser buys the next round"). The app shows it
+  and never enforces it; no money is handled.
+- **Flow:** you send it from the match page, your friend accepts before
+  kick-off, and you both tip. The default scoring decides: more points wins,
+  equal points is a draw. Picks stay hidden until kick-off.
+- **Around it:** a running record per friend ("you lead Max 4–2"), a badge on
+  the match row, and notifications for invite, accepted and result.
+
+**Coverage (16 seasons to start):**
+
+| Group | Seasons |
+|---|---|
+| Austria | Bundesliga, 2. Liga, ÖFB Cup, Landesliga Steiermark |
+| Top leagues | Premier League, La Liga, Serie A, Bundesliga, Ligue 1, plus Serie B |
+| UEFA club competitions | Champions League, Europa League, Conference League |
+| National teams | Nations League, Euro 2028 qualifiers, friendlies |
+
+Following teams, search and challenges are only as good as this catalog.
+
+**Dynamic sync** (the item deferred until after the alpha, now part of this
+work): sync around known kick-offs instead of a flat cron.
+
+**Quota** (API-Football plan: 7,500 requests a day):
+- **Current sync unchanged** (one request per season per run, the whole
+  season's fixtures):
+  - every 15 min: 96 × 16 = **1,536 a day (20 %)**; it fits even without
+    changes;
+  - every 5 min: 4,608 a day (61 %);
+  - every minute: 23,040 a day (doesn't fit).
+- **Kick-off-aware sync:**
+  - live polling, one request per minute for every covered live match
+    (`/fixtures?live=<league ids>`): about 660 a day on a busy Saturday (an
+    11 h window);
+  - a full schedule refresh per season twice a day (catches kick-off
+    changes): 32 a day;
+  - a final check of matches that just ended (`/fixtures?ids=`, up to 20
+    per request): about 30 a day;
+  - **about 750 on the busiest day (10 %)**. Live polling stays one request
+    per minute however many competitions are covered.
+- **Confirm in the API docs before building:** that the multi-league `live`
+  parameter and the `ids` batching work as stated.
+
+**Ticker events:** goals, cards, substitutions, VAR, and later statistics and
+lineups, shown on the match page. The app still isn't a ticker app. These
+events are a layer on the match page, so testers can stop switching to a
+ticker app during a match.
+- **Cost:** the live fixtures response already carries each match's events,
+  and an `ids` batch adds lineups and statistics. So the 1-minute live
+  polling carries the ticker for little or no extra cost (confirm this with
+  the docs and a real response).
+- **Storage:** a `match_events` collection (match, minute, extra, type,
+  detail, team, player, assist). Every sync upserts it, keyed on the
+  provider's event identity. Realtime pushes it to the match page.
+- **Later:** goal notifications for "my matches".
+
+### Implementation order
+1. **Scope foundation:** "my matches" on the server (pools, tipped matches,
+   challenges once they exist). Remove "playing". Rework Home and the Matches
+   filters (scope chips, the Live overlay, competition chips, the "More"
+   sheet). Tabs: Home · Matches · Pools · Friends.
+2. **Teams:** the team identity record with country and national flag (the
+   importer change plus the backfill), team pages, following (into "my
+   matches", Home's "Your teams"), search, `users.country` and the country
+   chip.
+3. **Challenges:** the data, send and accept, the Home section, the Friends
+   record, the row badge and notifications.
+4. **Coverage and live data:** import the catalog, kick-off-aware sync with
+   1-minute live polling, `match_events`, and the ticker on the match page.
+   Decide the catalog early; the sync can start in parallel with phase 1.
+
+Each phase ships as its own alpha release.
+
+---
+
 ## Now: app layout rework (decided 2026-09-12)
 
 Before continuing the walkthrough below, the general layout and structure get
@@ -833,6 +979,14 @@ add more):
 
 Record walkthrough verdicts and any directional decisions here, newest first,
 one line each with a date.
+
+- 2026-11-23 — Pools at the center (see "Next: pools at the center"):
+  "playing" goes away, "my matches" = pools, followed teams, challenges and
+  tipped matches; tabs Home · Matches · Pools · Friends; team identity
+  records with country from the API; one-match friend challenges with a
+  text stake; a 16-season catalog; kick-off-aware sync with 1-minute live
+  polling (~10 % of the quota) feeding ticker events on the match page.
+  Every UI change is drawn in the FigCraft mirror.
 
 - 2026-09-28 — Plan 06 landed: importer disambiguates repeated standings
   tables by tier and warns on merged groups; Nations League play-offs stay
