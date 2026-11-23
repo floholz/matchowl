@@ -78,19 +78,30 @@ Challenges live under Friends, next to each friend's record.
 - **Challenges:** incoming ones to accept, plus open ones.
 - **Tip now:** only matches from your pools and challenges, locking soonest.
 - **Live**, then **Results:** the whole "my matches" scope.
-- **Your teams:** one line per followed team with its next match.
+- **Your teams:** a sideways strip of cards, one per followed team with its
+  next match.
+- Sections without content stay hidden. Picked from the FigCraft proposals
+  (Home A); a compact Home (Live first, challenges folded into Tip now) may
+  come back later as a user setting.
 
 **Matches:**
 - **First-level filter:** one single-choice chip row that scrolls sideways:
-  `My matches · All · <your country> · competitions…`. The competitions of
-  your pools come first, and a trailing "More" chip opens a sheet with every
-  competition.
-- **Second level:** **Live** narrows whichever chip is picked, so "My matches
-  + Live" differs from "All + Live". The day-strip dots follow the active
-  filter. On desktop the rail shows the same structure as a list.
-- **Search:** a "search anything" bar on top finds competitions and teams
-  (later maybe friends and pools), backed by `/api/search`, with recent
-  searches.
+  `My matches · All · <your country> · pinned competitions… · More`. "More"
+  opens a sheet with every competition.
+- **Pinned competitions:** the sheet has a Pin toggle on top; in pin mode
+  every competition gets a pin switch, and pinned ones become chips in the
+  row. The competitions your pools play are always pinned. Pins are stored on
+  the account (`users.pinnedCompetitions`), so they follow you across
+  devices.
+- **Live:** a chip pinned at the right end of the row. It narrows whichever
+  chip is picked, so "My matches + Live" differs from "All + Live". The
+  day-strip dots follow the active filter. On desktop the rail shows the same
+  structure as a list.
+- **Clear:** when the filter isn't the default (My matches, Live off), a ✕
+  pinned at the left end resets it.
+- **Search:** an icon in the header opens a "search anything" page for
+  competitions and teams (later maybe friends and pools), backed by
+  `/api/search`, with recent searches.
 - **Country chip:** matches with a team from your country, in any competition.
   Needs `users.country`.
 
