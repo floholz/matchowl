@@ -10,6 +10,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/floholz/matchowl/internal/mailer"
+	"github.com/floholz/matchowl/internal/scope"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
@@ -143,13 +144,13 @@ func (r *Runner) teamLabel(m *core.Record, relField, labelField string, names ma
 }
 
 // tournamentInfo bundles the current tournament's identity, structure,
-// (kickoff-sorted) matches and player set for one notify pass.
+// (kickoff-sorted) matches and pool members for one notify pass.
 type tournamentInfo struct {
 	id        string
 	slug      string
 	structure *tournaments.Structure
 	matches   []*core.Record
-	players   map[string]bool // user ids playing this tournament
+	players   map[string]bool // user ids in a pool of this tournament
 }
 
 // currentTournament loads the current tournament with its structure and
@@ -168,12 +169,9 @@ func (r *Runner) currentTournament() (*tournamentInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	playerSet := map[string]bool{}
-	if rows, err := r.app.FindRecordsByFilter("tournament_players",
-		"tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id}); err == nil {
-		for _, p := range rows {
-			playerSet[p.GetString("user")] = true
-		}
+	playerSet, err := scope.Users(r.app, t.Id)
+	if err != nil {
+		return nil, err
 	}
 	return &tournamentInfo{
 		id:        t.Id,

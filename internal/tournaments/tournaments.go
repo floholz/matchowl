@@ -371,7 +371,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			v["competition"] = r.GetString("competition")
 			nTeams, _ := app.CountRecords("teams", dbx.HashExp{"tournament": r.Id})
 			nMatches, _ := app.CountRecords("matches", dbx.HashExp{"tournament": r.Id})
-			nPlayers, _ := app.CountRecords("tournament_players", dbx.HashExp{"tournament": r.Id})
+			nPlayers := poolMembers(app, r.Id)
 			v["teams"] = nTeams
 			v["matches"] = nMatches
 			v["players"] = nPlayers
@@ -436,4 +436,18 @@ func Register(app core.App, se *core.ServeEvent) {
 	})
 
 	registerCompetitions(app, se)
+}
+
+// poolMembers counts the distinct people in a pool bound to the season
+// (the Global pool binds none).
+func poolMembers(app core.App, tournamentID string) int {
+	var n int
+	// The relation is stored as a bare id or a JSON list, depending on
+	// the field's history.
+	_ = app.DB().NewQuery(`SELECT COUNT(DISTINCT pm.user) FROM pool_members pm
+		JOIN pools p ON p.id = pm.pool
+		WHERE p.tournaments = {:t} OR (json_valid(p.tournaments) AND EXISTS
+			(SELECT 1 FROM json_each(p.tournaments) t WHERE t.value = {:t}))`).
+		Bind(dbx.Params{"t": tournamentID}).Row(&n)
+	return n
 }

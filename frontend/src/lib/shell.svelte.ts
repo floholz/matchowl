@@ -12,7 +12,7 @@ export interface Chrome {
 	/** Desktop: let the content spread to --maxw-wide (Matches, Home). */
 	wide?: boolean;
 	/** Mobile: the page draws the whole left part of the top bar itself
-	 *  (the competition hub: back, crest, name, season, Playing). */
+	 *  (the competition hub: back, crest, name, season, Start a pool). */
 	bar?: Snippet;
 }
 

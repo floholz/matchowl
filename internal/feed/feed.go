@@ -1,5 +1,6 @@
 // Package feed backs the app's center surface (docs/plans/04-feed-nav-forecast.md): one
-// chronological stream of matches across every tournament the user plays,
+// chronological stream of "my matches" (see package scope), or of every
+// season or one competition,
 // plus the deadline moments (forecast locks) woven in. The server returns a
 // flat kickoff-sorted window with everything denormalized (tournament,
 // teams, my tip, my points); the client groups by the user's local day —
@@ -13,13 +14,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
 
 	"github.com/floholz/matchowl/internal/clock"
 	"github.com/floholz/matchowl/internal/forecast"
-	"github.com/floholz/matchowl/internal/players"
+	"github.com/floholz/matchowl/internal/scope"
 	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
@@ -45,38 +47,13 @@ func intParam(e *core.RequestEvent, name string, def, max int) int {
 	return v
 }
 
-// feedMatch pairs a match with its (played) tournament id.
-type feedMatch struct {
-	m   *core.Record
-	tid string
-}
-
 // Register wires GET /api/feed.
 func Register(app core.App, se *core.ServeEvent) {
 	se.Router.GET("/api/feed", func(e *core.RequestEvent) error {
 		uid := e.Auth.Id
-		playedIDs, err := players.PlayedIDs(app, uid)
+		mine, err := scope.Mine(app, uid)
 		if err != nil {
 			return err
-		}
-		played := map[string]bool{}
-		for _, id := range playedIDs {
-			played[id] = true
-		}
-		// ?all=1 widens the window to every visible tournament (the "All"
-		// chip); deadlines and the playing list stay scoped to played ones.
-		ids := playedIDs
-		if e.Request.URL.Query().Get("all") == "1" {
-			recs, err := tournaments.All(app)
-			if err != nil {
-				return err
-			}
-			ids = make([]string, 0, len(recs))
-			for _, r := range recs {
-				if r.GetString("status") != tournaments.StatusDraft {
-					ids = append(ids, r.Id)
-				}
-			}
 		}
 
 		now := clock.Now(app)
@@ -85,21 +62,61 @@ func Register(app core.App, se *core.ServeEvent) {
 		from := now.AddDate(0, 0, -past).Truncate(24 * time.Hour)
 		to := now.AddDate(0, 0, ahead+1).Truncate(24 * time.Hour)
 
+		// Which matches: ?scope=mine (default) is "my matches"; ?scope=all
+		// (or the older ?all=1) every visible season; ?competition=<key>
+		// every open season of one competition.
+		q := e.Request.URL.Query()
+		which := q.Get("scope")
+		if q.Get("all") == "1" {
+			which = "all"
+		}
+		compKey := q.Get("competition")
+		var window []*core.Record
+		switch {
+		case compKey != "" || which == "all":
+			ids, err := visibleSeasons(app, compKey)
+			if err != nil {
+				return err
+			}
+			if len(ids) > 0 {
+				if err := app.RecordQuery("matches").
+					AndWhere(dbx.In("tournament", ids...)).
+					AndWhere(dbx.NewExp("kickoff >= {:from} AND kickoff < {:to}", dbx.Params{
+						"from": from.UTC().Format(types.DefaultDateLayout),
+						"to":   to.UTC().Format(types.DefaultDateLayout),
+					})).
+					OrderBy("kickoff ASC", "num ASC").
+					All(&window); err != nil {
+					return err
+				}
+			}
+		default:
+			if window, err = mine.Matches(app, from, to); err != nil {
+				return err
+			}
+		}
+		if len(window) > maxMatchesPerLoad {
+			window = window[:maxMatchesPerLoad]
+		}
+
 		type tInfo struct {
 			rec       *core.Record
 			structure *tournaments.Structure
 			view      map[string]any
 		}
 		infos := map[string]*tInfo{}
-		playing := make([]map[string]any, 0, len(playedIDs))
-		for _, tid := range ids {
+		info := func(tid string) *tInfo {
+			if in, ok := infos[tid]; ok {
+				return in
+			}
+			infos[tid] = nil
 			t, err := app.FindRecordById("tournaments", tid)
 			if err != nil {
-				continue
+				return nil
 			}
 			st, err := tournaments.StructureOf(t)
 			if err != nil {
-				continue
+				return nil
 			}
 			v := map[string]any{
 				"id":        t.Id,
@@ -113,29 +130,25 @@ func Register(app core.App, se *core.ServeEvent) {
 				v["competition"] = c.GetString("key")
 			}
 			infos[tid] = &tInfo{rec: t, structure: st, view: v}
-			if played[tid] {
-				playing = append(playing, v)
+			return infos[tid]
+		}
+		// The seasons your pools bind, for the competition chips.
+		poolSeasons := make([]map[string]any, 0, len(mine.Seasons))
+		for tid := range mine.Seasons {
+			if in := info(tid); in != nil {
+				poolSeasons = append(poolSeasons, in.view)
 			}
 		}
-
-		// Matches of played tournaments inside the window, kickoff-sorted.
-		var window []feedMatch
-		for tid := range infos {
-			ms, err := app.FindRecordsByFilter("matches",
-				"tournament = {:t} && kickoff >= {:from} && kickoff < {:to}",
-				"kickoff", 0, 0,
-				map[string]any{"t": tid, "from": from.UTC().Format(types.DefaultDateLayout), "to": to.UTC().Format(types.DefaultDateLayout)})
-			if err != nil {
-				continue
-			}
-			for _, m := range ms {
-				window = append(window, feedMatch{m: m, tid: tid})
+		sort.Slice(poolSeasons, func(i, j int) bool {
+			return poolSeasons[i]["name"].(string) < poolSeasons[j]["name"].(string)
+		})
+		kept := window[:0]
+		for _, m := range window {
+			if info(m.GetString("tournament")) != nil {
+				kept = append(kept, m)
 			}
 		}
-		sortFeed(window)
-		if len(window) > maxMatchesPerLoad {
-			window = window[:maxMatchesPerLoad]
-		}
+		window = kept
 
 		// My tips + my default-config points, mapped by match id.
 		tipByMatch := map[string]*core.Record{}
@@ -158,9 +171,9 @@ func Register(app core.App, se *core.ServeEvent) {
 
 		// Teams referenced by the window, denormalized once.
 		teamIDs := map[string]bool{}
-		for _, fm := range window {
+		for _, m := range window {
 			for _, f := range []string{"homeTeam", "awayTeam", "penWinner", "advancer"} {
-				if id := fm.m.GetString(f); id != "" {
+				if id := m.GetString(f); id != "" {
 					teamIDs[id] = true
 				}
 			}
@@ -179,8 +192,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 
 		out := make([]map[string]any, 0, len(window))
-		for _, fm := range window {
-			m, info := fm.m, infos[fm.tid]
+		for _, m := range window {
+			info := infos[m.GetString("tournament")]
 			stage := m.GetString("stage")
 			// Rows carry the same field names as the matches collection so
 			// the client can feed them straight into the shared match card.
@@ -211,6 +224,9 @@ func Register(app core.App, se *core.ServeEvent) {
 				"liveMinute":  m.GetInt("liveMinute"),
 				"liveExtra":   m.GetInt("liveExtra"),
 				"liveAt":      m.GetString("liveAt"),
+				// Why the match is yours ("pool", "tip"); empty outside
+				// your scope (the All and competition filters).
+				"reasons": orEmpty(mine.Reasons(m)),
 			}
 			// Two-legged ties: the other leg is usually outside the feed
 			// window, so denormalize what the card needs (result + which leg
@@ -247,17 +263,18 @@ func Register(app core.App, se *core.ServeEvent) {
 			out = append(out, row)
 		}
 
-		// Deadline cards: played tournaments whose forecast is still open.
+		// Deadline cards: your pools' seasons whose forecast is still open.
 		deadlines := make([]map[string]any, 0)
-		for tid, info := range infos {
-			if !played[tid] {
+		for tid := range mine.Seasons {
+			in := info(tid)
+			if in == nil {
 				continue
 			}
-			status := info.rec.GetString("status")
+			status := in.rec.GetString("status")
 			if status != tournaments.StatusUpcoming && status != tournaments.StatusActive {
 				continue
 			}
-			lock, err := forecast.StartOf(app, info.rec)
+			lock, err := forecast.StartOf(app, in.rec)
 			if err != nil || lock.IsZero() || !now.Before(lock) {
 				continue
 			}
@@ -269,18 +286,18 @@ func Register(app core.App, se *core.ServeEvent) {
 			}
 			deadlines = append(deadlines, map[string]any{
 				"type":        "forecast",
-				"tournament":  info.view,
+				"tournament":  in.view,
 				"locksAt":     lock.UTC().Format(time.RFC3339),
 				"hasForecast": has,
 			})
 		}
 
 		return e.JSON(http.StatusOK, map[string]any{
-			"now":       now.UTC().Format(time.RFC3339),
-			"playing":   playing,
-			"matches":   out,
-			"teams":     teams,
-			"deadlines": deadlines,
+			"now":         now.UTC().Format(time.RFC3339),
+			"poolSeasons": poolSeasons,
+			"matches":     out,
+			"teams":       teams,
+			"deadlines":   deadlines,
 		})
 	}).Bind(apis.RequireAuth())
 }
@@ -292,12 +309,38 @@ func stageNameOf(st *tournaments.Structure, code string) string {
 	return code
 }
 
-func sortFeed(window []feedMatch) {
-	sort.SliceStable(window, func(i, j int) bool {
-		a, b := window[i].m, window[j].m
-		if ka, kb := a.GetString("kickoff"), b.GetString("kickoff"); ka != kb {
-			return ka < kb
+func orEmpty(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+// visibleSeasons lists the ids of every non-draft season, or of one
+// competition's seasons that aren't archived when a key is given.
+func visibleSeasons(app core.App, compKey string) ([]any, error) {
+	recs, err := tournaments.All(app)
+	if err != nil {
+		return nil, err
+	}
+	compID := ""
+	if compKey != "" {
+		c, err := app.FindFirstRecordByFilter("competitions", "key = {:k}", map[string]any{"k": compKey})
+		if err != nil {
+			return nil, nil
 		}
-		return a.GetInt("num") < b.GetInt("num")
-	})
+		compID = c.Id
+	}
+	out := make([]any, 0, len(recs))
+	for _, r := range recs {
+		st := r.GetString("status")
+		if st == tournaments.StatusDraft {
+			continue
+		}
+		if compID != "" && (r.GetString("competition") != compID || st == tournaments.StatusArchived) {
+			continue
+		}
+		out = append(out, r.Id)
+	}
+	return out, nil
 }

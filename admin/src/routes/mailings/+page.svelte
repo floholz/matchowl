@@ -23,7 +23,7 @@
 	let ctaText = $state('');
 	let ctaUrl = $state('');
 	let roles = $state<string[]>([]);
-	let playing = $state('');
+	let season = $state('');
 	let pool = $state('');
 	let joinedAfter = $state('');
 	let joinedBefore = $state('');
@@ -34,7 +34,7 @@
 
 	let audience = $derived<Audience>({
 		roles: roles.length ? roles : undefined,
-		playing: playing || undefined,
+		season: season || undefined,
 		pool: pool || undefined,
 		joinedAfter: joinedAfter || undefined,
 		joinedBefore: joinedBefore || undefined,
@@ -85,7 +85,7 @@
 		ctaText = '';
 		ctaUrl = '';
 		roles = [];
-		playing = '';
+		season = '';
 		pool = '';
 		joinedAfter = '';
 		joinedBefore = '';
@@ -100,7 +100,7 @@
 		ctaText = m.ctaText;
 		ctaUrl = m.ctaUrl;
 		roles = m.audience?.roles ?? [];
-		playing = m.audience?.playing ?? '';
+		season = m.audience?.season ?? m.audience?.playing ?? '';
 		pool = m.audience?.pool ?? '';
 		joinedAfter = m.audience?.joinedAfter ?? '';
 		joinedBefore = m.audience?.joinedBefore ?? '';
@@ -190,7 +190,8 @@
 	const describe = (a: Audience) => {
 		const parts: string[] = [];
 		if (a.roles?.length) parts.push(a.roles.join(' + '));
-		if (a.playing) parts.push('plays ' + (tournaments.find((t) => t.id === a.playing)?.name ?? 'a season'));
+		const sid = a.season ?? a.playing;
+		if (sid) parts.push('in a pool of ' + (tournaments.find((t) => t.id === sid)?.name ?? 'a season'));
 		if (a.pool) parts.push('in ' + (pools.find((p) => p.id === a.pool)?.name ?? 'a pool'));
 		if (a.joinedAfter) parts.push('joined after ' + a.joinedAfter);
 		if (a.joinedBefore) parts.push('joined before ' + a.joinedBefore);
@@ -243,8 +244,8 @@
 				</div>
 			</div>
 			<label class="fld">
-				<span>Plays</span>
-				<select bind:value={playing}>
+				<span>In a pool of</span>
+				<select bind:value={season}>
 					<option value="">any season</option>
 					{#each tournaments as t (t.id)}<option value={t.id}>{t.name}</option>{/each}
 				</select>

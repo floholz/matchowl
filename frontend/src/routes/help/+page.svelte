@@ -50,7 +50,7 @@
 	}
 
 	const sections = [
-		{ id: 'play', label: 'Play' },
+		{ id: 'play', label: 'Your matches' },
 		{ id: 'tip', label: 'Tip' },
 		{ id: 'forecast', label: 'Forecast' },
 		{ id: 'friends', label: 'Friends' },
@@ -67,8 +67,8 @@
 	{/if}
 	<h1>How Matchowl works</h1>
 	<p class="lead muted">
-		Play the competitions you follow, tip every match, place one forecast per
-		season, and compare with your friends. Free, no betting, no prizes — only
+		Join a pool with your friends, tip its matches, place one forecast per
+		season, and see who comes out on top. Free, no betting, no prizes — only
 		bragging rights.
 	</p>
 
@@ -79,13 +79,13 @@
 	</nav>
 
 	<section id="play">
-		<h2><Trophy size={18} /> Play a competition</h2>
+		<h2><Trophy size={18} /> Your matches</h2>
 		<p>
-			Under <b>Competitions</b> you find every league, cup and tournament
-			Matchowl runs. Tap <b>Play</b> on the season you want to follow — its
-			matches join your Matches feed and Home. Tipping a match of a competition
-			you don't play yet joins it for you. You can leave a competition again at
-			any time; your tips stay.
+			Pools decide what's yours. Every match of the season a pool of yours
+			tips shows up on Home and under <b>My matches</b>, from the day the pool
+			starts counting. You can tip any other match Matchowl covers too: find it
+			under <b>All</b> or on its competition's page, and once tipped it stays
+			among your matches. A tip counts in every pool it applies to.
 		</p>
 	</section>
 
@@ -136,7 +136,7 @@
 	<section id="forecast">
 		<h2><Telescope size={18} /> Forecast a season</h2>
 		<p>
-			Each season you play has one forecast, placed before its first match and
+			Each season has one forecast per player, placed before its first match and
 			locked from then on. For a league it is a handful of calls — champion,
 			the European places, relegation. For a tournament it is the full thing:
 			group standings, the bracket, the winner. Forecast points come in as the

@@ -1,11 +1,9 @@
-<!-- Competitions catalog: a search field in the subbar, a couple of "your
-     pool mates play this" suggestions (the rest behind "show more"), then
-     every competition in three sections — the ones you play, the ones you
-     could, the finished ones — each row with its badge, country · kind,
-     the current season with its status, and Play / Playing right there.
-     Tapping the row opens the hub. -->
+<!-- Competitions catalog: a search field in the subbar, then every
+     competition in three sections — the ones your pools tip, the other
+     running and upcoming ones, the finished ones — each row with its badge,
+     country · kind and the current season with its status. Tapping the row
+     opens the hub. -->
 <script lang="ts">
-	import { pb } from '$lib/pb';
 	import { auth } from '$lib/auth.svelte';
 	import { feedStore } from '$lib/feed.svelte';
 	import {
@@ -17,75 +15,26 @@
 		type Competition
 	} from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
-	import { Check, ChevronRight, Plus, Search, X } from '@lucide/svelte';
+	import { ChevronRight, Search, X } from '@lucide/svelte';
 
 	pageChrome(() => ({ title: 'Competitions' }));
 
-	interface Suggestion {
-		id: string;
-		slug: string;
-		name: string;
-		poolMates: number;
-	}
-	let suggestions = $state<Suggestion[]>([]);
-	const SUGGEST_SHOWN = 2;
-	let moreSuggestions = $state(false);
-	let shownSuggestions = $derived(
-		moreSuggestions ? suggestions : suggestions.slice(0, SUGGEST_SHOWN)
-	);
-
 	let ready = $state(false);
-	let playing = $state<Set<string>>(new Set());
-	let busy = $state<Set<string>>(new Set());
 	let q = $state('');
 
 	$effect(() => {
 		tournamentStore.ready().then(() => (ready = true));
-		if (auth.isAuthed) {
-			pb.send('/api/me/tournaments', { method: 'GET' })
-				.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
-				.catch(() => {});
-			pb.send('/api/tournaments/suggestions', { method: 'GET' })
-				.then((r) => (suggestions = (r.suggestions ?? []).filter((x: Suggestion) => x.poolMates > 0)))
-				.catch(() => {});
-		}
+		if (auth.isAuthed && !feedStore.loaded && !feedStore.loading && !feedStore.error)
+			feedStore.load().catch(() => {});
 	});
-
-	/** Play or leave a season; Home and Matches read the feed, so refresh it. */
-	async function setPlaying(t: Tournament, on: boolean) {
-		if (busy.has(t.id)) return;
-		busy = new Set([...busy, t.id]);
-		try {
-			await pb.send(`/api/tournaments/${t.slug}/play`, { method: on ? 'POST' : 'DELETE' });
-			const next = new Set(playing);
-			if (on) next.add(t.id);
-			else next.delete(t.id);
-			playing = next;
-			suggestions = suggestions.filter((s) => s.id !== t.id);
-			if (feedStore.loaded) feedStore.load().catch(() => {});
-		} catch {
-			/* leave the button as it was */
-		} finally {
-			const b = new Set(busy);
-			b.delete(t.id);
-			busy = b;
-		}
-	}
-	async function playSuggestion(s: Suggestion) {
-		const t = tournamentStore.list.find((x) => x.id === s.id);
-		if (t) await setPlaying(t, true);
-		else {
-			await pb.send(`/api/tournaments/${s.slug}/play`, { method: 'POST' }).catch(() => {});
-			playing = new Set([...playing, s.id]);
-			suggestions = suggestions.filter((x) => x.id !== s.id);
-		}
-	}
+	/** Seasons your pools bind: those competitions come first. */
+	let pooled = $derived(new Set(feedStore.poolSeasons.map((t) => t.id)));
 
 	interface Row {
 		competition: Competition;
 		seasons: Tournament[];
 		current: Tournament;
-		playing: boolean;
+		pooled: boolean;
 	}
 
 	/** One row per competition, keyed by its current season. */
@@ -104,7 +53,7 @@
 				competition: current.competition,
 				seasons,
 				current,
-				playing: seasons.some((s) => playing.has(s.id))
+				pooled: seasons.some((s) => pooled.has(s.id))
 			});
 		}
 		return out.sort((a, b) => a.competition.name.localeCompare(b.competition.name));
@@ -121,8 +70,8 @@
 	}
 	let filtered = $derived(rows.filter((r) => matches(r, q.trim())));
 	const over = (r: Row) => r.current.status === 'finished' || r.current.status === 'archived';
-	let mine = $derived(filtered.filter((r) => r.playing && !over(r)));
-	let open = $derived(filtered.filter((r) => !r.playing && !over(r)));
+	let mine = $derived(filtered.filter((r) => r.pooled && !over(r)));
+	let open = $derived(filtered.filter((r) => !r.pooled && !over(r)));
 	let done = $derived(filtered.filter(over));
 
 	function initials(name: string): string {
@@ -163,25 +112,6 @@
 </div>
 
 <div class="cat stagger">
-	{#if suggestions.length && !q}
-		<div class="sec2 first"><h2>Your pool mates play</h2></div>
-		{#each shownSuggestions as s (s.id)}
-			<div class="card suggest">
-				<span class="stxt">
-					<b>{s.name}</b>
-					<span class="muted small">{s.poolMates} {s.poolMates === 1 ? 'pool mate plays' : 'pool mates play'} this</span>
-				</span>
-				<span class="spacer"></span>
-				<button class="tbtn p" onclick={() => playSuggestion(s)}><Plus size={14} /> Play</button>
-			</div>
-		{/each}
-		{#if suggestions.length > SUGGEST_SHOWN}
-			<button class="more" onclick={() => (moreSuggestions = !moreSuggestions)}>
-				{moreSuggestions ? 'Show fewer' : `Show ${suggestions.length - SUGGEST_SHOWN} more`}
-			</button>
-		{/if}
-	{/if}
-
 	{#if ready && rows.length === 0}
 		<div class="card empty muted">No competitions yet — check back soon.</div>
 	{:else if ready && filtered.length === 0}
@@ -190,8 +120,7 @@
 
 	{#snippet row(r: Row)}
 		{@const t = r.current}
-		{@const isBusy = busy.has(t.id)}
-		<div class="card crow" class:on={r.playing}>
+		<div class="card crow" class:on={r.pooled}>
 			<a class="clink" href={`/competitions/${r.competition.key}`}>
 				<span class="logo" class:ph={!competitionLogoUrl(r.competition)}>
 					{#if competitionLogoUrl(r.competition)}
@@ -210,28 +139,16 @@
 				</span>
 				<ChevronRight size={18} class="chev" />
 			</a>
-			{#if auth.isAuthed && (t.status !== 'archived' || r.playing)}
-				<button
-					class="tbtn"
-					class:p={!r.playing}
-					class:on={r.playing}
-					disabled={isBusy}
-					onclick={() => setPlaying(t, !r.playing)}
-					aria-pressed={r.playing}
-				>
-					{#if r.playing}<Check size={14} /> Playing{:else}<Plus size={14} /> Play{/if}
-				</button>
-			{/if}
 		</div>
 	{/snippet}
 
 	{#if mine.length}
-		<div class="sec2" class:first={!suggestions.length || !!q}><h2>Playing</h2><span class="pill ok">{mine.length}</span></div>
+		<div class="sec2 first"><h2>Your pools</h2><span class="pill ok">{mine.length}</span></div>
 		{#each mine as r (r.competition.key)}{@render row(r)}{/each}
 	{/if}
 	{#if open.length}
-		<div class="sec2" class:first={!mine.length && (!suggestions.length || !!q)}>
-			<h2>{mine.length ? 'More competitions' : 'Play a competition'}</h2>
+		<div class="sec2" class:first={!mine.length}>
+			<h2>{mine.length ? 'More competitions' : 'Running and upcoming'}</h2>
 		</div>
 		{#each open as r (r.competition.key)}{@render row(r)}{/each}
 	{/if}
@@ -299,67 +216,6 @@
 	}
 	.sec2.first {
 		margin-top: 0.2rem;
-	}
-	.suggest {
-		display: flex;
-		align-items: center;
-		gap: 0.9rem;
-		padding: 0.8rem 1rem;
-	}
-	.suggest + .suggest {
-		margin-top: 0.55rem;
-	}
-	.stxt {
-		display: flex;
-		flex-direction: column;
-		gap: 0.15rem;
-		min-width: 0;
-	}
-	.small {
-		font-size: 0.85rem;
-	}
-	.more {
-		display: block;
-		margin: 0.5rem auto 0;
-		padding: 0.35rem 0.9rem;
-		border: 0;
-		border-radius: var(--radius-pill);
-		background: transparent;
-		color: var(--accent);
-		font: inherit;
-		font-size: 0.85rem;
-		font-weight: 700;
-		cursor: pointer;
-	}
-	.tbtn {
-		flex: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.3rem;
-		height: 32px;
-		padding: 0 0.8rem;
-		border-radius: var(--radius-pill);
-		border: 1px solid var(--border);
-		background: transparent;
-		color: var(--muted);
-		font: inherit;
-		font-size: 0.82rem;
-		font-weight: 700;
-		cursor: pointer;
-		white-space: nowrap;
-	}
-	.tbtn.p {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-fg);
-	}
-	.tbtn.on {
-		color: var(--success);
-		border-color: color-mix(in srgb, var(--success) 55%, var(--border));
-	}
-	.tbtn:disabled {
-		opacity: 0.6;
-		cursor: default;
 	}
 	.crow {
 		display: flex;

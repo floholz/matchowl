@@ -1,4 +1,4 @@
-<!-- Competition hub: compact header (back · crest · name · season · Playing)
+<!-- Competition hub: compact header (back · crest · name · season · Start a pool)
      drawn into the mobile top bar, underline tabs Overview · Matches · Table ·
      Knockout · Forecast (only those that apply), one pane each. -->
 <script lang="ts">
@@ -36,20 +36,9 @@
 	let mParam = $derived($page.url.searchParams.get('m') ?? '');
 
 	let ready = $state(false);
-	let playing = $state<Set<string>>(new Set());
-	let busy = $state(false);
 
 	$effect(() => {
 		tournamentStore.ready().then(() => (ready = true));
-	});
-	// Your played competitions — re-read after every saved tip, since the
-	// first tip on a season auto-subscribes you to it.
-	$effect(() => {
-		void tipsStore.saved;
-		if (!auth.isAuthed) return;
-		pb.send('/api/me/tournaments', { method: 'GET' })
-			.then((r) => (playing = new Set((r.tournaments ?? []).map((t: Tournament) => t.id))))
-			.catch(() => {});
 	});
 	function goBack(e: MouseEvent) {
 		if (!shell.hasFrom) return;
@@ -102,23 +91,11 @@
 	function pickSeason(slug: string) {
 		goto(href(slug, tab), { noScroll: true, keepFocus: true });
 	}
-	async function togglePlay() {
-		if (!season) return;
-		busy = true;
-		try {
-			const was = playing.has(season.id);
-			await pb.send(`/api/tournaments/${season.slug}/play`, { method: was ? 'DELETE' : 'POST' });
-			if (was) playing.delete(season.id);
-			else playing.add(season.id);
-			playing = new Set(playing);
-			// Home and Matches read the feed; make them follow.
-			if (feedStore.loaded) feedStore.load().catch(() => {});
-		} finally {
-			busy = false;
-		}
-	}
-	let isPlaying = $derived(!!season && playing.has(season.id));
-	let canPlay = $derived(auth.isAuthed && !!season && (season.status !== 'archived' || isPlaying));
+	/** Pools are what make a season's matches yours: a running or upcoming
+	 *  season offers to start one (the Friends page's start sheet). */
+	let canStartPool = $derived(
+		auth.isAuthed && !!season && (season.status === 'active' || season.status === 'upcoming')
+	);
 
 	// ---- overview ----
 	const played = (m: Match) => m.status === 'finished' || !!m.finalizedAt;
@@ -215,10 +192,8 @@
 				{#if season.status === 'active'}<span class="pill live">Live</span>{:else}<span class="pill">{statusLabel[season.status] ?? season.status}</span>{/if}
 			</span>
 		</span>
-		{#if canPlay}
-			<button class="chip" class:on={isPlaying} disabled={busy} onclick={togglePlay}>
-				{#if isPlaying}<Check size={15} /> Playing{:else}<Plus size={15} /> Play{/if}
-			</button>
+		{#if canStartPool}
+			<a class="chip" href={`/friends?start=${season.id}`}><Plus size={15} /> Start a pool</a>
 		{/if}
 	{/if}
 {/snippet}

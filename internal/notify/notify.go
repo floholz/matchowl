@@ -311,8 +311,8 @@ func (r *Runner) RunOnce(ctx context.Context) (*Result, error) {
 	}
 	matches := tinfo.matches
 
-	// Match-driven detectors only nudge people who PLAY this tournament —
-	// with the feed model, not every user follows every tournament.
+	// Match-driven detectors only nudge people with a pool on this
+	// tournament: their pools make its matches theirs (see package scope).
 	playerRecipients := make([]*core.Record, 0, len(recipients))
 	for _, u := range recipients {
 		if tinfo.players[u.Id] {

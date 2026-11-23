@@ -7,6 +7,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 
+	"github.com/floholz/matchowl/internal/scope"
 	"github.com/floholz/matchowl/internal/users"
 )
 
@@ -15,7 +16,8 @@ import (
 // account with a verified email (unverified accounts get no mail, ever).
 type Audience struct {
 	Roles        []string `json:"roles,omitempty"`        // member | admin | owner ("member" = no role)
-	Playing      string   `json:"playing,omitempty"`      // tournament id: plays this season
+	Season       string   `json:"season,omitempty"`       // tournament id: in a pool of this season
+	Playing      string   `json:"playing,omitempty"`      // legacy name of Season, read only
 	Pool         string   `json:"pool,omitempty"`         // pool id: member of this pool
 	JoinedAfter  string   `json:"joinedAfter,omitempty"`  // YYYY-MM-DD
 	JoinedBefore string   `json:"joinedBefore,omitempty"` // YYYY-MM-DD
@@ -50,11 +52,13 @@ func (a Audience) Resolve(app core.App) ([]*core.Record, error) {
 	}
 	only, never, roles := set(a.Emails), set(a.Exclude), set(a.Roles)
 	var playing, inPool map[string]bool
-	if a.Playing != "" {
-		playing = map[string]bool{}
-		recs, _ := app.FindRecordsByFilter("tournament_players", "tournament = {:t}", "", 0, 0, map[string]any{"t": a.Playing})
-		for _, r := range recs {
-			playing[r.GetString("user")] = true
+	if a.Season == "" {
+		a.Season = a.Playing
+	}
+	if a.Season != "" {
+		playing, _ = scope.Users(app, a.Season)
+		if playing == nil {
+			playing = map[string]bool{}
 		}
 	}
 	if a.Pool != "" {

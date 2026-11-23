@@ -21,6 +21,9 @@ export interface FeedMatch extends Match {
 	/** The other leg of a two-legged tie (`first`: this match is leg 1) —
 	 *  denormalized server-side since it's usually outside the feed window. */
 	leg?: (LegSource & { first: boolean }) | null;
+	/** Why the match is yours ("pool", "tip"; later "team", "challenge").
+	 *  Empty outside "my matches" (the All and competition filters). */
+	reasons: string[];
 	myTip?: {
 		ftHome: number;
 		ftAway: number;
@@ -37,15 +40,6 @@ export interface FeedDeadline {
 	tournament: FeedMatch['tournament'];
 	locksAt: string;
 	hasForecast: boolean;
-}
-
-export interface FeedSuggestion {
-	id: string;
-	slug: string;
-	name: string;
-	status: string;
-	startsAt: string;
-	poolMates: number;
 }
 
 /** A day's matches from one tournament, in kickoff order. */
@@ -98,6 +92,11 @@ const LIVE_FIELDS = [
  *  return (realtime events missed while asleep are not replayed). */
 const STALE_MS = 30_000;
 
+/** A tipped match is yours from then on. */
+function withTip(reasons: string[]): string[] {
+	return reasons.includes('tip') ? reasons : [...reasons, 'tip'];
+}
+
 function groupByTournament(matches: FeedMatch[]): FeedGroup[] {
 	const byT = new Map<string, FeedGroup>();
 	for (const m of matches) {
@@ -108,15 +107,15 @@ function groupByTournament(matches: FeedMatch[]): FeedGroup[] {
 	return [...byT.values()];
 }
 
-/** The feed store: a today-centered window of matches across every
- *  tournament the user plays. Scrolling extends the window in either
+/** The feed store: a today-centered window of "my matches" (the seasons
+ *  your pools bind, plus what you tipped), or of everything. Scrolling extends the window in either
  *  direction (one refetch with the grown window — payloads are small). */
 class FeedStore {
 	matches = $state<FeedMatch[]>([]);
 	teams = $state<Record<string, Team>>({});
 	deadlines = $state<FeedDeadline[]>([]);
-	suggestions = $state<FeedSuggestion[]>([]);
-	playing = $state<FeedMatch['tournament'][]>([]);
+	/** The seasons your pools bind (the competition filters). */
+	poolSeasons = $state<FeedMatch['tournament'][]>([]);
 	loaded = $state(false);
 	loading = $state(false);
 	/** Last load error; the page stops auto-retrying while set (a failing
@@ -125,10 +124,10 @@ class FeedStore {
 
 	past = $state(2);
 	ahead = $state(7);
-	/** `mine` = the competitions you play (default); `all` = every visible one. */
+	/** `mine` = my matches (default); `all` = every visible season. */
 	scope = $state<'mine' | 'all'>('mine');
 
-	/** Switch between your competitions and all of them, then refetch. */
+	/** Switch between my matches and all of them, then refetch. */
 	async setScope(scope: 'mine' | 'all') {
 		if (this.scope === scope) return;
 		this.scope = scope;
@@ -142,14 +141,9 @@ class FeedStore {
 		try {
 			await serverClock.refresh();
 			const q = `past=${this.past}&days=${this.ahead}${this.scope === 'all' ? '&all=1' : ''}`;
-			const [r, s] = await Promise.all([
-				pb.send(`/api/feed?${q}`, { method: 'GET' }),
-				pb
-					.send('/api/tournaments/suggestions', { method: 'GET' })
-					.catch(() => ({ suggestions: [] }))
-			]);
-			this.matches = r.matches ?? [];
-			this.playing = r.playing ?? [];
+			const r = await pb.send(`/api/feed?${q}`, { method: 'GET' });
+			this.matches = (r.matches ?? []).map((m: FeedMatch) => ({ ...m, reasons: m.reasons ?? [] }));
+			this.poolSeasons = r.poolSeasons ?? [];
 			this.deadlines = (r.deadlines ?? []).filter((d: FeedDeadline) => {
 				const ms = new Date(d.locksAt).getTime() - serverClock.now();
 				return ms > 0 && ms < DEADLINE_LEAD_DAYS * 86400_000;
@@ -166,7 +160,6 @@ class FeedStore {
 				};
 			}
 			this.teams = tmap;
-			this.suggestions = s.suggestions ?? [];
 			this.loaded = true;
 			this.subscribeLive();
 		} catch (e) {
@@ -327,8 +320,7 @@ class FeedStore {
 	}
 
 	/** Save (create or update) a tip for a feed match and mirror it back
-	 *  into the row. Server hooks validate the lock + derive the advancer
-	 *  and auto-subscribe the user to the tournament. */
+	 *  into the row. Server hooks validate the lock + derive the advancer. */
 	async saveTip(m: FeedMatch, t: Omit<Tip, 'id' | 'match'>): Promise<void> {
 		const data = {
 			user: auth.user?.id,
@@ -350,6 +342,7 @@ class FeedStore {
 		if (i >= 0) {
 			this.matches[i] = {
 				...this.matches[i],
+				reasons: withTip(this.matches[i].reasons),
 				myTip: {
 					ftHome: rec.ftHome,
 					ftAway: rec.ftAway,
@@ -369,6 +362,7 @@ class FeedStore {
 		if (i < 0) return;
 		this.matches[i] = {
 			...this.matches[i],
+			reasons: withTip(this.matches[i].reasons),
 			myTip: {
 				ftHome: t.ftHome,
 				ftAway: t.ftAway,
@@ -380,11 +374,6 @@ class FeedStore {
 		};
 	}
 
-	/** Play a tournament from a suggestion card, then refresh. */
-	async play(slug: string) {
-		await pb.send(`/api/tournaments/${slug}/play`, { method: 'POST' });
-		await this.load();
-	}
 }
 
 export const feedStore = new FeedStore();

@@ -78,7 +78,7 @@
 		<h2>What we store</h2>
 		<ul>
 			<li><b>Account:</b> email address, display name, optional avatar, password hash or the Google account link, and which terms version you accepted.</li>
-			<li><b>Play:</b> your tips, forecasts, the competitions you play, points and placings.</li>
+			<li><b>Play:</b> your tips, forecasts, points and placings.</li>
 			<li><b>Social:</b> friendships, pool memberships, pool invites and the messages you post in pool chats.</li>
 			<li><b>Notifications:</b> your notification preferences and, if you enable push, the push subscription of that device.</li>
 			<li><b>Technical:</b> server logs with IP address and requested URL, kept for a short time for security and debugging.</li>

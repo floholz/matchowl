@@ -1,5 +1,5 @@
-<!-- Matches: every match of the competitions you play ("Playing", default)
-     or of every competition ("All"), day by day, one card per competition
+<!-- Matches: "my matches" (pools, tips; default) or every competition
+     ("All"), day by day, one card per competition
      per day, today anchored. A Live chip appears only while something is
      live; the sticky day strip scrolls the list and follows it. Only lists
      matches — deadlines and suggestions live on Home / Competitions. -->
@@ -88,10 +88,10 @@
 			}))
 			.filter((d) => d.matches.length);
 	});
-	/** Rail lists: what you play, and the rest (opens the "all" scope). */
+	/** Rail lists: your pools' seasons, and the rest (opens the "all" scope). */
 	let notPlaying = $derived(
 		tournamentStore.list.filter(
-			(t) => t.status !== 'draft' && !feedStore.playing.some((p) => p.id === t.id)
+			(t) => t.status !== 'draft' && !feedStore.poolSeasons.some((p) => p.id === t.id)
 		)
 	);
 	async function pickTournament(id: string, playing: boolean) {
@@ -322,19 +322,19 @@
 <div class="layout" class:withpanel={media.panel && !!selected}>
 <aside class="rail">
 	<div class="railh">Show</div>
-	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> Playing</button>
+	<button class="raillink" class:on={feedStore.scope === 'mine' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('mine'); }}><Check size={16} /> My matches</button>
 	<button class="raillink" class:on={feedStore.scope === 'all' && !liveOnly && !tid} onclick={() => { tid = ''; liveOnly = false; setScope('all'); }}><Globe size={16} /> Everything</button>
 	{#if liveCount > 0}
 		<button class="raillink live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}><Radio size={16} /> Live · {liveCount}</button>
 	{/if}
-	{#if feedStore.playing.length}
-		<div class="railh">Playing</div>
-		{#each feedStore.playing as t (t.id)}
+	{#if feedStore.poolSeasons.length}
+		<div class="railh">Your pools</div>
+		{#each feedStore.poolSeasons as t (t.id)}
 			<button class="raillink" class:on={tid === t.id} onclick={() => pickTournament(t.id, true)}>{t.shortName || t.name}</button>
 		{/each}
 	{/if}
 	{#if notPlaying.length}
-		<div class="railh">Not playing</div>
+		<div class="railh">More</div>
 		{#each notPlaying as t (t.id)}
 			<button class="raillink dim" class:on={tid === t.id} onclick={() => pickTournament(t.id, false)}>{t.shortName || t.name}</button>
 		{/each}
@@ -344,7 +344,7 @@
 <div class="subbar">
 	<div class="chips">
 		<button class="chip" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}>
-			{#if feedStore.scope === 'mine'}<Check size={14} />{/if} Playing
+			{#if feedStore.scope === 'mine'}<Check size={14} />{/if} My matches
 		</button>
 		<button class="chip" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}>
 			{#if feedStore.scope === 'all'}<Check size={14} />{/if} All
@@ -397,8 +397,8 @@
 				<p><b>Nothing live right now.</b></p>
 			{:else if feedStore.scope === 'mine'}
 				<p><b>No matches yet.</b></p>
-				<p class="muted">Play a competition and its matches show up here, day by day.</p>
-				<a class="btn" href="/competitions">Browse competitions</a>
+				<p class="muted">Join or start a pool and its season's matches show up here, day by day. Matches you tip anywhere show up too.</p>
+				<a class="btn" href="/friends">Find a pool</a>
 			{:else}
 				<p><b>No matches in this window.</b></p>
 			{/if}

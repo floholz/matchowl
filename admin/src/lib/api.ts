@@ -58,7 +58,9 @@ export interface AnnouncePayload {
 /** Recipient filter; every set criterion narrows. */
 export interface Audience {
 	roles?: string[]; // member | admin | owner
-	playing?: string; // tournament id
+	season?: string; // tournament id: in a pool of this season
+	/** Legacy name of `season` on mailings saved before 2026-11-23. */
+	playing?: string;
 	pool?: string; // pool id
 	joinedAfter?: string; // YYYY-MM-DD
 	joinedBefore?: string;

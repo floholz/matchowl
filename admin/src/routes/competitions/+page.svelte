@@ -350,7 +350,7 @@
 							{:else}
 								{t.teams} teams · {t.matches} matches
 							{/if}
-							· <Users size={13} /> {t.players} players
+							· <Users size={13} /> {t.players} in pools
 						</p>
 					</div>
 					<div class="tactions">

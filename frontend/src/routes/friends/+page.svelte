@@ -8,6 +8,7 @@
 	import { auth } from '$lib/auth.svelte';
 	import { pb } from '$lib/pb';
 	import { goto } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { page } from '$app/stores';
 	import { tournamentStore, defaultSeason, seasonLabel } from '$lib/tournament.svelte';
 	import { pageChrome } from '$lib/shell.svelte';
@@ -60,6 +61,19 @@
 		error = '';
 		sheet = which;
 	}
+	// ?start=<season id> (the competition hub's "Start a pool"): open the
+	// start sheet with that season picked, once.
+	let startParam = $derived($page.url.searchParams.get('start') ?? '');
+	$effect(() => {
+		if (!startParam || !verified) return;
+		untrack(() => {
+			newSeason = startParam;
+			openSheet('start');
+			const q = new URLSearchParams($page.url.searchParams);
+			q.delete('start');
+			goto(`/friends${q.size ? `?${q}` : ''}`, { replaceState: true, noScroll: true, keepFocus: true });
+		});
+	});
 	function closeSheet() {
 		sheet = '';
 		if (created) {
@@ -283,7 +297,7 @@
 		<p class="kicker">Verify your email</p>
 		<p>
 			Friends and pools open up once <strong>{auth.user?.email}</strong> is
-			confirmed. Tipping and playing competitions work already.
+			confirmed. Tipping matches works already.
 		</p>
 		{#if verifySent}
 			<p class="ok">Verification email sent — check your inbox.</p>

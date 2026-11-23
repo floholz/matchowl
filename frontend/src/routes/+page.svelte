@@ -20,7 +20,7 @@
 
 	$effect(() => {
 		if (!auth.isAuthed || feedStore.loading || feedStore.error) return;
-		// Home always looks at the competitions you play.
+		// Home always looks at my matches.
 		if (feedStore.scope !== 'mine') feedStore.setScope('mine').catch(() => {});
 		else if (!feedStore.loaded) feedStore.load().catch(() => {});
 		tournamentStore.ready().catch(() => {});
@@ -88,7 +88,8 @@
 	 *  included — not the next open pairing months out. */
 	const TIP_WINDOW_MS = 7 * 86400_000;
 	let soon = $derived(open.filter((m) => new Date(m.kickoff).getTime() - serverClock.now() <= TIP_WINDOW_MS));
-	let untipped = $derived(soon.filter((m) => !m.myTip));
+	/** Only what your pools (later: challenges) ask you to tip. */
+	let untipped = $derived(soon.filter((m) => !m.myTip && m.reasons.includes('pool')));
 	let tipNow = $derived(untipped.slice(0, 3));
 	let live = $derived(feedStore.matches.filter((m) => m.status === 'live').sort(byKickoff));
 	/** The most recent day with results: "Yesterday" when it is. */
@@ -229,7 +230,7 @@
 				</div>
 			{:else}
 				<div class="card quiet muted">
-					Nothing to tip right now. <a href="/competitions">Play a competition</a> to fill this up.
+					Nothing to tip right now. <a href="/friends">Join or start a pool</a> to fill this up.
 				</div>
 			{/if}
 
