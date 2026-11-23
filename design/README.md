@@ -55,8 +55,17 @@ like a corner radius going from 8 to 12 shows up as a one-line diff.
 
 ## Working on it with Claude
 
-`.mcp.json` wires the `figcraft` MCP server to `design/tools/figcraft-mcp`.
-When a Claude Code session starts in this repo, the server:
+`.mcp.json` declares a `figcraft` MCP server (`design/tools/figcraft-mcp`).
+It's off until you enable it on a machine. The one-time setup:
+
+```sh
+echo '{ "enabledMcpjsonServers": ["figcraft"] }' > .claude/settings.local.json
+```
+
+That file is gitignored; merge the key in if the file already exists.
+
+Starting a Claude session doesn't open FigCraft. A windowless FigCraft
+answers until the first design tool call. That call:
 
 1. builds `matchowl.figcraft` if it's missing;
 2. starts FigCraft with that file open (`--control 7979`), unless it's
@@ -68,10 +77,9 @@ select layers to point at them, or make changes yourself.
 
 - **Requirements:** FigCraft installed (`figcraft` and `figcraft-cli` on the
   PATH), plus python3.
-- **First run on a machine:** Claude Code asks once to trust the project's
-  MCP server. `.claude/settings.json` pre-enables `figcraft`.
-- **Lost connection:** if FigCraft gets closed mid-session, run `/mcp` and
-  reconnect `figcraft`. The window opens again.
+- **Lost connection:** if FigCraft gets closed mid-session, the next tool
+  call fails. Run `/mcp` and reconnect `figcraft`, and the next call opens it
+  again.
 - **Port:** set `FIGCRAFT_PORT` to use one other than 7979.
 - **Claude's loop:** edit through MCP, then `file.save`, then
   `make design-unpack`, then commit `design/matchowl/` together with the

@@ -1,36 +1,175 @@
-#!/usr/bin/env bash
-# MCP entry point for FigCraft (wired in .mcp.json). Makes sure the FigCraft
-# app is running with this project's design file open, then serves MCP on
-# stdio attached to it, so Claude edits the same window you're looking at.
-#
-# stdout belongs to the MCP protocol: everything else goes to stderr.
-set -euo pipefail
+#!/usr/bin/env python3
+"""MCP entry point for FigCraft (wired in .mcp.json; enable it per machine).
 
-PORT="${FIGCRAFT_PORT:-7979}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-FILE="$ROOT/design/matchowl.figcraft"
+Starting a Claude session doesn't open FigCraft. Until the first tool call,
+a windowless `figcraft-cli mcp` answers the handshake and the tool list (the
+same tools as the app's). On the first tool call this proxy:
 
-log() { echo "[figcraft-mcp] $*" >&2; }
-up() { (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; }
+  1. builds design/matchowl.figcraft if needed,
+  2. starts FigCraft with it on the control port, unless it's already running,
+  3. attaches to that app and forwards everything from then on,
 
-command -v figcraft-cli >/dev/null || { log "figcraft-cli not found; install FigCraft"; exit 1; }
+so the edits happen in the window you're watching.
 
-if ! up; then
-	# Fresh clone or after a pull: build the .figcraft from design/matchowl/.
-	# pack refuses to overwrite unsynced FigCraft edits, and that's fine here.
-	python3 "$ROOT/design/tools/figcraft_sync.py" pack >&2 || true
+stdout belongs to the MCP protocol; logs go to stderr.
+"""
 
-	log "starting FigCraft on port $PORT"
-	setsid figcraft --control "$PORT" \
-		--automation-read-root "$ROOT" \
-		--automation-write-root "$ROOT/design" \
-		"$FILE" </dev/null >/dev/null 2>&1 &
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
 
-	for _ in $(seq 1 60); do
-		up && break
-		sleep 0.5
-	done
-	up || { log "FigCraft didn't open port $PORT within 30 s"; exit 1; }
-fi
+PORT = int(os.environ.get("FIGCRAFT_PORT", "7979"))
+ROOT = Path(__file__).resolve().parent.parent.parent
+FILE = ROOT / "design" / "matchowl.figcraft"
+out_lock = threading.Lock()
 
-exec figcraft-cli mcp --attach "$PORT" --timeout 120
+
+def log(msg):
+    print(f"[figcraft-mcp] {msg}", file=sys.stderr, flush=True)
+
+
+def emit(line):
+    with out_lock:
+        sys.stdout.write(line if line.endswith("\n") else line + "\n")
+        sys.stdout.flush()
+
+
+def app_up():
+    try:
+        socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()
+        return True
+    except OSError:
+        return False
+
+
+def start_app():
+    subprocess.run([sys.executable, str(ROOT / "design/tools/figcraft_sync.py"), "pack"],
+                   stdout=sys.stderr, stderr=sys.stderr)
+    log(f"starting FigCraft on port {PORT}")
+    subprocess.Popen(
+        ["figcraft", "--control", str(PORT),
+         "--automation-read-root", str(ROOT),
+         "--automation-write-root", str(ROOT / "design"),
+         str(FILE)],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True)
+    for _ in range(60):
+        if app_up():
+            return
+        time.sleep(0.5)
+    raise RuntimeError(f"FigCraft didn't open port {PORT} within 30 s")
+
+
+class Backend:
+    """A figcraft-cli mcp child; `on_line` gets each stdout line."""
+
+    def __init__(self, args, on_line):
+        self.p = subprocess.Popen(["figcraft-cli", "mcp", *args], stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, stderr=sys.stderr, text=True, bufsize=1)
+        self.on_line = on_line
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self):
+        for line in self.p.stdout:
+            self.on_line(line)
+
+    def send(self, line):
+        self.p.stdin.write(line if line.endswith("\n") else line + "\n")
+        self.p.stdin.flush()
+
+    def close(self):
+        try:
+            self.p.stdin.close()
+            self.p.wait(timeout=3)
+        except Exception:
+            self.p.kill()
+
+
+def main():
+    if not shutil.which("figcraft-cli"):
+        log("figcraft-cli not found; install FigCraft")
+        sys.exit(1)
+
+    init_req = None          # the client's initialize request, replayed on attach
+    pending = set()          # ids the headless backend still owes an answer
+    drained = threading.Condition()
+
+    def from_headless(line):
+        try:
+            mid = json.loads(line).get("id")
+        except ValueError:
+            mid = None
+        with drained:
+            pending.discard(mid)
+            drained.notify_all()
+        emit(line)
+
+    headless = Backend([], from_headless)
+    attached = None
+
+    def attach():
+        nonlocal attached, headless
+        with drained:
+            drained.wait_for(lambda: not pending, timeout=10)
+        if not app_up():
+            start_app()
+        ready = threading.Event()
+
+        def from_app(line):
+            if not ready.is_set():  # the answer to our replayed initialize
+                ready.set()
+                return
+            emit(line)
+
+        attached = Backend(["--attach", str(PORT), "--timeout", "120"], from_app)
+        init = dict(init_req or {"jsonrpc": "2.0", "method": "initialize", "params": {
+            "protocolVersion": "2025-06-18", "capabilities": {},
+            "clientInfo": {"name": "figcraft-mcp", "version": "1"}}})
+        init["id"] = "__figcraft_mcp_attach__"
+        attached.send(json.dumps(init))
+        if not ready.wait(30):
+            raise RuntimeError("the FigCraft app didn't answer")
+        attached.send(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        headless.close()
+        headless = None
+        log("attached to the FigCraft app")
+
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        try:
+            msg = json.loads(line)
+        except ValueError:
+            continue
+        if msg.get("method") == "initialize":
+            init_req = msg
+        if attached is None and msg.get("method") == "tools/call":
+            try:
+                attach()
+            except Exception as e:  # report it on the call instead of dying
+                log(f"attach failed: {e}")
+                emit(json.dumps({"jsonrpc": "2.0", "id": msg.get("id"), "result": {
+                    "isError": True,
+                    "content": [{"type": "text", "text": f"Couldn't open FigCraft: {e}"}]}}))
+                continue
+        if attached is not None:
+            attached.send(line)
+        else:
+            if "id" in msg and "method" in msg:
+                with drained:
+                    pending.add(msg["id"])
+            headless.send(line)
+
+    for b in (headless, attached):
+        if b:
+            b.close()
+
+
+if __name__ == "__main__":
+    main()

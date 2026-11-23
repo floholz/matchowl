@@ -33,3 +33,6 @@ admin/build/
 # Design mirror: the .figcraft is built from design/matchowl/ (make design-pack)
 /design/matchowl.figcraft
 /design/.matchowl.figcraft.sync
+
+# Claude Code: per-machine settings (e.g. enabling the figcraft MCP)
+.claude/settings.local.json

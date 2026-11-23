@@ -1,8 +1,5 @@
 {
   "worktree": {
     "bgIsolation": "none"
-  },
-  "enabledMcpjsonServers": [
-    "figcraft"
-  ]
+  }
 }
