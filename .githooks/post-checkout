@@ -1,0 +1,3 @@
+#!/bin/sh
+# Same as post-merge, for branch switches and fresh clones.
+exec "$(dirname "$0")/post-merge"

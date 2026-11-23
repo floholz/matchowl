@@ -29,3 +29,7 @@ admin/build/
 .DS_Store
 .directory
 .cate/
+
+# Design mirror: the .figcraft is built from design/matchowl/ (make design-pack)
+/design/matchowl.figcraft
+/design/.matchowl.figcraft.sync

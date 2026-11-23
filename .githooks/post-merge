@@ -1,0 +1,11 @@
+#!/bin/sh
+# Design mirror: after a pull/merge brought new design/matchowl/ content,
+# rebuild matchowl.figcraft (refuses if it holds unsynced FigCraft edits).
+[ -f design/matchowl/document.json ] || exit 0
+command -v python3 >/dev/null || exit 0
+python3 design/tools/figcraft_sync.py status >/dev/null 2>&1
+case $? in
+  2) python3 design/tools/figcraft_sync.py pack ;;
+  3) echo "post-merge: warning: matchowl.figcraft and design/matchowl/ both changed. See design/README.md." ;;
+esac
+exit 0

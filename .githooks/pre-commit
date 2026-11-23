@@ -1,0 +1,13 @@
+#!/bin/sh
+# Design mirror: if matchowl.figcraft was edited in FigCraft since the last
+# sync, unpack it into design/matchowl/ so the change shows up in git.
+# It is NOT staged automatically: review it and `git add design/matchowl`.
+[ -f design/matchowl.figcraft ] || exit 0
+command -v python3 >/dev/null || exit 0
+python3 design/tools/figcraft_sync.py status >/dev/null 2>&1
+case $? in
+  1) python3 design/tools/figcraft_sync.py unpack
+     echo "pre-commit: FigCraft edits unpacked into design/matchowl/ (not staged; review and git add)." ;;
+  3) echo "pre-commit: warning: matchowl.figcraft and design/matchowl/ both changed. See design/README.md." ;;
+esac
+exit 0
