@@ -398,7 +398,7 @@
 			{:else if feedStore.scope === 'mine'}
 				<p><b>No matches yet.</b></p>
 				<p class="muted">Join or start a pool and its season's matches show up here, day by day. Matches you tip anywhere show up too.</p>
-				<a class="btn" href="/friends">Find a pool</a>
+				<a class="btn" href="/pools">Find a pool</a>
 			{:else}
 				<p><b>No matches in this window.</b></p>
 			{/if}

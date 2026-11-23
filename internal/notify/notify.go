@@ -174,7 +174,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			if err != nil {
 				return
 			}
-			data := tplData{League: pool.GetString("name"), From: from, CTAText: "See the invite", CTAUrl: r.base().url + "/friends"}
+			data := tplData{League: pool.GetString("name"), From: from, CTAText: "See the invite", CTAUrl: r.base().url + "/pools"}
 			res := &Result{}
 			r.dispatch(ctx, res, ncol, u, "pool_invite", "pool_invite:"+inv.Id, data)
 		}()
@@ -734,7 +734,7 @@ func (r *Runner) sampleData(event string) tplData {
 	case "pool_invite":
 		d.From = "Lena"
 		d.League = "Bürocup"
-		d.CTAText, d.CTAUrl = "See the invite", base.url+"/friends"
+		d.CTAText, d.CTAUrl = "See the invite", base.url+"/pools"
 	case "h2h_round":
 		d.League, d.Round, d.Rival = "Bürocup", "Matchday 12", "Lena"
 		d.Mine, d.Theirs, d.Verdict = 14, 9, "beat"

@@ -193,7 +193,7 @@
 			</span>
 		</span>
 		{#if canStartPool}
-			<a class="chip" href={`/friends?start=${season.id}`}><Plus size={15} /> Start a pool</a>
+			<a class="chip" href={`/pools?start=${season.id}`}><Plus size={15} /> Start a pool</a>
 		{/if}
 	{/if}
 {/snippet}

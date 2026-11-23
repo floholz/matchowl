@@ -479,7 +479,7 @@
 					? ' · you own this pool'
 					: '')
 	);
-	pageChrome(() => ({ back: '/friends', title: league?.name ?? 'Pool', context: loaded ? memberLine : '' }));
+	pageChrome(() => ({ back: '/pools', title: league?.name ?? 'Pool', context: loaded ? memberLine : '' }));
 	let fcView = $derived(tab === 'forecastPoints');
 
 	// Build the avatar URL the same way auth.svelte does — a users.avatar file

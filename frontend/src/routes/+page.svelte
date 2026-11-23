@@ -168,7 +168,7 @@
 		{:else if feedStore.loaded}
 			<div class="sec">
 				<h2>Your pools</h2>
-				<a class="more" href="/friends">Friends <ChevronRight size={14} /></a>
+				<a class="more" href="/pools">Pools <ChevronRight size={14} /></a>
 			</div>
 			{#each duels as pool (pool.poolId)}
 				<DuelCard {pool} />
@@ -203,7 +203,7 @@
 				</div>
 			{:else if leaguesLoaded && h2hStore.loaded && !duels.length}
 				<div class="card quiet muted">
-					No pools yet. <a href="/friends">Start one</a> and invite your friends.
+					No pools yet. <a href="/pools">Start one</a> and invite your friends.
 				</div>
 			{/if}
 
@@ -230,7 +230,7 @@
 				</div>
 			{:else}
 				<div class="card quiet muted">
-					Nothing to tip right now. <a href="/friends">Join or start a pool</a> to fill this up.
+					Nothing to tip right now. <a href="/pools">Join or start a pool</a> to fill this up.
 				</div>
 			{/if}
 

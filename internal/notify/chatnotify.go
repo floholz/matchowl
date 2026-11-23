@@ -223,7 +223,7 @@ func (r *Runner) chatDigestPass(ctx context.Context) int {
 			BaseURL:     base.url,
 			SettingsUrl: base.url + "/settings",
 			CTAText:     "Open your chats",
-			CTAUrl:      base.url + "/friends",
+			CTAUrl:      base.url + "/pools",
 			ChatTotal:   total,
 			ChatLeagues: lines,
 		}

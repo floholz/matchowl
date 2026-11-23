@@ -90,7 +90,7 @@
 		};
 	});
 
-	const backHref = $derived(auth.isAuthed ? '/friends' : '/login');
+	const backHref = $derived(auth.isAuthed ? '/pools' : '/login');
 	const backLabel = $derived(auth.isAuthed ? 'Go to Friends' : 'Sign in');
 </script>
 
