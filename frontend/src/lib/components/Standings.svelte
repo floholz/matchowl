@@ -6,6 +6,7 @@
      Compact mode (the hub's Overview): no toggle — shows the phase the
      season is currently in, and only the current round of the bracket. -->
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { tipsStore, type Match } from '$lib/tips.svelte';
 	import { tournamentStore } from '$lib/tournament.svelte';
 	import Flag from './Flag.svelte';
@@ -136,6 +137,12 @@
 	function tn(id: string) {
 		return tipsStore.team(id);
 	}
+	/** A tap anywhere on a table row opens the team page (the name itself
+	 *  is the link, for keyboards and long-press). */
+	function openTeam(e: MouseEvent, key: string | undefined) {
+		if (!key || (e.target as HTMLElement).closest('a')) return;
+		goto(`/teams/${key}`);
+	}
 	function scoreText(m: Match) {
 		if (!played(m)) return '';
 		let s = `${m.ftHome}–${m.ftAway}`;
@@ -182,15 +189,19 @@
 									class:zoned={!!zone}
 									style={zone ? `--zone: var(--zone-${tournamentStore.zoneIndex(zone.key) % 5})` : ''}
 									title={zone?.name}
+									class:linked={!!tn(r.id)?.key}
+									onclick={(e) => openTeam(e, tn(r.id)?.key)}
 								>
 									<td class="rk">{i + 1}</td>
-									<td class="tm">
-										<Flag
-											iso2={tn(r.id)?.iso2 ?? ''}
-											code={tn(r.id)?.fifaCode ?? ''}
-											logo={tn(r.id)?.logo ?? ''}
-										/>
-										<span>{tn(r.id)?.name ?? '?'}</span>
+									<td>
+										<svelte:element this={tn(r.id)?.key ? 'a' : 'span'} class="tm" href={tn(r.id)?.key ? `/teams/${tn(r.id)?.key}` : undefined}>
+											<Flag
+												iso2={tn(r.id)?.iso2 ?? ''}
+												code={tn(r.id)?.fifaCode ?? ''}
+												logo={tn(r.id)?.logo ?? ''}
+											/>
+											<span>{tn(r.id)?.name ?? '?'}</span>
+										</svelte:element>
 									</td>
 									<td class="digits">{r.p}</td>
 									<td class="digits">{r.gf - r.ga > 0 ? '+' : ''}{r.gf - r.ga}</td>
@@ -319,6 +330,13 @@
 		gap: 0.5rem;
 		text-align: left;
 		font-weight: 600;
+		color: var(--text);
+	}
+	tr.linked {
+		cursor: pointer;
+	}
+	tr.linked:hover td {
+		background: var(--surface-2);
 	}
 	.pts {
 		color: var(--accent);

@@ -644,13 +644,13 @@
 			<div class="card list">
 				{#each table.rows as r (r.id)}
 					{@const t = teamOf(r.id)}
-					<div class="trow">
+					<svelte:element this={t?.key ? 'a' : 'div'} class="trow" href={t?.key ? `/teams/${t.key}` : undefined}>
 						<span class="pos digits muted">{r.pos}</span>
 						<span class="tname"><Flag iso2={t?.iso2 ?? ''} code={t?.fifaCode ?? ''} logo={t?.logo ?? ''} size={18} /> {t?.name ?? '?'}</span>
 						<span class="num digits muted">{r.pld}</span>
 						<span class="num digits muted">{r.gf - r.ga > 0 ? '+' : ''}{r.gf - r.ga}</span>
 						<span class="num digits">{r.pts}</span>
-					</div>
+					</svelte:element>
 				{/each}
 			</div>
 		{/if}
@@ -912,6 +912,10 @@
 		padding: 0.5rem 0.9rem;
 		border-bottom: 1px solid var(--border);
 		font-size: 0.9rem;
+		color: var(--text);
+	}
+	a.trow:hover {
+		background: var(--surface-2);
 	}
 	.frow:last-child,
 	.trow:last-child {

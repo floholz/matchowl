@@ -78,16 +78,8 @@
 	<div class="shead">
 		<h2>Competitions</h2>
 		<span class="spacer"></span>
-		<button
-			class="pintoggle"
-			class:on={editing}
-			class:icon={!editing}
-			onclick={() => (editing = !editing)}
-			aria-pressed={editing}
-			aria-label={editing ? 'Done pinning' : 'Pin competitions'}
-			title={editing ? 'Done' : 'Pin competitions'}
-		>
-			{#if editing}Done{:else}<Pin size={16} />{/if}
+		<button class="pintoggle" class:on={editing} onclick={() => (editing = !editing)} aria-pressed={editing}>
+			{#if editing}Done{:else}<Pin size={14} /> Pin{/if}
 		</button>
 	</div>
 	<p class="muted lead">
@@ -114,7 +106,7 @@
 						{:else if pins.isPinned(key)}
 							<span class="pinpill on">Pinned</span>
 						{:else}
-							<span class="pinpill">Pin</span>
+							<span class="pinpill icon" aria-label="Pin" title="Pin"><Pin size={13} /></span>
 						{/if}
 					{:else}
 						<span class="muted sub">{pool ? 'Your pool' : place(e) === INTERNATIONAL ? '' : e.competition.country}</span>
@@ -202,11 +194,6 @@
 		font-weight: 700;
 		font-size: 0.82rem;
 		cursor: pointer;
-	}
-	.pintoggle.icon {
-		width: 32px;
-		padding: 0;
-		justify-content: center;
 	}
 	.pintoggle.on {
 		background: var(--accent);
@@ -297,6 +284,12 @@
 	.pinpill {
 		border: 1px solid var(--border);
 		color: var(--muted);
+	}
+	.pinpill.icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.2rem 0.5rem;
 	}
 	.pinpill.on {
 		background: var(--accent);
