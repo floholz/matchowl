@@ -1373599,9 +1373599,9 @@
    "type": "section",
    "contents_hidden": false,
    "parent": 57312,
-   "children": [85455,85498,85520,85554,85585,85607,85635],
+   "children": [85455,85498,85520,85554,85585,85607,85635,85699,85727],
    "transform": [1.0,0.0,0.0,1.0,-40.0,5400.0],
-   "width": 2140.0,
+   "width": 2730.0,
    "height": 420.0,
    "fills": [
     {
@@ -1380630,9 +1380630,1601 @@
     "grid_column_span": 0,
     "grid_row_span": 0
    }
+  },
+  "85699": {
+   "id": 85699,
+   "name": "G · boxing glove",
+   "type": "frame",
+   "parent": 85454,
+   "children": [85700,85701,85706,85719,85726],
+   "transform": [1.0,0.0,0.0,1.0,2105.0,40.0],
+   "width": 275.0,
+   "height": 340.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.015686275,"g":0.015686275,"b":0.015686275,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":0.19607843,"g":0.16862746,"b":0.13333334,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[16.0,16.0,16.0,16.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85700": {
+   "id": 85700,
+   "name": "G · boxing glove",
+   "type": "text",
+   "characters": "G · boxing glove",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 15.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85699,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,18.0,16.0],
+   "width": 111.0,
+   "height": 18.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85701": {
+   "id": 85701,
+   "name": "icon/glove-mitt",
+   "type": "frame",
+   "parent": 85699,
+   "children": [85702],
+   "transform": [1.0,0.0,0.0,1.0,18.0,52.0],
+   "width": 44.0,
+   "height": 44.0,
+   "clip": true
+  },
+  "85702": {
+   "id": 85702,
+   "name": "Group",
+   "type": "group",
+   "parent": 85701,
+   "children": [85703,85704,85705],
+   "transform": [1.0,0.0,0.0,1.0,8.250000178813934,5.5000001192092896],
+   "width": 26.583334673476372,
+   "height": 33.00000071525574
+  },
+  "85703": {
+   "id": 85703,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":19.250000417232513,"radius":0.0},{"x":0.0,"y":9.166666865348816,"radius":0.0},{"x":9.166666865348816,"y":0.0,"radius":0.0},{"x":11.91666692495346,"y":0.0,"radius":0.0},{"x":20.166667103767395,"y":8.250000178813934,"radius":0.0},{"x":20.166667103767395,"y":17.41666704416275,"radius":0.0},{"x":16.50000035762787,"y":22.605000350077944,"radius":0.0},{"x":16.50000035762787,"y":23.83333384990692,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,-5.0626100206940805],"tb":[-5.062610894895556,0.0]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[4.556348581523935,0.0],"tb":[0.0,-4.55634945572541]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[0.0012238820659149496,2.331864248590705],"tb":[2.198504813479758,-0.7772875000625845]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85702,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,6.416666805744171,0.0],
+   "width": 20.1666678677322,
+   "height": 23.83333384990692,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666667461395264,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85704": {
+   "id": 85704,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":6.416666805744171,"y":0.0,"radius":0.0},{"x":4.583333432674408,"y":0.0,"radius":0.0},{"x":0.0,"y":4.583333432674408,"radius":0.0},{"x":4.583333432674408,"y":9.166666865348816,"radius":0.0},{"x":12.833333611488342,"y":9.166666865348816,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-2.531305447447778,0.0],"tb":[0.0,-2.5313045732463024]},{"a":2,"b":3,"ta":[0.0,2.5313045732463024],"tb":[-2.531305447447778,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85702,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,11.91666692495346],
+   "width": 12.833333611488342,
+   "height": 9.166666865348816,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666667461395264,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85705": {
+   "id": 85705,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":0.0,"radius":0.0},{"x":18.333333730697632,"y":0.0,"radius":0.0},{"x":18.333333730697632,"y":7.333333492279053,"radius":0.0},{"x":16.50000035762787,"y":9.166666865348816,"radius":0.0},{"x":1.8333333730697632,"y":9.166666865348816,"radius":0.0},{"x":0.0,"y":7.333333492279053,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[0.0,1.0125211299373404],"tb":[1.0125211299373404,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-1.012522004138816,0.0],"tb":[0.0,1.0125211299373404]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85702,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,4.583333432674408,23.83333384990692],
+   "width": 18.333333730697632,
+   "height": 9.166666865348816,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666667461395264,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85706": {
+   "id": 85706,
+   "name": "div.mr",
+   "type": "frame",
+   "parent": 85699,
+   "children": [85707,85708,85709,85710,85713],
+   "transform": [1.0,0.0,0.0,1.0,14.0,118.0],
+   "width": 247.0,
+   "height": 56.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.07058824,"g":0.0627451,"b":0.03529412,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":0.19607843,"g":0.16862746,"b":0.13333334,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[14.0,14.0,14.0,14.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85707": {
+   "id": 85707,
+   "name": "Sturm Graz",
+   "type": "text",
+   "characters": "Sturm Graz",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 13.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85706,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,10.0,10.0],
+   "width": 68.0,
+   "height": 16.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85708": {
+   "id": 85708,
+   "name": "Rapid Wien",
+   "type": "text",
+   "characters": "Rapid Wien",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 13.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85706,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,10.0,30.0],
+   "width": 69.0,
+   "height": 16.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85709": {
+   "id": 85709,
+   "name": "tile",
+   "type": "frame",
+   "parent": 85706,
+   "transform": [1.0,0.0,0.0,1.0,112.0,6.0],
+   "width": 38.0,
+   "height": 44.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.0,"g":0.0,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[7.0,7.0,7.0,7.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85710": {
+   "id": 85710,
+   "name": "capsule",
+   "type": "frame",
+   "parent": 85706,
+   "children": [85711,85712],
+   "transform": [1.0,0.0,0.0,1.0,158.0,6.0],
+   "width": 36.0,
+   "height": 44.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 0.101960786,
+     "visible": true,
+     "blend": "normal",
+     "colorAlpha": 0.101960786
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[18.0,18.0,18.0,18.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85711": {
+   "id": 85711,
+   "name": "2",
+   "type": "text",
+   "characters": "2",
+   "style": {
+    "font_family": "Red Hat Mono",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85710,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,13.0,4.0],
+   "width": 9.0,
+   "height": 19.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85712": {
+   "id": 85712,
+   "name": "1",
+   "type": "text",
+   "characters": "1",
+   "style": {
+    "font_family": "Red Hat Mono",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85710,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,13.0,22.0],
+   "width": 9.0,
+   "height": 19.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85713": {
+   "id": 85713,
+   "name": "badge",
+   "type": "frame",
+   "parent": 85706,
+   "children": [85714],
+   "transform": [1.0,0.0,0.0,1.0,206.0,15.0],
+   "width": 26.0,
+   "height": 26.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 0.12156863,
+     "visible": true,
+     "blend": "normal",
+     "colorAlpha": 0.12156863
+    }
+   ],
+   "corners": {"radii":[13.0,13.0,13.0,13.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85714": {
+   "id": 85714,
+   "name": "icon/glove-mitt",
+   "type": "frame",
+   "parent": 85713,
+   "children": [85715],
+   "transform": [1.0,0.0,0.0,1.0,6.0,6.0],
+   "width": 14.0,
+   "height": 14.0,
+   "clip": true
+  },
+  "85715": {
+   "id": 85715,
+   "name": "Group",
+   "type": "group",
+   "parent": 85714,
+   "children": [85716,85717,85718],
+   "transform": [1.0,0.0,0.0,1.0,2.624999910593033,1.7499999403953552],
+   "width": 8.458333288323917,
+   "height": 10.499999642372131
+  },
+  "85716": {
+   "id": 85716,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":6.124999791383743,"radius":0.0},{"x":0.0,"y":2.916666567325592,"radius":0.0},{"x":2.916666567325592,"y":0.0,"radius":0.0},{"x":3.7916665375232697,"y":0.0,"radius":0.0},{"x":6.4166664481163025,"y":2.624999910593033,"radius":0.0},{"x":6.4166664481163025,"y":5.541666477918625,"radius":0.0},{"x":5.249999821186066,"y":7.19249971052011,"radius":0.0},{"x":5.249999821186066,"y":7.583333075046539,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,-1.6108303713515681],"tb":[-1.6108306495065676,0.0]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[1.4497471951389116,0.0],"tb":[0.0,-1.449747473293911]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[0.0003894169992690877,0.7419567650173917],"tb":[0.6995242198470351,-0.2473187362357976]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85715,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,2.0416665971279144,0.0],
+   "width": 6.416666691196003,
+   "height": 7.583333075046539,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666666269302368,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85717": {
+   "id": 85717,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":2.0416665971279144,"y":0.0,"radius":0.0},{"x":1.458333283662796,"y":0.0,"radius":0.0},{"x":0.0,"y":1.458333283662796,"radius":0.0},{"x":1.458333283662796,"y":2.916666567325592,"radius":0.0},{"x":4.083333194255829,"y":2.916666567325592,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-0.8054153247532838,0.0],"tb":[0.0,-0.8054150465982843]},{"a":2,"b":3,"ta":[0.0,0.8054150465982843],"tb":[-0.8054153247532838,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85715,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,3.7916665375232697],
+   "width": 4.083333194255829,
+   "height": 2.916666567325592,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666666269302368,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85718": {
+   "id": 85718,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":0.0,"radius":0.0},{"x":5.833333134651184,"y":0.0,"radius":0.0},{"x":5.833333134651184,"y":2.3333332538604736,"radius":0.0},{"x":5.249999821186066,"y":2.916666567325592,"radius":0.0},{"x":0.5833333134651184,"y":2.916666567325592,"radius":0.0},{"x":0.0,"y":2.3333332538604736,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[0.0,0.32216579611531415],"tb":[0.32216579611531415,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-0.32216607427031363,0.0],"tb":[0.0,0.32216579611531415]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85715,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,1.458333283662796,7.583333075046539],
+   "width": 5.833333134651184,
+   "height": 2.916666567325592,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666666269302368,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85719": {
+   "id": 85719,
+   "name": "button.challenge",
+   "type": "frame",
+   "parent": 85699,
+   "children": [85720,85725],
+   "transform": [1.0,0.0,0.0,1.0,14.0,190.0],
+   "width": 247.0,
+   "height": 42.0,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[11.0,11.0,11.0,11.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85720": {
+   "id": 85720,
+   "name": "icon/glove-mitt",
+   "type": "frame",
+   "parent": 85719,
+   "children": [85721],
+   "transform": [1.0,0.0,0.0,1.0,44.0,12.0],
+   "width": 18.0,
+   "height": 18.0,
+   "clip": true
+  },
+  "85721": {
+   "id": 85721,
+   "name": "Group",
+   "type": "group",
+   "parent": 85720,
+   "children": [85722,85723,85724],
+   "transform": [1.0,0.0,0.0,1.0,3.375,2.25],
+   "width": 10.875000312531052,
+   "height": 13.5
+  },
+  "85722": {
+   "id": 85722,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":7.875,"radius":0.0},{"x":0.0,"y":3.75,"radius":0.0},{"x":3.75,"y":0.0,"radius":0.0},{"x":4.875,"y":0.0,"radius":0.0},{"x":8.25,"y":3.375,"radius":0.0},{"x":8.25,"y":7.125,"radius":0.0},{"x":6.75,"y":9.247499942779541,"radius":0.0},{"x":6.75,"y":9.75,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,-2.071067690849304],"tb":[-2.071068048477173,0.0]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[1.8639607429504395,0.0],"tb":[0.0,-1.863961100578308]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[0.0005006790161132812,0.9539444446563721],"tb":[0.899388313293457,-0.3179812431335449]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85721,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,2.625,0.0],
+   "width": 8.250000312531052,
+   "height": 9.75,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.5,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85723": {
+   "id": 85723,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":2.625,"y":0.0,"radius":0.0},{"x":1.875,"y":0.0,"radius":0.0},{"x":0.0,"y":1.875,"radius":0.0},{"x":1.875,"y":3.75,"radius":0.0},{"x":5.25,"y":3.75,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-1.0355340242385864,0.0],"tb":[0.0,-1.0355336666107178]},{"a":2,"b":3,"ta":[0.0,1.0355336666107178],"tb":[-1.0355340242385864,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85721,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,4.875],
+   "width": 5.25,
+   "height": 3.75,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.5,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85724": {
+   "id": 85724,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":0.0,"radius":0.0},{"x":7.5,"y":0.0,"radius":0.0},{"x":7.5,"y":3.0,"radius":0.0},{"x":6.75,"y":3.75,"radius":0.0},{"x":0.75,"y":3.75,"radius":0.0},{"x":0.0,"y":3.0,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[0.0,0.4142131805419922],"tb":[0.4142131805419922,0.0]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-0.41421353816986084,0.0],"tb":[0.0,0.4142131805419922]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85721,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,1.875,9.75],
+   "width": 7.5,
+   "height": 3.75,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.5,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85725": {
+   "id": 85725,
+   "name": "Challenge a friend",
+   "type": "text",
+   "characters": "Challenge a friend",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85719,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,72.0,11.0],
+   "width": 117.0,
+   "height": 17.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85726": {
+   "id": 85726,
+   "name": "Custom, drawn on Lucide's grid. Clearly a glove, even at 14px.",
+   "type": "text",
+   "characters": "Custom, drawn on Lucide's grid. Clearly a glove, even at 14px.",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Regular",
+    "font_size": 12.5,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "auto_resize": "height",
+   "parent": 85699,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,18.0,250.0],
+   "width": 240.0,
+   "height": 30.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.65882355,"g":0.5686275,"b":0.47843137,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "fixed",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85727": {
+   "id": 85727,
+   "name": "H · boxing glove, punching",
+   "type": "frame",
+   "parent": 85454,
+   "children": [85728,85729,85735,85749,85757],
+   "transform": [1.0,0.0,0.0,1.0,2400.0,40.0],
+   "width": 275.0,
+   "height": 340.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.015686275,"g":0.015686275,"b":0.015686275,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":0.19607843,"g":0.16862746,"b":0.13333334,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[16.0,16.0,16.0,16.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85728": {
+   "id": 85728,
+   "name": "H · boxing glove, punching",
+   "type": "text",
+   "characters": "H · boxing glove, punching",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 15.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85727,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,18.0,16.0],
+   "width": 182.0,
+   "height": 18.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85729": {
+   "id": 85729,
+   "name": "icon/glove-tilted",
+   "type": "frame",
+   "parent": 85727,
+   "children": [85731],
+   "transform": [1.0,0.0,0.0,1.0,18.0,52.0],
+   "width": 44.0,
+   "height": 44.0,
+   "clip": true
+  },
+  "85731": {
+   "id": 85731,
+   "name": "Group",
+   "type": "group",
+   "parent": 85729,
+   "children": [85732,85733,85734],
+   "transform": [1.0,0.0,0.0,1.0,6.482174055878247,7.397616557596848],
+   "width": 31.863486399720976,
+   "height": 32.80439544153891
+  },
+  "85732": {
+   "id": 85732,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":13.317286797048324,"radius":0.0},{"x":5.041666775941849,"y":4.584863968374007,"radius":0.0},{"x":17.563566416502,"y":1.2296311931626729,"radius":0.0},{"x":19.94513627886772,"y":2.6046312229649953,"radius":0.0},{"x":22.964845776557922,"y":13.87434089946913,"radius":0.0},{"x":18.381512343883514,"y":21.812907107354874,"radius":0.0},{"x":12.61191920777162,"y":24.472802086815534,"radius":0.0},{"x":11.997752457857132,"y":25.53657007980513,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[2.5313050103470403,-4.384348795952064],"tb":[-4.3843495530327345,-2.531305447447778]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[3.945913537816523,2.2781742907619673],"tb":[2.278174727862705,-3.945914294897193]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[-1.1648722113571353,2.0200655763794657],"tb":[2.292604729145637,0.42610169967815636]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85731,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,7.791972709592258,0.0],
+   "width": 24.071513690128718,
+   "height": 25.53657007980513,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666666887963815,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85733": {
+   "id": 85733,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":8.463478546771,"y":1.5314822005386581,"radius":0.0},{"x":6.875765305193852,"y":0.6148155140037765,"radius":0.0},{"x":0.6148154849137768,"y":2.2924319016094437,"radius":0.0},{"x":2.292431872519444,"y":8.553381721889519,"radius":0.0},{"x":9.437141459616612,"y":12.678381811296486,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-2.1921747765163673,-1.265652723723889],"tb":[1.2656522866231512,-2.192174019435697]},{"a":2,"b":3,"ta":[-1.2656522866231512,2.192174019435697],"tb":[-2.1921747765163673,-1.265652723723889]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85731,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,2.9951609089607842,5.434951630200885],
+   "width": 9.437141459616612,
+   "height": 12.678381811296486,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666666887963815,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85734": {
+   "id": 85734,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":3.9125927516779058,"y":0.0,"radius":0.0},{"x":19.78972516744939,"y":9.166666865348816,"radius":0.0},{"x":16.123058421309864,"y":15.51751983165741,"radius":0.0},{"x":13.618678493197834,"y":16.188566386699677,"radius":0.0},{"x":0.9169725605806462,"y":8.855232894420624,"radius":0.0},{"x":0.2459260055383794,"y":6.350852966308594,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[-0.5062605649686702,0.8768690021097427],"tb":[0.8768690021097427,0.5062605649686702]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-0.8768697591904129,-0.506261002069408],"tb":[-0.5062605649686702,0.8768690021097427]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85731,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,16.369903214455917],
+   "width": 19.78972516744939,
+   "height": 16.43449222708299,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 3.6666666887963815,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85735": {
+   "id": 85735,
+   "name": "div.mr",
+   "type": "frame",
+   "parent": 85727,
+   "children": [85736,85737,85738,85739,85742],
+   "transform": [1.0,0.0,0.0,1.0,14.0,118.0],
+   "width": 247.0,
+   "height": 56.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.07058824,"g":0.0627451,"b":0.03529412,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":0.19607843,"g":0.16862746,"b":0.13333334,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[14.0,14.0,14.0,14.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85736": {
+   "id": 85736,
+   "name": "Sturm Graz",
+   "type": "text",
+   "characters": "Sturm Graz",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 13.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85735,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,10.0,10.0],
+   "width": 68.0,
+   "height": 16.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85737": {
+   "id": 85737,
+   "name": "Rapid Wien",
+   "type": "text",
+   "characters": "Rapid Wien",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 13.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85735,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,10.0,30.0],
+   "width": 69.0,
+   "height": 16.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85738": {
+   "id": 85738,
+   "name": "tile",
+   "type": "frame",
+   "parent": 85735,
+   "transform": [1.0,0.0,0.0,1.0,112.0,6.0],
+   "width": 38.0,
+   "height": 44.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.0,"g":0.0,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[7.0,7.0,7.0,7.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85739": {
+   "id": 85739,
+   "name": "capsule",
+   "type": "frame",
+   "parent": 85735,
+   "children": [85740,85741],
+   "transform": [1.0,0.0,0.0,1.0,158.0,6.0],
+   "width": 36.0,
+   "height": 44.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 0.101960786,
+     "visible": true,
+     "blend": "normal",
+     "colorAlpha": 0.101960786
+    }
+   ],
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[18.0,18.0,18.0,18.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85740": {
+   "id": 85740,
+   "name": "2",
+   "type": "text",
+   "characters": "2",
+   "style": {
+    "font_family": "Red Hat Mono",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85739,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,13.0,4.0],
+   "width": 9.0,
+   "height": 19.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85741": {
+   "id": 85741,
+   "name": "1",
+   "type": "text",
+   "characters": "1",
+   "style": {
+    "font_family": "Red Hat Mono",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85739,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,13.0,22.0],
+   "width": 9.0,
+   "height": 19.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.9490196,"g":0.8980392,"b":0.8352941,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85742": {
+   "id": 85742,
+   "name": "badge",
+   "type": "frame",
+   "parent": 85735,
+   "children": [85743],
+   "transform": [1.0,0.0,0.0,1.0,206.0,15.0],
+   "width": 26.0,
+   "height": 26.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 0.12156863,
+     "visible": true,
+     "blend": "normal",
+     "colorAlpha": 0.12156863
+    }
+   ],
+   "corners": {"radii":[13.0,13.0,13.0,13.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85743": {
+   "id": 85743,
+   "name": "icon/glove-tilted",
+   "type": "frame",
+   "parent": 85742,
+   "children": [85745],
+   "transform": [1.0,0.0,0.0,1.0,6.0,6.0],
+   "width": 14.0,
+   "height": 14.0,
+   "clip": true
+  },
+  "85745": {
+   "id": 85745,
+   "name": "Group",
+   "type": "group",
+   "parent": 85743,
+   "children": [85746,85747,85748],
+   "transform": [1.0,0.0,0.0,1.0,2.062509570132178,2.3537868904677453],
+   "width": 10.138381177951374,
+   "height": 10.437761156490327
+  },
+  "85746": {
+   "id": 85746,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":4.237318034210697,"radius":0.0},{"x":1.6041666120290756,"y":1.4588201594739103,"radius":0.0},{"x":5.588407054543495,"y":0.3912462842850828,"radius":0.0},{"x":6.346179202198982,"y":0.8287462693839216,"radius":0.0},{"x":7.306995689868927,"y":4.4145626676469,"radius":0.0},{"x":5.848662406206131,"y":6.940469826498523,"radius":0.0},{"x":4.012882926364739,"y":7.786799926401139,"radius":0.0},{"x":3.8174662441015244,"y":8.125271524229541,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.8054151856757841,-1.3950199218086823],"tb":[-1.3950201626979606,-0.8054153247532838]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[1.255517809183175,0.7248735975694558],"tb":[0.7248737366469555,-1.2555180500724537]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[-0.37064113751907257,0.642748069007439],"tb":[0.7294650692206801,0.13557781701376825]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85745,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,2.4792638832226577,0.0],
+   "width": 7.659117294728716,
+   "height": 8.125271524229541,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666665635991524,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85747": {
+   "id": 85747,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":2.6929247596394914,"y":0.48728977260042416,"radius":0.0},{"x":2.1877433278691667,"y":0.19562311586786496,"radius":0.0},{"x":0.19562310661195692,"y":0.7294100534622787,"radius":0.0},{"x":0.7294100442063707,"y":2.7215302747194885,"radius":0.0},{"x":3.002726487172832,"y":4.034030230016005,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-0.6975100813489803,-0.4027076623766419],"tb":[0.40270752329914217,-0.697509840459702]},{"a":2,"b":3,"ta":[-0.40270752329914217,0.697509840459702],"tb":[-0.6975100813489803,-0.4027076623766419]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85745,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.9530057505134031,1.7293025345297792],
+   "width": 3.002726487172832,
+   "height": 4.034030230016005,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666665635991524,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85748": {
+   "id": 85748,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":1.244915809620935,"y":0.0,"radius":0.0},{"x":6.296730127324182,"y":2.916666567325592,"radius":0.0},{"x":5.130063500393945,"y":4.937392294406891,"radius":0.0},{"x":4.333215411891061,"y":5.150907069444656,"radius":0.0},{"x":0.29176395772846364,"y":2.8175738155841827,"radius":0.0},{"x":0.07824918269069814,"y":2.020725727081299,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[-0.16108289805765708,0.27900374347245815],"tb":[0.27900374347245815,0.16108289805765708]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-0.27900398436173646,-0.16108303713515681],"tb":[-0.16108289805765708,0.27900374347245815]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85745,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,5.20860495690431],
+   "width": 6.296730127324182,
+   "height": 5.229156199586017,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.1666665635991524,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85749": {
+   "id": 85749,
+   "name": "button.challenge",
+   "type": "frame",
+   "parent": 85727,
+   "children": [85750,85756],
+   "transform": [1.0,0.0,0.0,1.0,14.0,190.0],
+   "width": 247.0,
+   "height": 42.0,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "corners": {"radii":[11.0,11.0,11.0,11.0],"smoothing":0.0},
+   "clip": true
+  },
+  "85750": {
+   "id": 85750,
+   "name": "icon/glove-tilted",
+   "type": "frame",
+   "parent": 85749,
+   "children": [85752],
+   "transform": [1.0,0.0,0.0,1.0,44.0,12.0],
+   "width": 18.0,
+   "height": 18.0,
+   "clip": true
+  },
+  "85752": {
+   "id": 85752,
+   "name": "Group",
+   "type": "group",
+   "parent": 85750,
+   "children": [85753,85754,85755],
+   "transform": [1.0,0.0,0.0,1.0,2.65179853745423,3.0262975846335394],
+   "width": 13.035062188905929,
+   "height": 13.419979438629436
+  },
+  "85753": {
+   "id": 85753,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":0.0,"y":5.447980716367429,"radius":0.0},{"x":2.0625,"y":1.8756260718304572,"radius":0.0},{"x":7.185095131397247,"y":0.5030309404332098,"radius":0.0},{"x":8.159373670816422,"y":1.0655309404332098,"radius":0.0},{"x":9.394709289073944,"y":5.675866558690732,"radius":0.0},{"x":7.519709289073944,"y":8.92346169008798,"radius":0.0},{"x":5.159421265125275,"y":10.011600484904452,"radius":0.0},{"x":4.908171236515045,"y":10.446778282066052,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[1.035533845424652,-1.7935971598923572],"tb":[-1.793597469607164,-1.0355340242385864]},{"a":2,"b":3,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":3,"b":4,"ta":[1.6142372890457182,0.9319803714752197],"tb":[0.931980550289154,-1.6142375987605249]},{"a":4,"b":5,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":5,"b":6,"ta":[-0.4765386215988201,0.8263904285985859],"tb":[0.9378837168967493,0.17431433342642322]},{"a":6,"b":7,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85752,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,3.187625119009393,0.0],
+   "width": 9.847437069896536,
+   "height": 10.446778282066052,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.4999999539986715,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85754": {
+   "id": 85754,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":3.4623320165124953,"y":0.6265154364348762,"radius":0.0},{"x":2.812812990233046,"y":0.25151543643487617,"radius":0.0},{"x":0.2515154245344222,"y":0.9378130021334998,"radius":0.0},{"x":0.9378129902330459,"y":3.4991105678321235,"radius":0.0},{"x":3.8606486084905685,"y":5.1866105678321235,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[-0.896798734803582,-0.5177670121192932],"tb":[0.5177668333053589,-0.8967984250887753]},{"a":2,"b":3,"ta":[-0.5177668333053589,0.8967984250887753],"tb":[-0.896798734803582,-0.5177670121192932]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85752,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,1.2252931024968978,2.223389174814656],
+   "width": 3.8606486084905685,
+   "height": 5.1866105678321235,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.4999999539986715,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85755": {
+   "id": 85755,
+   "name": "Vector",
+   "type": "vector",
+   "network": {"vertices":[{"x":1.6006060927299437,"y":0.0,"radius":0.0},{"x":8.095796355524438,"y":3.75,"radius":0.0},{"x":6.595796355524438,"y":6.348076105117798,"radius":0.0},{"x":5.571277329244989,"y":6.622595131397247,"radius":0.0},{"x":0.37512511900939316,"y":3.6225951313972473,"radius":0.0},{"x":0.1006060927299437,"y":2.598076105117798,"radius":0.0}],"segments":[{"a":0,"b":1,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":1,"b":2,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":2,"b":3,"ta":[-0.2071065902709961,0.35871912226366476],"tb":[0.35871912226366476,0.2071065902709961]},{"a":3,"b":4,"ta":[0.0,0.0],"tb":[0.0,0.0]},{"a":4,"b":5,"ta":[-0.35871943197847145,-0.20710676908493042],"tb":[-0.2071065902709961,0.35871912226366476]},{"a":5,"b":0,"ta":[0.0,0.0],"tb":[0.0,0.0]}],"regions":[]},
+   "parent": 85752,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,0.0,6.696778282065679],
+   "width": 8.095796355524438,
+   "height": 6.723201156563757,
+   "strokes": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "stroke": {
+    "weight": 1.4999999539986715,
+    "align": "center",
+    "sides": null,
+    "cap_start": "round",
+    "cap_end": "round",
+    "join": "round",
+    "miter_limit": 4.0,
+    "dashes": []
+   }
+  },
+  "85756": {
+   "id": 85756,
+   "name": "Challenge a friend",
+   "type": "text",
+   "characters": "Challenge a friend",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Bold",
+    "font_size": 14.0,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "parent": 85749,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,72.0,11.0],
+   "width": 117.0,
+   "height": 17.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":1.0,"g":0.46666667,"b":0.0,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "hug",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
+  },
+  "85757": {
+   "id": 85757,
+   "name": "The same glove tilted 30°: more motion, still not an ✕.",
+   "type": "text",
+   "characters": "The same glove tilted 30°: more motion, still not an ✕.",
+   "style": {
+    "font_family": "Figtree",
+    "font_style": "Regular",
+    "font_size": 12.5,
+    "line_height": {"unit":"auto"},
+    "letter_spacing": {"unit":"percent","value":0.0},
+    "decoration": "none",
+    "case": "original",
+    "fills": null,
+    "link": null
+   },
+   "auto_resize": "height",
+   "parent": 85727,
+   "blend": "normal",
+   "transform": [1.0,0.0,0.0,1.0,18.0,250.0],
+   "width": 240.0,
+   "height": 30.0,
+   "fills": [
+    {
+     "type": "solid",
+     "color": {"r":0.65882355,"g":0.5686275,"b":0.47843137,"a":1.0},
+     "opacity": 1.0,
+     "visible": true,
+     "blend": "normal"
+    }
+   ],
+   "child_layout": {
+    "sizing_h": "fixed",
+    "sizing_v": "hug",
+    "absolute": false,
+    "min_w": null,
+    "max_w": null,
+    "min_h": null,
+    "max_h": null,
+    "grid_column": null,
+    "grid_row": null,
+    "grid_column_span": 0,
+    "grid_row_span": 0
+   }
   }
  },
- "next_id": 85699,
+ "next_id": 85758,
  "styles": [],
  "variables": {
   "collections": [
