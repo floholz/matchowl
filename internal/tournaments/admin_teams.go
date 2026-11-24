@@ -14,10 +14,10 @@ import (
 
 // The teams registry (2026-09-28): teams are one row per tournament, so a
 // club or nation shows up once per season it plays in. The registry
-// groups those rows into one entry per team — by provider id when the
-// rows carry one, else by the club key or the normalized name — with the
-// seasons it plays in, and lets an admin fix code, flag and name across
-// all of them at once.
+// groups those rows into one entry per team — by their team identity
+// (2026-11-24, package teams), else by provider id, club key or the
+// normalized name — with the seasons it plays in, and lets an admin fix
+// code, flag and name across all of them at once.
 
 type registryEntry struct {
 	TeamID     string `json:"teamId"`
@@ -40,6 +40,9 @@ type registryTeam struct {
 	ClubKey    string          `json:"clubKey"`
 	Provider   string          `json:"provider"`
 	ProviderID int             `json:"providerId"`
+	Identity   string          `json:"identity"` // team identity key, "" when unlinked
+	Country    string          `json:"country"`
+	National   bool            `json:"national"`
 	Logo       string          `json:"logo"`  // "<teamId>/<file>" of the first row with a crest
 	Mixed      []string        `json:"mixed"` // fields that differ across the rows
 	Entries    []registryEntry `json:"entries"`
@@ -47,6 +50,9 @@ type registryTeam struct {
 
 // registryKey is what makes two team rows the same team.
 func registryKey(tm *core.Record) string {
+	if id := tm.GetString("identity"); id != "" {
+		return "id:" + id
+	}
 	if p, id := tm.GetString("provider"), tm.GetInt("providerId"); p != "" && id != 0 {
 		return p + ":" + tm.GetString("providerId")
 	}
@@ -89,6 +95,11 @@ func registry(app core.App) ([]registryTeam, error) {
 				Key: key, Name: tm.GetString("name"), FifaCode: tm.GetString("fifaCode"), ISO2: tm.GetString("iso2"),
 				ClubKey: tm.GetString("clubKey"), Provider: tm.GetString("provider"), ProviderID: tm.GetInt("providerId"),
 				Mixed: []string{}, Entries: []registryEntry{},
+			}
+			if id, err := app.FindRecordById("team_identities", tm.GetString("identity")); err == nil {
+				rt.Identity = id.GetString("key")
+				rt.Country = id.GetString("country")
+				rt.National = id.GetBool("national")
 			}
 			byKey[key] = rt
 		}

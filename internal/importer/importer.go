@@ -19,6 +19,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 
 	"github.com/floholz/matchowl/internal/football"
+	teamid "github.com/floholz/matchowl/internal/teams"
 	"github.com/floholz/matchowl/internal/tournaments"
 	"github.com/floholz/matchowl/internal/users"
 )
@@ -267,6 +268,42 @@ func Register(app core.App, se *core.ServeEvent) {
 		})
 	}).Bind(apis.RequireAuth()).BindFunc(adminOnly)
 
+	// POST /api/admin/teams/origins — stores country and national flag on
+	// the team identities of every season with an API-Football sync config
+	// (one /teams request per season). Seasons imported since 2026-11-24
+	// carry them already; this is the backfill for older ones.
+	se.Router.POST("/api/admin/teams/origins", func(e *core.RequestEvent) error {
+		key, err := needKey(e)
+		if err != nil {
+			return err
+		}
+		all, err := tournaments.All(app)
+		if err != nil {
+			return err
+		}
+		type result struct {
+			Season  string `json:"season"`
+			Updated int    `json:"updated"`
+			Error   string `json:"error,omitempty"`
+		}
+		out := []result{}
+		for _, t := range all {
+			cfg, err := tournaments.SyncOf(t)
+			if err != nil || cfg.APIFootballLeague == 0 || cfg.Season == 0 {
+				continue
+			}
+			ctx, cancel := context.WithTimeout(e.Request.Context(), 30*time.Second)
+			n, err := backfillOrigins(ctx, app, key, t, cfg)
+			cancel()
+			r := result{Season: t.GetString("name"), Updated: n}
+			if err != nil {
+				r.Error = err.Error()
+			}
+			out = append(out, r)
+		}
+		return e.JSON(http.StatusOK, map[string]any{"seasons": out})
+	}).Bind(apis.RequireAuth()).BindFunc(adminOnly)
+
 	// POST /api/admin/tournaments/{id}/logos — (re)fetch crests for an
 	// already-seeded tournament whose sync config names an API-Football
 	// league; teams are matched by name.
@@ -298,6 +335,72 @@ func Register(app core.App, se *core.ServeEvent) {
 
 // Provider is the data source name stored on imported team rows.
 const Provider = "api-football"
+
+// originISO is the ISO code of a team's country: the flag code for a
+// national team, else the provider's country name mapped.
+func originISO(t TeamPreview) string {
+	if t.National && t.ISO2 != "" {
+		return t.ISO2
+	}
+	return CountryISO2(t.Country)
+}
+
+// backfillOrigins stores country and national flag on the identities of one
+// season's teams from one /teams request. Rows are matched by provider id,
+// else by normalized name (and get the provider id then). Returns how many
+// identities changed.
+func backfillOrigins(ctx context.Context, app core.App, key string, t *core.Record, cfg *tournaments.Sync) (int, error) {
+	list, err := football.New(key, cfg.APIFootballLeague, cfg.Season).Teams(ctx, cfg.Season)
+	if err != nil {
+		return 0, err
+	}
+	byID := map[int]football.Team{}
+	byName := map[string]football.Team{}
+	for _, ft := range list {
+		byID[ft.ID] = ft
+		byName[football.NormalizeName(ft.Name)] = ft
+	}
+	rows, err := app.FindRecordsByFilter("teams", "tournament = {:t}", "", 0, 0, map[string]any{"t": t.Id})
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, tm := range rows {
+		ft, ok := byID[tm.GetInt("providerId")]
+		if !ok {
+			if ft, ok = byName[football.NormalizeName(tm.GetString("name"))]; !ok {
+				continue
+			}
+			if tm.GetInt("providerId") == 0 {
+				tm.Set("provider", Provider)
+				tm.Set("providerId", ft.ID)
+				if err := app.Save(tm); err != nil {
+					log.Printf("[importer] link %s: %v", tm.GetString("name"), err)
+				}
+			}
+		}
+		if err := teamid.Relink(app, tm); err != nil {
+			log.Printf("[importer] relink %s: %v", tm.GetString("name"), err)
+		}
+		id := tm.GetString("identity")
+		if id == "" {
+			continue
+		}
+		iso := CountryISO2(ft.Country)
+		if ft.National && tm.GetString("iso2") != "" {
+			iso = tm.GetString("iso2")
+		}
+		changed, err := teamid.SetOrigin(app, id, ft.Country, iso, ft.National)
+		if err != nil {
+			log.Printf("[importer] origin %s: %v", tm.GetString("name"), err)
+			continue
+		}
+		if changed {
+			n++
+		}
+	}
+	return n, nil
+}
 
 // applyGroups overwrites the derived per-team group letters with the
 // admin's edited groups (team names as the preview lists them).
@@ -351,6 +454,9 @@ func linkProviderIDs(app core.App, tournamentID string, p *Proposal) int {
 		tm.Set("providerId", id)
 		if err := app.Save(tm); err == nil {
 			n++
+			if err := teamid.Relink(app, tm); err != nil {
+				log.Printf("[importer] relink %s: %v", tm.GetString("name"), err)
+			}
 		}
 	}
 	return n
@@ -484,6 +590,11 @@ func seedFromFixtures(app core.App, t *core.Record, p *Proposal, fixtures []foot
 		}
 		if err := app.Save(rec); err != nil {
 			return fmt.Errorf("save team %s: %w", tp.Name, err)
+		}
+		if id := rec.GetString("identity"); id != "" {
+			if _, err := teamid.SetOrigin(app, id, tp.Country, originISO(tp), tp.National); err != nil {
+				log.Printf("[importer] origin %s: %v", tp.Name, err)
+			}
 		}
 		byProviderID[tp.ID] = rec
 		if tp.Group != "" {

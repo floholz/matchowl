@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/floholz/matchowl/internal/football"
+	teamid "github.com/floholz/matchowl/internal/teams"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
 
@@ -77,7 +78,6 @@ type RoundPreview struct {
 var (
 	groupRoundRe = regexp.MustCompile(`^(?i)group\s+([A-Z0-9]{1,2})(?:\s*-\s*\d+)?$`)
 	tableRoundRe = regexp.MustCompile(`^(.+?)\s*-\s*(\d+)$`)
-	nonSlugRe    = regexp.MustCompile(`[^a-z0-9]+`)
 	nonCodeRe    = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 )
 
@@ -195,12 +195,7 @@ func QualifierRounds(fixtures []football.Fixture) map[string]bool {
 }
 
 // Slugify lowercases and dashes a name for slugs / club keys.
-func Slugify(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss", "é", "e", "è", "e", "á", "a", "í", "i", "ó", "o", "ú", "u", "ñ", "n", "ç", "c").Replace(s)
-	s = nonSlugRe.ReplaceAllString(s, "-")
-	return strings.Trim(s, "-")
-}
+func Slugify(s string) string { return teamid.Slug(s) }
 
 // seasonLabel renders "2026" for calendar-year seasons and "2026-27" for
 // cross-year ones (derived from the provider's season start/end dates).

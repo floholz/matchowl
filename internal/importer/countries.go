@@ -52,5 +52,10 @@ var countryISO2 = map[string]string{
 // CountryISO2 returns the ISO-3166 alpha-2 (or flag-icons sub-national) code
 // for a country / national-team name, or "" when unknown.
 func CountryISO2(name string) string {
-	return countryISO2[strings.ToLower(strings.TrimSpace(name))]
+	n := strings.ToLower(strings.TrimSpace(name))
+	if iso, ok := countryISO2[n]; ok {
+		return iso
+	}
+	// The provider dashes some country names ("Czech-Republic").
+	return countryISO2[strings.ReplaceAll(n, "-", " ")]
 }

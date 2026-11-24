@@ -72,6 +72,26 @@
 			saving = false;
 		}
 	}
+	// Country + national flag for every synced season (one API request each).
+	let fetching = $state(false);
+	async function fetchOrigins() {
+		fetching = true;
+		error = '';
+		flash = '';
+		try {
+			const r = await api.adminTeamOrigins();
+			const failed = r.seasons.filter((s) => s.error);
+			const n = r.seasons.reduce((a, s) => a + s.updated, 0);
+			flash = `Countries: ${n} team${n === 1 ? '' : 's'} updated across ${r.seasons.length} season${r.seasons.length === 1 ? '' : 's'}.`;
+			if (failed.length) error = failed.map((s) => `${s.season}: ${s.error}`).join(' · ');
+			await load();
+		} catch (e) {
+			error = msg(e);
+		} finally {
+			fetching = false;
+		}
+	}
+	let noCountry = $derived(teams.filter((t) => !t.country).length);
 	const hubHref = (slug: string, key: string) => (appConfig.appUrl ? `${appConfig.appUrl}/competitions/${key}?s=${slug}` : '');
 </script>
 
@@ -79,8 +99,9 @@
 	<div>
 		<p class="kicker">Admin</p>
 		<h1>Teams</h1>
-		<p class="muted small">{teams.length} teams across every season · {teams.filter((t) => t.entries.length > 1).length} in more than one · {unlinked} without a provider id{#if unlinked}, link them with "Fetch logos" on the season{/if}.</p>
+		<p class="muted small">{teams.length} teams across every season · {teams.filter((t) => t.entries.length > 1).length} in more than one · {unlinked} without a provider id{#if unlinked}, link them with "Fetch logos" on the season{/if} · {noCountry} without a country.</p>
 	</div>
+	<button class="btn secondary sm" disabled={fetching} onclick={fetchOrigins}>{fetching ? 'Fetching…' : 'Fetch countries'}</button>
 </div>
 
 <div class="filters">
@@ -98,7 +119,7 @@
 	<div class="card table">
 		<table>
 			<thead>
-				<tr><th></th><th>Team</th><th>Code</th><th>Flag</th><th>Provider</th><th class="num">Seasons</th><th></th></tr>
+				<tr><th></th><th>Team</th><th>Code</th><th>Flag</th><th>Country</th><th>Provider</th><th class="num">Seasons</th><th></th></tr>
 			</thead>
 			<tbody>
 				{#each shown as t (t.key)}
@@ -107,13 +128,14 @@
 						<td class="name"><b>{t.name}</b>{#if t.mixed.length}<span class="mix" title="Differs between seasons: {t.mixed.join(', ')}"><TriangleAlert size={12} /> {t.mixed.join(', ')}</span>{/if}</td>
 						<td class="mono">{t.fifaCode}</td>
 						<td class="mono">{t.iso2 || '—'}</td>
+						<td class="mono">{t.country || '—'}{t.national ? ' · national' : ''}</td>
 						<td class="mono muted">{t.providerId ? `${t.provider} ${t.providerId}` : t.clubKey ? `club ${t.clubKey}` : '—'}</td>
 						<td class="num">{t.entries.length}</td>
 						<td class="cv"><ChevronDown size={14} /></td>
 					</tr>
 					{#if openKey === t.key}
 						<tr class="detail">
-							<td colspan="7">
+							<td colspan="8">
 								<ul class="entries">
 									{#each t.entries as e (e.teamId)}
 										<li>
@@ -150,6 +172,11 @@
 <style>
 	.head {
 		margin-bottom: 0.8rem;
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 	.small {
 		font-size: 0.85rem;

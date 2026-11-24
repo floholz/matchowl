@@ -320,6 +320,11 @@ export interface RegistryTeam {
 	clubKey: string;
 	provider: string;
 	providerId: number;
+	/** Team identity key (the app's /teams/{key}); "" when unlinked. */
+	identity: string;
+	/** ISO code of the team's country, from the provider's /teams. */
+	country: string;
+	national: boolean;
 	/** "<teamId>/<file>" of the first row with a crest. */
 	logo: string;
 	/** Fields that differ across the rows. */
@@ -425,6 +430,10 @@ export const api = {
 	adminTeams: () => get<{ teams: RegistryTeam[] }>('/api/admin/teams'),
 	adminTeamUpdate: (id: string, body: { name?: string; fifaCode?: string; iso2?: string; applyToAll?: boolean }) =>
 		post<{ updated: number }>(`/api/admin/teams/${id}`, body),
+	// One /teams request per synced season: stores country + national flag
+	// on the team identities.
+	adminTeamOrigins: () =>
+		post<{ seasons: { season: string; updated: number; error?: string }[] }>('/api/admin/teams/origins', {}),
 	// Mailings.
 	mailings: () => get<{ mailings: Mailing[] }>('/api/admin/mailings'),
 	createMailing: (p: MailingPayload) => post<Mailing>('/api/admin/mailings', p),
