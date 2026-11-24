@@ -1,5 +1,6 @@
-// Package sync keeps the matches collection up to date: a cron job pulls
-// results for every active tournament from that tournament's configured
+// Package sync keeps the matches collection up to date: a kick-off-aware
+// live pass every minute (live.go) plus a full schedule refresh twice a day
+// pull results for every active tournament from that tournament's configured
 // provider (API-Football or openfootball), a superuser endpoint forces a
 // refresh, and another superuser endpoint applies manual results when the
 // provider is wrong or no API key is configured.
@@ -77,11 +78,6 @@ func readSyncStatus(app core.App) map[string]any {
 	}
 	return out
 }
-
-// cronExpr is the default sync cadence: every 30 minutes => max 48 requests/day
-// per active tournament, comfortably under the API-Football free tier
-// (100/day). Override at runtime with the SYNC_CRON env var (see Register).
-const cronExpr = "*/30 * * * *"
 
 // nameAliases maps API-Football names that differ from the openfootball seed
 // names to the seeded team name.
@@ -249,27 +245,44 @@ func runAll(ctx context.Context, app core.App, rs []runner) (int, error) {
 // Register wires the live-results cron + manual override endpoints.
 // Called from the OnServe hook.
 func Register(app core.App, se *core.ServeEvent) {
-	// SYNC_CRON overrides the default cadence without a rebuild — e.g. tighten
-	// to "*/5 * * * *" for near-instant scores during matches.
+	// The full schedule refresh of every active season. SYNC_CRON overrides
+	// its cadence without a rebuild. Live scores don't wait for it: the live
+	// pass below follows the kick-offs.
 	expr := os.Getenv("SYNC_CRON")
 	if expr == "" {
-		expr = cronExpr
+		expr = fullCronExpr
 	}
 
 	// The provider probe runs per cron tick (not once at boot) so activating
 	// a tournament or fixing a key doesn't need a restart.
-	app.Cron().MustAdd("results-sync", expr, func() {
+	full := func() {
 		rs := activeRunners(app)
 		if len(rs) == 0 {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 		if _, err := runAll(ctx, app, rs); err != nil {
 			log.Printf("[sync] %v", err)
 		}
-	})
-	log.Printf("[sync] auto-sync cron registered (%s) — sources resolve per active tournament", expr)
+	}
+	app.Cron().MustAdd("results-sync", expr, full)
+	log.Printf("[sync] full schedule sync registered (%s) — sources resolve per active tournament", expr)
+
+	// Kick-off-aware live pass (live.go). SYNC_LIVE=off turns it off.
+	if os.Getenv("SYNC_LIVE") != "off" {
+		app.Cron().MustAdd("live-sync", liveCronExpr, func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+			defer cancel()
+			res, err := LivePass(ctx, app)
+			if err != nil {
+				log.Printf("[sync] live: %v", err)
+			} else if res.Requests > 0 {
+				log.Printf("[sync] live: due=%d requests=%d updated=%d", res.Due, res.Requests, res.Updated)
+			}
+		})
+		log.Printf("[sync] live pass registered (every minute, requests only around kick-offs)")
+	}
 
 	// Force a sync now (superuser).
 	se.Router.POST("/api/sync/refresh", func(e *core.RequestEvent) error {
@@ -317,6 +330,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			"skipped":  skippedOut,
 			"autoSync": len(rs) > 0,
 			"cron":     expr,
+			"liveCron": liveCronExpr,
 			"lastRun":  readSyncStatus(app),
 		}
 		if len(rs) == 0 {
@@ -349,6 +363,17 @@ func Register(app core.App, se *core.ServeEvent) {
 			return e.JSON(500, map[string]any{"error": err.Error(), "lastRun": readSyncStatus(app)})
 		}
 		return e.JSON(200, map[string]any{"status": "ok", "updated": n, "lastRun": readSyncStatus(app)})
+	})
+
+	// POST /api/admin/sync/live — run one kick-off-aware live pass now.
+	sg.POST("/live", func(e *core.RequestEvent) error {
+		ctx, cancel := context.WithTimeout(e.Request.Context(), 50*time.Second)
+		defer cancel()
+		res, err := LivePass(ctx, app)
+		if err != nil {
+			return e.JSON(500, map[string]any{"error": err.Error(), "result": res})
+		}
+		return e.JSON(200, res)
 	})
 
 	// Manual result override (superuser). Body: ftHome,ftAway,etHome,etAway,
@@ -498,47 +523,7 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 				continue
 			}
 		}
-		status := "scheduled"
-		switch {
-		case f.Finished():
-			status = "finished"
-		case f.Live():
-			status = "live"
-		}
-		// API `score.extratime` is the ET-only delta; our model (and Tips /
-		// scoring) use the cumulative after-120 score, which is exactly the
-		// provider `goals` field once a match has gone to extra time.
-		var etH, etA *int
-		if f.ETHome != nil || f.ETAway != nil {
-			etH, etA = f.HomeGoals, f.AwayGoals
-		}
-		// During play the provider reports the current score only in `goals`
-		// (`score.fulltime` stays null until FT) — persist it as ftHome/ftAway
-		// so the app can show live scores.
-		ftH, ftA := f.FTHome, f.FTAway
-		if status == "live" && ftH == nil && ftA == nil {
-			ftH, ftA = f.HomeGoals, f.AwayGoals
-		}
-		// Schedule changes: leagues confirm exact kick-off times round by
-		// round (the provider first lists a whole round on one placeholder
-		// day), and fixtures get postponed. Follow the provider for anything
-		// not yet played so tips lock at the real time.
-		sched := applySchedule(rec, f, status)
-		clock := applyClock(rec, f, status)
-		// Skip if nothing changed (avoids needless recompute storms: every
-		// save of a finished or knockout match triggers a full score rebuild).
-		// A finished match without finalizedAt (e.g. hand-edited in the admin
-		// UI) still saves, so it gets finalized and scored.
-		if !sched && !clock && rec.GetString("status") == status &&
-			(status != "finished" || rec.GetString("finalizedAt") != "") &&
-			(ftH == nil || rec.GetInt("ftHome") == *ftH) &&
-			(ftA == nil || rec.GetInt("ftAway") == *ftA) &&
-			rec.GetInt("etHome") == ip(etH) && rec.GetInt("etAway") == ip(etA) &&
-			rec.GetInt("penHome") == ip(f.PenHome) && rec.GetInt("penAway") == ip(f.PenAway) {
-			continue
-		}
-		applyResult(rec, st.IsKnockout(rec.GetString("stage")), status, ftH, ftA, etH, etA, f.PenHome, f.PenAway)
-		if app.Save(rec) == nil {
+		if applyFixture(app, st, rec, f) {
 			updated++
 		}
 	}
@@ -550,6 +535,60 @@ func SyncOnce(ctx context.Context, app core.App, client *football.Client, t *cor
 	}
 	log.Printf("[sync] %s: fixtures=%d updated=%d", t.GetString("slug"), len(fixtures), updated)
 	return updated, nil
+}
+
+// applyFixture writes one provider fixture onto its match row: status,
+// scores, schedule, the live clock, the provider id and the ticker events.
+// Reports whether anything changed.
+func applyFixture(app core.App, st *tournaments.Structure, rec *core.Record, f football.Fixture) bool {
+	status := "scheduled"
+	switch {
+	case f.Finished():
+		status = "finished"
+	case f.Live():
+		status = "live"
+	}
+	// API `score.extratime` is the ET-only delta; our model (and Tips /
+	// scoring) use the cumulative after-120 score, which is exactly the
+	// provider `goals` field once a match has gone to extra time.
+	var etH, etA *int
+	if f.ETHome != nil || f.ETAway != nil {
+		etH, etA = f.HomeGoals, f.AwayGoals
+	}
+	// During play the provider reports the current score only in `goals`
+	// (`score.fulltime` stays null until FT) — persist it as ftHome/ftAway
+	// so the app can show live scores.
+	ftH, ftA := f.FTHome, f.FTAway
+	if status == "live" && ftH == nil && ftA == nil {
+		ftH, ftA = f.HomeGoals, f.AwayGoals
+	}
+	// Schedule changes: leagues confirm exact kick-off times round by
+	// round (the provider first lists a whole round on one placeholder
+	// day), and fixtures get postponed. Follow the provider for anything
+	// not yet played so tips lock at the real time.
+	sched := applySchedule(rec, f, status)
+	clock := applyClock(rec, f, status)
+	// The provider's fixture id, so the live poller can find this row.
+	idSet := false
+	if f.ID != 0 && rec.GetInt("afId") != f.ID {
+		rec.Set("afId", f.ID)
+		idSet = true
+	}
+	events := applyEvents(app, rec, f)
+	// Skip if nothing changed (avoids needless recompute storms: every
+	// save of a finished or knockout match triggers a full score rebuild).
+	// A finished match without finalizedAt (e.g. hand-edited in the admin
+	// UI) still saves, so it gets finalized and scored.
+	if !sched && !clock && !idSet && rec.GetString("status") == status &&
+		(status != "finished" || rec.GetString("finalizedAt") != "") &&
+		(ftH == nil || rec.GetInt("ftHome") == *ftH) &&
+		(ftA == nil || rec.GetInt("ftAway") == *ftA) &&
+		rec.GetInt("etHome") == ip(etH) && rec.GetInt("etAway") == ip(etA) &&
+		rec.GetInt("penHome") == ip(f.PenHome) && rec.GetInt("penAway") == ip(f.PenAway) {
+		return events > 0
+	}
+	applyResult(rec, st.IsKnockout(rec.GetString("stage")), status, ftH, ftA, etH, etA, f.PenHome, f.PenAway)
+	return app.Save(rec) == nil || events > 0
 }
 
 // appendStage adds the stage to the structure if it isn't there yet,

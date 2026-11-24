@@ -57,6 +57,29 @@ type Fixture struct {
 	ETAway    *int
 	PenHome   *int // shootout
 	PenAway   *int
+	League    int // provider league id
+	Season    int
+	// Events is the match's ticker (goals, cards, substitutions, VAR) —
+	// only /fixtures?live= and /fixtures?ids= answers carry it; HasEvents
+	// tells an empty list from a response without the field.
+	Events    []Event
+	HasEvents bool
+}
+
+// Event is one ticker line of a fixture. The provider gives events no id;
+// callers derive one from their content and order.
+type Event struct {
+	Elapsed  int    `json:"elapsed"`
+	Extra    int    `json:"extra"`
+	TeamID   int    `json:"teamId"`
+	Team     string `json:"team"`
+	PlayerID int    `json:"playerId"`
+	Player   string `json:"player"`
+	AssistID int    `json:"assistId"`
+	Assist   string `json:"assist"`
+	Type     string `json:"type"`   // Goal, Card, subst, Var
+	Detail   string `json:"detail"` // Normal Goal, Own Goal, Penalty, Missed Penalty, Yellow Card, Red Card, Substitution 1, …
+	Comments string `json:"comments"`
 }
 
 // Finished reports whether the provider considers the match complete.
@@ -91,7 +114,9 @@ type apiResponse struct {
 			} `json:"status"`
 		} `json:"fixture"`
 		League struct {
-			Round string `json:"round"`
+			ID     int    `json:"id"`
+			Season int    `json:"season"`
+			Round  string `json:"round"`
 		} `json:"league"`
 		Teams struct {
 			Home fixtureTeam `json:"home"`
@@ -106,7 +131,38 @@ type apiResponse struct {
 			Extratime scorePair `json:"extratime"`
 			Penalty   scorePair `json:"penalty"`
 		} `json:"score"`
+		Events *[]apiEvent `json:"events"`
 	} `json:"response"`
+}
+
+type apiEvent struct {
+	Time struct {
+		Elapsed *int `json:"elapsed"`
+		Extra   *int `json:"extra"`
+	} `json:"time"`
+	Team struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	} `json:"team"`
+	Player struct {
+		ID   *int    `json:"id"`
+		Name *string `json:"name"`
+	} `json:"player"`
+	Assist struct {
+		ID   *int    `json:"id"`
+		Name *string `json:"name"`
+	} `json:"assist"`
+	Type     string  `json:"type"`
+	Detail   string  `json:"detail"`
+	Comments *string `json:"comments"`
+}
+
+func deref[T any](p *T) T {
+	var z T
+	if p == nil {
+		return z
+	}
+	return *p
 }
 
 type scorePair struct {
@@ -158,14 +214,71 @@ func (a *apiResponse) errors() json.RawMessage { return a.Errors }
 // FixturesForSeason fetches the configured league's fixtures for any season
 // (used by the dev API diagnostic to replay a finished tournament, e.g. 2022).
 func (c *Client) FixturesForSeason(ctx context.Context, yr int) ([]Fixture, error) {
+	return c.fixtures(ctx, fmt.Sprintf("/fixtures?league=%d&season=%d", c.league, yr))
+}
+
+// MaxIDs is how many fixtures one /fixtures?ids= request may name.
+const MaxIDs = 20
+
+// Live returns the fixtures in play in the given leagues (one request,
+// whatever the number of leagues), with their events.
+func (c *Client) Live(ctx context.Context, leagues []int) ([]Fixture, error) {
+	if len(leagues) == 0 {
+		return nil, nil
+	}
+	// The provider only takes the dashed form ("39-61"); one league is
+	// written twice.
+	if len(leagues) == 1 {
+		leagues = []int{leagues[0], leagues[0]}
+	}
+	return c.fixtures(ctx, "/fixtures?live="+joinInts(leagues))
+}
+
+// ByIDs returns up to MaxIDs fixtures by provider id, with their events.
+func (c *Client) ByIDs(ctx context.Context, ids []int) ([]Fixture, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	if len(ids) > MaxIDs {
+		return nil, fmt.Errorf("api-football: at most %d ids per request", MaxIDs)
+	}
+	return c.fixtures(ctx, "/fixtures?ids="+joinInts(ids))
+}
+
+func joinInts(v []int) string {
+	parts := make([]string, len(v))
+	for i, n := range v {
+		parts[i] = fmt.Sprint(n)
+	}
+	return strings.Join(parts, "-")
+}
+
+func (c *Client) fixtures(ctx context.Context, path string) ([]Fixture, error) {
 	var ar apiResponse
-	if err := c.get(ctx, fmt.Sprintf("/fixtures?league=%d&season=%d", c.league, yr), &ar); err != nil {
+	if err := c.get(ctx, path, &ar); err != nil {
 		return nil, err
 	}
 
 	out := make([]Fixture, 0, len(ar.Response))
 	for _, r := range ar.Response {
+		var events []Event
+		if r.Events != nil {
+			events = make([]Event, 0, len(*r.Events))
+			for _, ev := range *r.Events {
+				events = append(events, Event{
+					Elapsed: deref(ev.Time.Elapsed), Extra: deref(ev.Time.Extra),
+					TeamID: ev.Team.ID, Team: ev.Team.Name,
+					PlayerID: deref(ev.Player.ID), Player: deref(ev.Player.Name),
+					AssistID: deref(ev.Assist.ID), Assist: deref(ev.Assist.Name),
+					Type: ev.Type, Detail: ev.Detail, Comments: deref(ev.Comments),
+				})
+			}
+		}
 		out = append(out, Fixture{
+			League:    r.League.ID,
+			Season:    r.League.Season,
+			Events:    events,
+			HasEvents: r.Events != nil,
 			ID:        r.Fixture.ID,
 			Date:      r.Fixture.Date.UTC(),
 			Round:     r.League.Round,
