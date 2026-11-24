@@ -78,6 +78,7 @@ func main() {
 		users.RegisterPurge(e.App)
 		tournaments.Register(e.App, e)
 		feed.Register(e.App, e)
+		teams.Routes(e.App, e)
 		seed.Register(e.App, e)
 		importer.Register(e.App, e)
 		wmsync.Register(e.App, e)

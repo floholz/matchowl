@@ -23,6 +23,7 @@ import (
 	"github.com/floholz/matchowl/internal/forecast"
 	"github.com/floholz/matchowl/internal/scope"
 	wmsync "github.com/floholz/matchowl/internal/sync"
+	"github.com/floholz/matchowl/internal/teams"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
 
@@ -31,6 +32,7 @@ const (
 	defaultPastDays   = 2
 	defaultAheadDays  = 7
 	maxWindowDays     = 30
+	maxTeamWindowDays = 400
 	maxMatchesPerLoad = 400 // hard backstop across all played tournaments
 )
 
@@ -57,15 +59,22 @@ func Register(app core.App, se *core.ServeEvent) {
 		}
 
 		now := clock.Now(app)
-		past := intParam(e, "past", defaultPastDays, maxWindowDays)
-		ahead := intParam(e, "days", defaultAheadDays, maxWindowDays)
+		q := e.Request.URL.Query()
+		teamKey := q.Get("team")
+		maxDays := maxWindowDays
+		if teamKey != "" {
+			maxDays = maxTeamWindowDays // a team plays a few matches a month
+		}
+		past := intParam(e, "past", defaultPastDays, maxDays)
+		ahead := intParam(e, "days", defaultAheadDays, maxDays)
 		from := now.AddDate(0, 0, -past).Truncate(24 * time.Hour)
 		to := now.AddDate(0, 0, ahead+1).Truncate(24 * time.Hour)
 
 		// Which matches: ?scope=mine (default) is "my matches"; ?scope=all
-		// (or the older ?all=1) every visible season; ?competition=<key>
-		// every open season of one competition.
-		q := e.Request.URL.Query()
+		// (or the older ?all=1) every visible season; ?scope=country the
+		// matches of a team from the user's country; ?competition=<key>
+		// every open season of one competition; ?team=<key> every match of
+		// one team.
 		which := q.Get("scope")
 		if q.Get("all") == "1" {
 			which = "all"
@@ -81,6 +90,43 @@ func Register(app core.App, se *core.ServeEvent) {
 			if len(ids) > 0 {
 				if err := app.RecordQuery("matches").
 					AndWhere(dbx.In("tournament", ids...)).
+					AndWhere(dbx.NewExp("kickoff >= {:from} AND kickoff < {:to}", dbx.Params{
+						"from": from.UTC().Format(types.DefaultDateLayout),
+						"to":   to.UTC().Format(types.DefaultDateLayout),
+					})).
+					OrderBy("kickoff ASC", "num ASC").
+					All(&window); err != nil {
+					return err
+				}
+			}
+		case teamKey != "" || which == "country":
+			var idents []string
+			if teamKey != "" {
+				if id, err := app.FindFirstRecordByFilter(teams.Collection, "key = {:k}", map[string]any{"k": teamKey}); err == nil {
+					idents = append(idents, id.Id)
+				}
+			} else if c := e.Auth.GetString("country"); c != "" {
+				recs, err := app.FindRecordsByFilter(teams.Collection, "country = {:c}", "", 0, 0, map[string]any{"c": c})
+				if err != nil {
+					return err
+				}
+				for _, r := range recs {
+					idents = append(idents, r.Id)
+				}
+			}
+			rows := teams.SeasonRowIDs(app, idents)
+			ids, err := visibleSeasons(app, "")
+			if err != nil {
+				return err
+			}
+			if len(rows) > 0 && len(ids) > 0 {
+				in := make([]any, len(rows))
+				for i, r := range rows {
+					in[i] = r
+				}
+				if err := app.RecordQuery("matches").
+					AndWhere(dbx.In("tournament", ids...)).
+					AndWhere(dbx.Or(dbx.In("homeTeam", in...), dbx.In("awayTeam", in...))).
 					AndWhere(dbx.NewExp("kickoff >= {:from} AND kickoff < {:to}", dbx.Params{
 						"from": from.UTC().Format(types.DefaultDateLayout),
 						"to":   to.UTC().Format(types.DefaultDateLayout),
@@ -178,16 +224,29 @@ func Register(app core.App, se *core.ServeEvent) {
 				}
 			}
 		}
-		teams := map[string]map[string]any{}
+		teamViews := map[string]map[string]any{}
+		identKeys := map[string]string{}
 		for id := range teamIDs {
 			if t, err := app.FindRecordById("teams", id); err == nil {
-				teams[id] = map[string]any{
+				v := map[string]any{
 					"name":     t.GetString("name"),
 					"fifaCode": t.GetString("fifaCode"),
 					"iso2":     t.GetString("iso2"),
 					"clubKey":  t.GetString("clubKey"),
 					"logo":     t.GetString("logo"),
 				}
+				// The team page key (/teams/{key}).
+				if iid := t.GetString("identity"); iid != "" {
+					k, ok := identKeys[iid]
+					if !ok {
+						if ir, err := app.FindRecordById(teams.Collection, iid); err == nil {
+							k = ir.GetString("key")
+						}
+						identKeys[iid] = k
+					}
+					v["key"] = k
+				}
+				teamViews[id] = v
 			}
 		}
 
@@ -296,7 +355,7 @@ func Register(app core.App, se *core.ServeEvent) {
 			"now":         now.UTC().Format(time.RFC3339),
 			"poolSeasons": poolSeasons,
 			"matches":     out,
-			"teams":       teams,
+			"teams":       teamViews,
 			"deadlines":   deadlines,
 		})
 	}).Bind(apis.RequireAuth())

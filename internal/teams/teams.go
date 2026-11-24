@@ -213,6 +213,9 @@ func freeKey(app core.App, base string) (string, error) {
 		base = strings.Trim(base[:60], "-")
 	}
 	key := base
+	if key == "mine" { // /api/teams/mine
+		key = base + "-2"
+	}
 	for i := 2; i < 100; i++ {
 		if _, err := app.FindFirstRecordByFilter(Collection, "key = {:k}", map[string]any{"k": key}); err != nil {
 			return key, nil
