@@ -130,10 +130,10 @@ func readSnapshot(path string) (*snapshot, error) {
 }
 
 // importSnapshot loads a snapshot into an empty database, moving every date
-// by shift. Seasons are switched to manual sync: their dates no longer match
-// the provider's, and the live sync would drag them back. Returns the
-// number of rows written.
-func importSnapshot(app core.App, s *snapshot, shift time.Duration) (int, error) {
+// by shift. Unless keepSync, seasons are switched to manual sync: moved
+// dates no longer match the provider's, and the sync would drag them back.
+// Returns the number of rows written.
+func importSnapshot(app core.App, s *snapshot, shift time.Duration, keepSync bool) (int, error) {
 	// A fresh database already holds what the migrations seed (the World
 	// Cup competition and season): the snapshot replaces it.
 	for i := len(snapshotCollections) - 1; i >= 0; i-- {
@@ -184,7 +184,9 @@ func importSnapshot(app core.App, s *snapshot, shift time.Duration) (int, error)
 					rec.Set(k, v)
 				}
 				if name == "tournaments" {
-					manualSync(rec)
+					if !keepSync {
+						manualSync(rec)
+					}
 					// Scoring config ids are random per database.
 					if _, err := tx.FindRecordById("scoring_configs", rec.GetString("scoringConfig")); err != nil {
 						if def, err := tx.FindFirstRecordByFilter("scoring_configs", "isDefault = true"); err == nil {

@@ -11,14 +11,17 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 	"github.com/spf13/cobra"
 
 	"github.com/floholz/matchowl/internal/challenges"
+	"github.com/floholz/matchowl/internal/football"
 	"github.com/floholz/matchowl/internal/h2h"
 	"github.com/floholz/matchowl/internal/importer"
 	"github.com/floholz/matchowl/internal/pools"
 	"github.com/floholz/matchowl/internal/scoring"
 	"github.com/floholz/matchowl/internal/seed"
+	wmsync "github.com/floholz/matchowl/internal/sync"
 	"github.com/floholz/matchowl/internal/teams"
 	"github.com/floholz/matchowl/internal/tips"
 	"github.com/floholz/matchowl/internal/tournaments"
@@ -26,11 +29,12 @@ import (
 
 // The dev seed (`make dev-reset`): a fresh dev database with useful data.
 //
-//  1. The sports snapshot (snapshot.go), moved by whole weeks so its moment
-//     lands on today — weekdays stay right — then brought to now with the
-//     simulator: real results before the snapshot, simulated ones between it
-//     and now, live matches where a kick-off is under way, and everything
-//     later still open.
+//  1. The sports snapshot (snapshot.go). With API_FOOTBALL_KEY set it keeps
+//     real dates and its sync: one full sync per season and the last week's
+//     ticker events by id (about 15 requests), then the live sync carries on.
+//     Without a key, or with --frozen, it moves by whole weeks to land on
+//     today (weekdays stay right), switches to manual sync and is brought to
+//     now with the simulator.
 //  2. Made-up people on top (nothing here comes from a real account):
 //     Mira Novak is you (owner, all logins below use DemoPassword), with
 //     friends, a pending request each way, a classic and a head-to-head pool,
@@ -58,7 +62,7 @@ var demoUsers = []demoUser{
 // SeedCommand is `matchowl dev-seed`.
 func SeedCommand(app core.App) *cobra.Command {
 	var snapPath string
-	var noLogos bool
+	var noLogos, frozen bool
 	cmd := &cobra.Command{
 		Use:   "dev-seed",
 		Short: "Fill an empty dev database with the sports snapshot and demo people (MATCHOWL_DEV=1)",
@@ -69,11 +73,12 @@ func SeedCommand(app core.App) *cobra.Command {
 			if err := app.RunAllMigrations(); err != nil {
 				return err
 			}
-			return Seed(app, snapPath, !noLogos)
+			return Seed(app, snapPath, !noLogos, frozen)
 		},
 	}
 	cmd.Flags().StringVar(&snapPath, "snapshot", SnapshotPath, "sports snapshot to load")
 	cmd.Flags().BoolVar(&noLogos, "no-logos", false, "skip fetching crests from the provider CDN")
+	cmd.Flags().BoolVar(&frozen, "frozen", false, "move the snapshot to today and simulate, even with an API key (no requests, manual sync)")
 	return cmd
 }
 
@@ -113,7 +118,14 @@ func SnapshotCommand(app core.App) *cobra.Command {
 }
 
 // Seed loads the snapshot and the demo people into an empty database.
-func Seed(app core.App, snapPath string, logos bool) error {
+//
+// With an API key (and not frozen) the seed stays on real dates: seasons
+// keep their sync, one full sync per season brings results and kick-offs
+// up to date, and the matches of the last week get their ticker events by
+// id — then the live sync keeps it all current, ticker included. Without a
+// key (or frozen) it moves the snapshot by whole weeks to land on today,
+// switches the seasons to manual and simulates results up to now.
+func Seed(app core.App, snapPath string, logos, frozen bool) error {
 	if n, _ := app.CountRecords("users"); n > 0 {
 		return fmt.Errorf("the database already has %d users — dev-seed only fills an empty one (make dev-reset wipes pb_data first)", n)
 	}
@@ -122,16 +134,23 @@ func Seed(app core.App, snapPath string, logos bool) error {
 		return fmt.Errorf("read snapshot: %w", err)
 	}
 	now := time.Now().UTC()
-	week := 7 * 24 * time.Hour
-	shift := time.Duration(float64(now.Sub(s.TakenAt))/float64(week)+0.5) * week
-	if now.Sub(s.TakenAt) < 0 {
-		shift = -time.Duration(float64(s.TakenAt.Sub(now))/float64(week)+0.5) * week
+	key := os.Getenv("API_FOOTBALL_KEY")
+	real := key != "" && !frozen
+	var shift time.Duration
+	if real {
+		log.Printf("[devseed] real mode: snapshot from %s, real dates, live sync on", s.TakenAt.Format("2006-01-02"))
+	} else {
+		week := 7 * 24 * time.Hour
+		shift = time.Duration(float64(now.Sub(s.TakenAt))/float64(week)+0.5) * week
+		if now.Sub(s.TakenAt) < 0 {
+			shift = -time.Duration(float64(s.TakenAt.Sub(now))/float64(week)+0.5) * week
+		}
+		log.Printf("[devseed] frozen mode: snapshot from %s moved by %d weeks, manual sync", s.TakenAt.Format("2006-01-02"), int(shift/week))
 	}
-	log.Printf("[devseed] snapshot from %s, moved by %d weeks", s.TakenAt.Format("2006-01-02"), int(shift/week))
 	if err := seed.EnsureDefaultScoringConfig(app); err != nil {
 		return err
 	}
-	n, err := importSnapshot(app, s, shift)
+	n, err := importSnapshot(app, s, shift, real)
 	if err != nil {
 		return err
 	}
@@ -148,9 +167,11 @@ func Seed(app core.App, snapPath string, logos bool) error {
 		log.Printf("[devseed] fetching crests…")
 		log.Printf("[devseed] %d crests", attachLogos(app, s))
 	}
-	// Results up to now: the snapshot's own before its moment, simulated
-	// after it, live matches where a kick-off is under way.
-	if err := simulate(app, now); err != nil {
+	if real {
+		realSync(app, key, now)
+	} else if err := simulate(app, now); err != nil {
+		// Results up to now: the snapshot's own before its moment, simulated
+		// after it, live matches where a kick-off is under way.
 		return fmt.Errorf("simulate: %w", err)
 	}
 	if err := seedPeople(app, now); err != nil {
@@ -467,4 +488,50 @@ func termsVersion() string {
 		return string(m[1])
 	}
 	return ""
+}
+
+// realSync brings the seasons with an API-Football sync up to date (one
+// full sync each) and fills the ticker of the last week's matches (by id,
+// 20 per request).
+func realSync(app core.App, key string, now time.Time) {
+	all, err := tournaments.All(app)
+	if err != nil {
+		return
+	}
+	requests := 0
+	var recent []*core.Record
+	for _, t := range all {
+		st := t.GetString("status")
+		if st == tournaments.StatusDraft || st == tournaments.StatusArchived {
+			continue
+		}
+		cfg, err := tournaments.SyncOf(t)
+		if err != nil || cfg.APIFootballLeague == 0 || cfg.Season == 0 || cfg.Provider == tournaments.ProviderManual {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		n, err := wmsync.SyncOnce(ctx, app, football.New(key, cfg.APIFootballLeague, cfg.Season), t)
+		cancel()
+		requests++
+		if err != nil {
+			log.Printf("[devseed] sync %s: %v", t.GetString("slug"), err)
+			continue
+		}
+		log.Printf("[devseed] synced %s: %d updated", t.GetString("slug"), n)
+		ms, _ := app.FindRecordsByFilter("matches",
+			"tournament = {:t} && afId != 0 && (status = 'live' || (status = 'finished' && kickoff >= {:since}))",
+			"-kickoff", 0, 0, map[string]any{"t": t.Id, "since": now.Add(-7 * 24 * time.Hour).Format(types.DefaultDateLayout)})
+		recent = append(recent, ms...)
+	}
+	if len(recent) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		r, u, err := wmsync.RefreshByIDs(ctx, app, key, recent)
+		cancel()
+		requests += r
+		if err != nil {
+			log.Printf("[devseed] ticker events: %v", err)
+		}
+		log.Printf("[devseed] ticker events for %d recent matches (%d changed)", len(recent), u)
+	}
+	log.Printf("[devseed] real sync: %d API requests", requests)
 }

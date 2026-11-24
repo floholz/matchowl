@@ -88,8 +88,9 @@ func Recompute(app core.App) error {
 	})
 }
 
-// clockFields are the live-clock fields the sync refreshes every reading.
-var clockFields = map[string]bool{"livePhase": true, "liveMinute": true, "liveExtra": true, "liveAt": true, "updated": true}
+// clockFields are the live-clock fields the sync refreshes every reading,
+// plus the provider's fixture id (bookkeeping, no result in it).
+var clockFields = map[string]bool{"livePhase": true, "liveMinute": true, "liveExtra": true, "liveAt": true, "updated": true, "afId": true}
 
 // clockOnly reports whether a match save changed nothing but its live clock.
 func clockOnly(rec *core.Record) bool {

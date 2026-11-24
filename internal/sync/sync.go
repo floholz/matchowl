@@ -100,6 +100,9 @@ func canonName(s string) string {
 	return n
 }
 
+// seasonTimeout bounds one season's full sync (the request plus applying it).
+const seasonTimeout = 45 * time.Second
+
 // runner is a tournament's resolved live-results source.
 type runner struct {
 	slug   string
@@ -128,6 +131,12 @@ func pickProvider(app core.App, t *core.Record) (source string, run func(context
 	}
 
 	provider := cfg.Provider
+	// Manual always wins: results are entered by hand (or the season was
+	// moved in time by the dev seed) and a global RESULTS_SOURCE must not
+	// overwrite them.
+	if provider == tournaments.ProviderManual {
+		return "", nil, "sync provider is “manual” — results are entered by hand"
+	}
 	if mode == "openfootball" {
 		provider = tournaments.ProviderOpenfootball
 	} else if mode == "apifootball" {
@@ -232,7 +241,11 @@ func runAll(ctx context.Context, app core.App, rs []runner) (int, error) {
 	total := 0
 	var firstErr error
 	for _, r := range rs {
-		n, err := r.run(ctx)
+		// Each season gets its own deadline: one slow answer must not use
+		// up the time of every season after it.
+		rctx, cancel := context.WithTimeout(ctx, seasonTimeout)
+		n, err := r.run(rctx)
+		cancel()
 		recordSyncStatus(app, r.slug, r.source, n, err)
 		total += n
 		if err != nil && firstErr == nil {
@@ -260,9 +273,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if len(rs) == 0 {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-		if _, err := runAll(ctx, app, rs); err != nil {
+		// Bounded per season inside runAll.
+		if _, err := runAll(context.Background(), app, rs); err != nil {
 			log.Printf("[sync] %v", err)
 		}
 	}
@@ -290,9 +302,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if len(rs) == 0 {
 			return e.JSON(400, map[string]string{"error": "no active tournament with a results source"})
 		}
-		ctx, cancel := context.WithTimeout(e.Request.Context(), 60*time.Second)
-		defer cancel()
-		n, err := runAll(ctx, app, rs)
+		// Bounded per season inside runAll; a closed request cancels it.
+		n, err := runAll(e.Request.Context(), app, rs)
 		if err != nil {
 			return e.JSON(500, map[string]string{"error": err.Error()})
 		}
@@ -356,9 +367,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		if len(rs) == 0 {
 			return e.JSON(400, map[string]string{"error": "no active tournament with a results source"})
 		}
-		ctx, cancel := context.WithTimeout(e.Request.Context(), 60*time.Second)
-		defer cancel()
-		n, err := runAll(ctx, app, rs)
+		// Bounded per season inside runAll; a closed request cancels it.
+		n, err := runAll(e.Request.Context(), app, rs)
 		if err != nil {
 			return e.JSON(500, map[string]any{"error": err.Error(), "lastRun": readSyncStatus(app)})
 		}
@@ -579,12 +589,18 @@ func applyFixture(app core.App, st *tournaments.Structure, rec *core.Record, f f
 	// save of a finished or knockout match triggers a full score rebuild).
 	// A finished match without finalizedAt (e.g. hand-edited in the admin
 	// UI) still saves, so it gets finalized and scored.
-	if !sched && !clock && !idSet && rec.GetString("status") == status &&
+	sameResult := rec.GetString("status") == status &&
 		(status != "finished" || rec.GetString("finalizedAt") != "") &&
 		(ftH == nil || rec.GetInt("ftHome") == *ftH) &&
 		(ftA == nil || rec.GetInt("ftAway") == *ftA) &&
 		rec.GetInt("etHome") == ip(etH) && rec.GetInt("etAway") == ip(etA) &&
-		rec.GetInt("penHome") == ip(f.PenHome) && rec.GetInt("penAway") == ip(f.PenAway) {
+		rec.GetInt("penHome") == ip(f.PenHome) && rec.GetInt("penAway") == ip(f.PenAway)
+	if sameResult && !sched && !clock {
+		if idSet {
+			// Only the provider id is new: save it without touching the
+			// result (re-applying it would move finalizedAt and rescore).
+			return app.Save(rec) == nil || events > 0
+		}
 		return events > 0
 	}
 	applyResult(rec, st.IsKnockout(rec.GetString("stage")), status, ftH, ftA, etH, etA, f.PenHome, f.PenAway)

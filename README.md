@@ -175,11 +175,14 @@ The dev endpoints are **not registered** unless `MATCHOWL_DEV=1`.
 seconds:
 
 - **Sports data** from a committed snapshot (`internal/dev/data/`):
-  competitions, seasons, teams with countries, matches. All dates move by
-  whole weeks so the snapshot lands on today; results up to now are filled
-  in (real ones from the snapshot, simulated after it, live where a
-  kick-off is under way). Seasons are switched to manual sync so the live
-  sync leaves them alone. Crests come from the provider's CDN (no API quota).
+  competitions, seasons, teams with countries, matches. Crests come from the
+  provider's CDN (no API quota).
+  - With `API_FOOTBALL_KEY` set: real dates, the seasons keep syncing, and
+    the seed runs one sync per season plus the last week's ticker events
+    (about 15 requests). The live sync carries on from there.
+  - Without a key, or `--frozen`: dates move by whole weeks so the snapshot
+    lands on today, the seasons switch to manual sync, and results up to
+    now are simulated.
 - **Demo people**, all made up: sign in as `mira@example.com` (owner) or
   any of max, lena, jonas, sofia, tom `@example.com`, password
   `matchowl-dev`. Friends and requests, a classic and a head-to-head pool

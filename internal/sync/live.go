@@ -242,3 +242,44 @@ func LivePass(ctx context.Context, app core.App) (LiveResult, error) {
 	}
 	return res, nil
 }
+
+// RefreshByIDs re-reads the given matches from the provider by fixture id
+// (batches of 20, events included) and applies them. Matches without a
+// provider id are skipped. Used by the dev seed to fill the ticker of
+// recent matches. Returns the number of requests and of changed matches.
+func RefreshByIDs(ctx context.Context, app core.App, key string, matches []*core.Record) (requests, updated int, err error) {
+	byAF := map[int]*core.Record{}
+	var ids []int
+	for _, m := range matches {
+		if id := m.GetInt("afId"); id != 0 {
+			byAF[id] = m
+			ids = append(ids, id)
+		}
+	}
+	structures := tournaments.NewStructureCache(app)
+	client := football.New(key, 0, 0)
+	for len(ids) > 0 {
+		n := min(len(ids), football.MaxIDs)
+		batch := ids[:n]
+		ids = ids[n:]
+		fx, ferr := client.ByIDs(ctx, batch)
+		requests++
+		if ferr != nil {
+			return requests, updated, ferr
+		}
+		for _, f := range fx {
+			rec := byAF[f.ID]
+			if rec == nil {
+				continue
+			}
+			st := structures.For(rec.GetString("tournament"))
+			if st == nil {
+				continue
+			}
+			if applyFixture(app, st, rec, f) {
+				updated++
+			}
+		}
+	}
+	return requests, updated, nil
+}
