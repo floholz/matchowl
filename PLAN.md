@@ -882,6 +882,9 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.12** (2026-11-24): the backfill release — after each full
+  refresh, finished matches without ticker events since the previous one
+  are fetched by id (outage fallback). No migrations.
 - **v1.0.0-alpha.11** (2026-11-24): pools at the center — "my matches"
   from pools, followed teams, challenges and tips (playing goes away);
   tabs Home · Matches · Pools · Friends; team identities with country,

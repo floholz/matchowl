@@ -11,6 +11,15 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.12] - 2026-11-24
+
+The backfill release. A match the server missed entirely, during an
+outage, now gets its ticker after the next full schedule refresh.
+
+**Deploy:** no migrations, no env changes. Tip: `SYNC_CRON="15 */3 * * *"`
+refreshes the schedule every 3 hours (one request per active season per
+run).
+
 ### Added
 
 - **Ticker backfill:** after each full schedule refresh (and admin "Sync
