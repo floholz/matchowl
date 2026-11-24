@@ -11,6 +11,8 @@ export interface Team {
 	/** Crest URL (served from our /api/files) — clubs, or nations without a
 	 *  bundled flag. Empty when none. */
 	logo: string;
+	/** Team page key (/teams/{key}); feed rows carry it. */
+	key?: string;
 }
 
 /** URL of a team's crest file (PocketBase file field), or ''. */
@@ -202,7 +204,7 @@ class TipsStore {
 		if (this.loaded && this.loadedFor === tid) return;
 		this.loaded = false;
 		const [teams, matches, mine, tgroups] = await Promise.all([
-			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"` }),
+			pb.collection('teams').getFullList({ sort: 'name', filter: `tournament = "${tid}"`, expand: 'identity' }),
 			pb.collection('matches').getFullList({ sort: 'kickoff', filter: `tournament = "${tid}"` }),
 			pb
 				.collection('tips')
@@ -224,7 +226,8 @@ class TipsStore {
 				name: t.name,
 				iso2: t.iso2,
 				fifaCode: t.fifaCode,
-				logo: teamLogoUrl(t.id, t.logo)
+				logo: teamLogoUrl(t.id, t.logo),
+				key: (t.expand?.identity?.key as string | undefined) ?? ''
 			};
 		this.teams = tmap;
 		this.matches = matches as unknown as Match[];

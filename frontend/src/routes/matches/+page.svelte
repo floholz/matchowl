@@ -19,10 +19,12 @@
 	import MatchDetail from '$lib/components/MatchDetail.svelte';
 	import CompetitionSheet from '$lib/components/CompetitionSheet.svelte';
 	import { pins } from '$lib/pins.svelte';
+	import Flag from '$lib/components/Flag.svelte';
+	import { countryName } from '$lib/countries';
 	import { tick, untrack } from 'svelte';
 	import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Check, Globe, Radio, X, Ellipsis } from '@lucide/svelte';
 
-	pageChrome(() => ({ title: 'Matches', wide: true }));
+	pageChrome(() => ({ title: 'Matches', wide: true, search: true }));
 
 	// Desktop: ?m= opens the match in the detail panel beside the list.
 	// Below the desktop rule the same link is the match page route.
@@ -113,6 +115,8 @@
 			chipsEl?.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
 		);
 	});
+	/** The country chip: matches with a team from your country (Settings). */
+	let country = $derived(auth.user?.country ?? '');
 	function clearFilters() {
 		liveOnly = false;
 		setScope('mine');
@@ -347,6 +351,9 @@
 	<div class="railh">Show</div>
 	<button class="raillink" class:on={feedStore.scope === 'mine'} onclick={() => setScope('mine')}><Check size={16} /> My matches</button>
 	<button class="raillink" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}><Globe size={16} /> All</button>
+	{#if country}
+		<button class="raillink" class:on={feedStore.scope === 'country'} onclick={() => setScope('country')}><Flag iso2={country} size={16} /> {countryName(country)}</button>
+	{/if}
 	{#if liveCount > 0 || liveOnly}
 		<button class="raillink live" class:on={liveOnly} onclick={() => (liveOnly = !liveOnly)}><Radio size={16} /> Live · {liveCount}</button>
 	{/if}
@@ -374,6 +381,11 @@
 			<button class="chip" class:on={feedStore.scope === 'all'} onclick={() => setScope('all')}>
 				{#if feedStore.scope === 'all'}<Check size={14} />{/if} All
 			</button>
+			{#if country}
+				<button class="chip" class:on={feedStore.scope === 'country'} onclick={() => setScope('country')}>
+					{#if feedStore.scope === 'country'}<Check size={14} />{:else}<Flag iso2={country} size={16} />{/if} {countryName(country)}
+				</button>
+			{/if}
 			{#each compChips as c (c.key)}
 				{@const on = feedStore.scope === 'competition' && feedStore.competition === c.key}
 				<button class="chip" class:on onclick={() => setScope('competition', c.key)}>
@@ -429,8 +441,11 @@
 				<p><b>Nothing live right now.</b></p>
 			{:else if feedStore.scope === 'mine'}
 				<p><b>No matches yet.</b></p>
-				<p class="muted">Join or start a pool and its season's matches show up here, day by day. Matches you tip anywhere show up too.</p>
+				<p class="muted">Join or start a pool and its season's matches show up here, day by day. So do the matches of teams you follow and every match you tip.</p>
 				<a class="btn" href="/pools">Find a pool</a>
+			{:else if feedStore.scope === 'country'}
+				<p><b>No {countryName(country)} teams play in this window.</b></p>
+				<p class="muted">The country chip shows every match with a team from {countryName(country)}, in any competition Matchowl covers.</p>
 			{:else}
 				<p><b>No matches in this window.</b></p>
 			{/if}

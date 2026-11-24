@@ -25,6 +25,9 @@ class Auth {
 		termsVersion: string;
 		// UI + mail language ('' = follow the device).
 		lang: string;
+		// ISO code of the user's country ('' = none): the country chip on
+		// Matches.
+		country: string;
 	} | null>(null);
 
 	constructor() {
@@ -57,7 +60,8 @@ class Auth {
 			notifyPrefs:
 				(r.notifyPrefs as Record<string, { email?: boolean }>) || {},
 			termsVersion: (r.termsVersion as string) || '',
-			lang: (r.lang as string) || ''
+			lang: (r.lang as string) || '',
+			country: (r.country as string) || ''
 		};
 	}
 
@@ -106,6 +110,13 @@ class Auth {
 		if (opts.avatarFile) body.set('avatar', opts.avatarFile);
 		if (opts.avatarPreset !== undefined) body.set('avatarPreset', opts.avatarPreset);
 		await pb.collection('users').update(this.user.id, body);
+		await pb.collection('users').authRefresh();
+	}
+
+	// Set the user's country (ISO code, '' for none).
+	async updateCountry(country: string) {
+		if (!this.user) throw new Error('Not signed in.');
+		await pb.collection('users').update(this.user.id, { country });
 		await pb.collection('users').authRefresh();
 	}
 

@@ -7,6 +7,27 @@
 	import { PALETTES, TEMPLATES, knownPreset, presetId, resolvePreset } from '$lib/avatars';
 	import { NOTIFY_EVENTS } from '$lib/notify';
 	import { api, type NotifyPolicy } from '$lib/api';
+	import { countryOptions } from '$lib/countries';
+	import Flag from '$lib/components/Flag.svelte';
+
+	// Country: adds the country chip on Matches.
+	const countries = countryOptions();
+	let countryBusy = $state(false);
+	let countryError = $state('');
+	let countrySaved = $state(false);
+	async function setCountry(code: string) {
+		countryBusy = true;
+		countryError = '';
+		countrySaved = false;
+		try {
+			await auth.updateCountry(code);
+			countrySaved = true;
+		} catch (e) {
+			countryError = e instanceof Error ? e.message : 'Could not save your country.';
+		} finally {
+			countryBusy = false;
+		}
+	}
 
 	const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // PocketBase users-avatar default
 
@@ -328,6 +349,31 @@
 	</form>
 
 	<section class="card">
+		<h3>Country</h3>
+		<p class="muted small">
+			Your country adds a chip to Matches with every match of a team from there, in any
+			competition.
+		</p>
+		{#if countryError}<p class="error">{countryError}</p>{/if}
+		<div class="country-row">
+			{#if auth.user?.country}<Flag iso2={auth.user.country} size={22} />{/if}
+			<select
+				class="input"
+				value={auth.user?.country ?? ''}
+				disabled={countryBusy}
+				onchange={(e) => setCountry((e.currentTarget as HTMLSelectElement).value)}
+				aria-label="Country"
+			>
+				<option value="">None</option>
+				{#each countries as c (c.code)}
+					<option value={c.code}>{c.name}</option>
+				{/each}
+			</select>
+		</div>
+		{#if countrySaved}<p class="ok">Saved.</p>{/if}
+	</section>
+
+	<section class="card">
 		<h3>Appearance</h3>
 		<p class="muted small">Choose how Matchowl looks on this device.</p>
 		<div class="theme-grid" role="radiogroup" aria-label="Theme">
@@ -614,6 +660,14 @@
 	.pp:focus-visible {
 		outline: 2px solid var(--accent);
 		outline-offset: 2px;
+	}
+	.country-row {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+	.country-row select {
+		flex: 1;
 	}
 	.hint {
 		margin: 0.5rem 0 0;

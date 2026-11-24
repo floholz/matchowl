@@ -472,6 +472,16 @@ h3 {
 	background: var(--surface-2);
 }
 
+/* Search icon: in the mobile top bar where the page asks for it
+   (Matches), on desktop always. */
+.topbar-search {
+	display: none;
+}
+.topbar-search.here,
+.topbar.titled .topbar-search.here {
+	display: inline-flex;
+}
+
 /* ---- Mobile bottom tab bar ---- */
 .tabbar {
 	position: fixed;
@@ -599,7 +609,8 @@ body.kb-open .tabbar {
 	.topbar.titled .topbar-brand {
 		display: block;
 	}
-	.topbar.titled .topbar-help {
+	.topbar.titled .topbar-help,
+	.topbar-search {
 		display: inline-flex;
 	}
 }

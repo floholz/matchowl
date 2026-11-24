@@ -1,6 +1,7 @@
 <!-- Home: your pools first (the head-to-head duel is the biggest thing
      on the page), then Tip now (matches locking soonest, in the thumb
-     zone), the forecast deadline, Live, yesterday's points. Nothing else.
+     zone), the forecast deadline, Live, yesterday's points, and the teams
+     you follow as a sideways strip. Nothing else.
      Signed-out visitors are sent to sign in by the layout. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
@@ -14,6 +15,8 @@
 	import DuelCard from '$lib/components/DuelCard.svelte';
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { appConfig } from '$lib/appconfig.svelte'; // loaded by SupportCard
+	import { teamsStore, crestUrl, type NextMatch } from '$lib/teams.svelte';
+	import Flag from '$lib/components/Flag.svelte';
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
 
 	let openId = $state('');
@@ -66,6 +69,18 @@
 			.finally(() => (leaguesLoaded = true));
 	});
 	let duels = $derived(h2hStore.pools);
+
+	// ---- your teams ----
+	$effect(() => {
+		if (auth.isAuthed) teamsStore.load().catch(() => {});
+	});
+	/** "Tue 24 · at Bodø/Glimt", "Live · vs Ried". */
+	function nextLine(n: NextMatch | null): string {
+		if (!n) return 'No match scheduled';
+		const opp = `${n.home ? 'vs' : 'at'} ${n.opponent.name}`;
+		if (n.status === 'live') return `Live · ${opp}`;
+		return `${dayOf(n.kickoff)} ${time(n.kickoff)} · ${opp}`;
+	}
 	/** Results are capped: the rest is one tap away on Matches. */
 	const RECENT_MAX = 5;
 
@@ -270,6 +285,27 @@
 					{/if}
 				</div>
 			{/if}
+			{#if teamsStore.mine.length}
+				<div class="sec">
+					<h2>Your teams</h2>
+					<a class="more" href="/search">Search <ChevronRight size={14} /></a>
+				</div>
+				<div class="teamstrip">
+					{#each teamsStore.mine as t (t.key)}
+						<a class="card tcard" href={t.next ? `/m/${t.next.id}` : `/teams/${t.key}`}>
+							<span class="tcrest">
+								{#if t.national && t.iso2}
+									<Flag iso2={t.iso2} code={t.fifaCode} logo={crestUrl(t.crest)} size={30} />
+								{:else if t.crest}
+									<img src={crestUrl(t.crest)} alt="" />
+								{/if}
+							</span>
+							<b class="tname">{t.name}</b>
+							<span class="muted tnext" class:live={t.next?.status === 'live'}>{nextLine(t.next)}</span>
+						</a>
+					{/each}
+				</div>
+			{/if}
 		{:else}
 			<p class="muted">Loading…</p>
 		{/if}
@@ -417,6 +453,61 @@
 	}
 	.empty .btn {
 		margin-top: 1rem;
+	}
+	/* Followed teams: a sideways strip of cards, each with its next match. */
+	.teamstrip {
+		display: flex;
+		gap: 0.6rem;
+		overflow-x: auto;
+		scroll-snap-type: x proximity;
+		margin: 0 calc(-1 * var(--shell-x, 1rem));
+		padding: 0 var(--shell-x, 1rem) 0.2rem;
+		scrollbar-width: none;
+	}
+	.teamstrip::-webkit-scrollbar {
+		display: none;
+	}
+	.tcard {
+		flex: none;
+		width: 8.6rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+		padding: 0.75rem;
+		color: var(--text);
+		scroll-snap-align: start;
+	}
+	.card.tcard + .card.tcard {
+		margin-top: 0;
+	}
+	.tcrest {
+		height: 32px;
+		display: inline-flex;
+		align-items: center;
+	}
+	.tcrest img {
+		width: 32px;
+		height: 32px;
+		object-fit: contain;
+	}
+	.tname {
+		font-size: 0.9rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.tnext {
+		font-size: 0.76rem;
+		line-height: 1.3;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	.tnext.live {
+		color: var(--live);
+		font-weight: 700;
 	}
 	.foot {
 		text-align: center;

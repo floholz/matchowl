@@ -21,7 +21,7 @@ export interface FeedMatch extends Match {
 	/** The other leg of a two-legged tie (`first`: this match is leg 1) —
 	 *  denormalized server-side since it's usually outside the feed window. */
 	leg?: (LegSource & { first: boolean }) | null;
-	/** Why the match is yours ("pool", "tip"; later "team", "challenge").
+	/** Why the match is yours ("pool", "team", "tip"; later "challenge").
 	 *  Empty outside "my matches" (the All and competition filters). */
 	reasons: string[];
 	myTip?: {
@@ -35,7 +35,7 @@ export interface FeedMatch extends Match {
 	};
 }
 
-export type FeedScope = 'mine' | 'all' | 'competition';
+export type FeedScope = 'mine' | 'all' | 'country' | 'competition';
 
 export interface FeedDeadline {
 	type: 'forecast';
@@ -127,6 +127,7 @@ class FeedStore {
 	past = $state(2);
 	ahead = $state(7);
 	/** `mine` = my matches (default); `all` = every visible season;
+	 *  `country` = matches of a team from your country;
 	 *  `competition` = the open seasons of one competition (`competition`). */
 	scope = $state<FeedScope>('mine');
 	/** Competition key while `scope` is `competition`. */
@@ -156,8 +157,8 @@ class FeedStore {
 			await serverClock.refresh();
 			const q =
 				`past=${this.past}&days=${this.ahead}` +
-				(this.scope === 'all'
-					? '&scope=all'
+				(this.scope === 'all' || this.scope === 'country'
+					? `&scope=${this.scope}`
 					: this.scope === 'competition'
 						? `&competition=${encodeURIComponent(this.competition)}`
 						: '');
@@ -176,7 +177,8 @@ class FeedStore {
 					name: tt.name,
 					iso2: tt.iso2,
 					fifaCode: tt.fifaCode,
-					logo: teamLogoUrl(id, tt.logo)
+					logo: teamLogoUrl(id, tt.logo),
+					key: tt.key
 				};
 			}
 			this.teams = tmap;

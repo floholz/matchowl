@@ -14,6 +14,8 @@ export interface Chrome {
 	/** Mobile: the page draws the whole left part of the top bar itself
 	 *  (the competition hub: back, crest, name, season, Start a pool). */
 	bar?: Snippet;
+	/** Mobile: show the search icon in the top bar (desktop always has it). */
+	search?: boolean;
 }
 
 class Shell {
@@ -22,6 +24,7 @@ class Shell {
 	context = $state('');
 	wide = $state(false);
 	bar = $state.raw<Snippet | undefined>(undefined);
+	search = $state(false);
 	/** The last navigation came from another page of the app (so the back
 	 *  button can be a real history back, keeping that page's state). */
 	hasFrom = $state(false);
@@ -34,6 +37,7 @@ class Shell {
 		this.context = c.context ?? '';
 		this.wide = c.wide ?? false;
 		this.bar = c.bar;
+		this.search = c.search ?? false;
 	}
 	clear() {
 		this.set({});

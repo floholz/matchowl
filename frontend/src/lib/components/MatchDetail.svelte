@@ -127,9 +127,9 @@
 	function label(side: 'home' | 'away') {
 		const m = match;
 		const t = m ? teamOf(side === 'home' ? m.homeTeam : m.awayTeam) : undefined;
-		if (t) return { name: t.name, iso2: t.iso2, code: t.fifaCode, logo: t.logo, ph: false };
+		if (t) return { name: t.name, iso2: t.iso2, code: t.fifaCode, logo: t.logo, ph: false, key: t.key ?? '' };
 		const raw = m ? (side === 'home' ? m.homeLabel : m.awayLabel) : '';
-		return { name: raw || '—', iso2: '', code: '', logo: '', ph: true };
+		return { name: raw || '—', iso2: '', code: '', logo: '', ph: true, key: '' };
 	}
 	let H = $derived(label('home'));
 	let A = $derived(label('away'));
@@ -342,10 +342,10 @@
 		<p class="muted">Loading…</p>
 	{:else}
 		<div class="hero">
-			<div class="side" class:ph={H.ph}>
+			<svelte:element this={H.key ? 'a' : 'div'} class="side" class:ph={H.ph} href={H.key ? `/teams/${H.key}` : undefined}>
 				<Flag iso2={H.iso2} code={H.code} logo={H.logo} size={56} />
 				<b>{H.name}</b>
-			</div>
+			</svelte:element>
 			<div class="mid">
 				{#if played || live}
 					<LedBoard
@@ -386,10 +386,10 @@
 					{/if}
 				{/if}
 			</div>
-			<div class="side" class:ph={A.ph}>
+			<svelte:element this={A.key ? 'a' : 'div'} class="side" class:ph={A.ph} href={A.key ? `/teams/${A.key}` : undefined}>
 				<Flag iso2={A.iso2} code={A.code} logo={A.logo} size={56} />
 				<b>{A.name}</b>
-			</div>
+			</svelte:element>
 		</div>
 
 		{#if strip && legView}
@@ -660,6 +660,9 @@
 	}
 	.side.ph {
 		color: var(--muted);
+	}
+	a.side {
+		color: var(--text);
 	}
 	.mid {
 		display: flex;
