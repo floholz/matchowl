@@ -277,6 +277,10 @@ func Register(app core.App, se *core.ServeEvent) {
 		if _, err := runAll(context.Background(), app, rs); err != nil {
 			log.Printf("[sync] %v", err)
 		}
+		// Outage fallback: tickers of matches the live pass missed.
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		BackfillEvents(ctx, app)
+		cancel()
 	}
 	app.Cron().MustAdd("results-sync", expr, full)
 	log.Printf("[sync] full schedule sync registered (%s) — sources resolve per active tournament", expr)
@@ -372,7 +376,9 @@ func Register(app core.App, se *core.ServeEvent) {
 		if err != nil {
 			return e.JSON(500, map[string]any{"error": err.Error(), "lastRun": readSyncStatus(app)})
 		}
-		return e.JSON(200, map[string]any{"status": "ok", "updated": n, "lastRun": readSyncStatus(app)})
+		reqs, asked := BackfillEvents(e.Request.Context(), app)
+		return e.JSON(200, map[string]any{"status": "ok", "updated": n, "lastRun": readSyncStatus(app),
+			"eventsBackfill": map[string]int{"matches": asked, "requests": reqs}})
 	})
 
 	// POST /api/admin/sync/live — run one kick-off-aware live pass now.

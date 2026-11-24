@@ -11,6 +11,14 @@ matching section of this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Ticker backfill:** after each full schedule refresh (and admin "Sync
+  now"), finished matches of the live-synced seasons that kicked off since
+  the previous refresh and have no events get them by id, 20 per request.
+  It covers outages that missed a match's live window; normally it costs
+  nothing. The first refresh after a start looks back 24 hours.
+
 ## [1.0.0-alpha.11] - 2026-11-24
 
 The pools-at-the-center release. Your pools now decide what's "yours":

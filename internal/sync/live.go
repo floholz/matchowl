@@ -283,3 +283,67 @@ func RefreshByIDs(ctx context.Context, app core.App, key string, matches []*core
 	}
 	return requests, updated, nil
 }
+
+// Ticker backfill after a full refresh: the outage fallback. The live pass
+// is the only thing that brings events in; if the server was down for a
+// whole match, the full refresh still sets its result, but the ticker
+// stays empty. So after each full refresh, the finished matches of the
+// live-synced seasons that kicked off since the previous refresh and have
+// no events are fetched by id (20 per request). Normally that's none.
+const (
+	// eventsLookback is how far back the first backfill after a start
+	// looks (no previous refresh is known then), and the cap on the window.
+	eventsLookback    = 24 * time.Hour
+	eventsLookbackMax = 48 * time.Hour
+	// eventsMargin overlaps the windows, so a match at the edge isn't missed.
+	eventsMargin = time.Hour
+)
+
+var lastFull = map[string]time.Time{} // tournament id → previous full refresh
+
+// BackfillEvents fetches the ticker of recently finished matches that have
+// none (see above). Returns the number of requests and matches asked for.
+func BackfillEvents(ctx context.Context, app core.App) (requests, asked int) {
+	liveMu.Lock()
+	defer liveMu.Unlock()
+	key := os.Getenv("API_FOOTBALL_KEY")
+	if key == "" {
+		return 0, 0
+	}
+	now := clock.Now(app)
+	var missing []*core.Record
+	for _, s := range apiSeasons(app) {
+		tid := s.t.Id
+		since := lastFull[tid]
+		if since.IsZero() || now.Sub(since) > eventsLookbackMax {
+			since = now.Add(-eventsLookback)
+		}
+		since = since.Add(-eventsMargin)
+		var ms []*core.Record
+		if err := app.RecordQuery("matches").
+			AndWhere(dbx.HashExp{"tournament": tid, "status": "finished"}).
+			AndWhere(dbx.NewExp("afId != 0 AND kickoff >= {:since} AND kickoff <= {:now}", dbx.Params{
+				"since": since.UTC().Format(types.DefaultDateLayout),
+				"now":   now.UTC().Format(types.DefaultDateLayout),
+			})).
+			AndWhere(dbx.NewExp("NOT EXISTS (SELECT 1 FROM match_events e WHERE e.match = matches.id)")).
+			All(&ms); err != nil {
+			log.Printf("[sync] events backfill %s: %v", s.t.GetString("slug"), err)
+			continue
+		}
+		lastFull[tid] = now
+		missing = append(missing, ms...)
+	}
+	// One batch across all seasons (20 matches per request).
+	if len(missing) > 0 {
+		r, _, err := RefreshByIDs(ctx, app, key, missing)
+		requests, asked = r, len(missing)
+		if err != nil {
+			log.Printf("[sync] events backfill: %v", err)
+		}
+	}
+	if asked > 0 {
+		log.Printf("[sync] events backfill: %d matches without a ticker, %d requests", asked, requests)
+	}
+	return requests, asked
+}
