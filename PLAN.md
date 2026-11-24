@@ -183,11 +183,15 @@ ticker app during a match.
 1. **Scope foundation:** "my matches" on the server (pools, tipped matches,
    challenges once they exist). Remove "playing". Rework Home and the Matches
    filters (scope chips, the Live overlay, competition chips, the "More"
-   sheet). Tabs: Home · Matches · Pools · Friends.
+   sheet). Tabs: Home · Matches · Pools · Friends. ✅ 2026-11-24.
 2. **Teams:** the team identity record with country and national flag (the
    importer change plus the backfill), team pages, following (into "my
    matches", Home's "Your teams"), search, `users.country` and the country
-   chip.
+   chip. ✅ 2026-11-24: `team_identities` (linked on create plus a boot
+   sweep; country from the importer, older seasons via the admin "Fetch
+   countries" button, one `/teams` request each), `team_follows`,
+   `/teams/{key}`, `/search`, the country chip. Still open: followed teams
+   in notification audiences, desktop rail polish for the new pages.
 3. **Challenges:** the data, send and accept, the Home section, the Friends
    record, the row badge and notifications.
 4. **Coverage and live data:** import the catalog, kick-off-aware sync with
