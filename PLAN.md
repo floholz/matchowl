@@ -201,6 +201,19 @@ ticker app during a match.
 4. **Coverage and live data:** import the catalog, kick-off-aware sync with
    1-minute live polling, `match_events`, and the ticker on the match page.
    Decide the catalog early; the sync can start in parallel with phase 1.
+   ✅ 2026-11-24 (sync + ticker): `internal/sync/live.go` runs every minute
+   and only spends requests around kick-offs (one `live=` request for all
+   due leagues, `ids=` batches of 20 for matches that left it, the season
+   sync as a fallback for unmapped rows); the full schedule sync runs twice
+   a day (05:15 and 17:15 UTC, `SYNC_CRON` overrides). `match_events`
+   (migration 0058) and `matches.afId`; the ticker on the match page.
+   Checked against real answers, since the docs site refuses automated
+   fetches: `live` takes dashed league ids and refuses a single id (sent
+   twice instead); `ids` answers carry events, lineups, statistics and
+   players; events have no id (keys are derived). Unknown and handled
+   defensively: which way a substitution goes, and which team an own goal
+   is credited to. **Still open:** importing the 16-season catalog
+   (an admin task in the admin app's import flow).
 
 Each phase ships as its own alpha release.
 
