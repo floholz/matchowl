@@ -193,7 +193,11 @@ ticker app during a match.
    `/teams/{key}`, `/search`, the country chip. Still open: followed teams
    in notification audiences, desktop rail polish for the new pages.
 3. **Challenges:** the data, send and accept, the Home section, the Friends
-   record, the row badge and notifications.
+   record, the row badge and notifications. ✅ 2026-11-24: `challenges`
+   (migration 0057, package challenges; settled with the default scoring
+   on the final whistle), `/api/challenges`, the match-page sheet and card,
+   Home and Friends sections, the ⚔ row badge, and the
+   `challenge_invite` / `challenge_accepted` / `challenge_result` events.
 4. **Coverage and live data:** import the catalog, kick-off-aware sync with
    1-minute live polling, `match_events`, and the ticker on the match page.
    Decide the catalog early; the sync can start in parallel with phase 1.
