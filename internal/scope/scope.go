@@ -5,7 +5,7 @@
 //  1. a match of a season one of my pools binds, from that pool's start
 //     date on;
 //  2. a match of a team I follow;
-//  3. a match I have a challenge on (phase 3);
+//  3. a match I have a challenge on (open or accepted);
 //  4. a match I have tipped.
 //
 // Nobody "plays" a competition any more: any covered match can be tipped,
@@ -18,14 +18,16 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 
+	"github.com/floholz/matchowl/internal/challenges"
 	"github.com/floholz/matchowl/internal/tournaments"
 )
 
 // Why a match is in someone's scope. A row can carry several.
 const (
-	ReasonPool = "pool"
-	ReasonTeam = "team"
-	ReasonTip  = "tip"
+	ReasonPool      = "pool"
+	ReasonTeam      = "team"
+	ReasonChallenge = "challenge"
+	ReasonTip       = "tip"
 )
 
 // globalInviteCode marks the auto-managed Global pool, which binds no season
@@ -41,13 +43,16 @@ type Scope struct {
 	// Teams holds the season rows (`teams` ids) of every team the user
 	// follows.
 	Teams map[string]bool
+	// Challenged holds the ids of the matches the user has an open or
+	// accepted challenge on.
+	Challenged map[string]bool
 	// Tipped holds the ids of every match the user has tipped.
 	Tipped map[string]bool
 }
 
 // Mine resolves a user's scope.
 func Mine(app core.App, userID string) (*Scope, error) {
-	s := &Scope{Seasons: map[string]time.Time{}, Teams: map[string]bool{}, Tipped: map[string]bool{}}
+	s := &Scope{Seasons: map[string]time.Time{}, Teams: map[string]bool{}, Challenged: map[string]bool{}, Tipped: map[string]bool{}}
 	if userID == "" {
 		return s, nil
 	}
@@ -101,6 +106,7 @@ func Mine(app core.App, userID string) (*Scope, error) {
 			}
 		}
 	}
+	s.Challenged = challenges.MatchIDs(app, userID)
 	tips, err := app.FindRecordsByFilter("tips",
 		"user = {:u}", "", 0, 0, map[string]any{"u": userID})
 	if err != nil {
@@ -122,6 +128,9 @@ func (s *Scope) Reasons(m *core.Record) []string {
 	}
 	if s.Teams[m.GetString("homeTeam")] || s.Teams[m.GetString("awayTeam")] {
 		out = append(out, ReasonTeam)
+	}
+	if s.Challenged[m.Id] {
+		out = append(out, ReasonChallenge)
 	}
 	if s.Tipped[m.Id] {
 		out = append(out, ReasonTip)
@@ -150,9 +159,14 @@ func (s *Scope) Matches(app core.App, from, to time.Time) ([]*core.Record, error
 	for tid := range s.Seasons {
 		ids = append(ids, tid)
 	}
-	tipped := make([]any, 0, len(s.Tipped))
+	tipped := make([]any, 0, len(s.Tipped)+len(s.Challenged))
 	for mid := range s.Tipped {
 		tipped = append(tipped, mid)
+	}
+	for mid := range s.Challenged {
+		if !s.Tipped[mid] {
+			tipped = append(tipped, mid)
+		}
 	}
 	rows := make([]any, 0, len(s.Teams))
 	for id := range s.Teams {

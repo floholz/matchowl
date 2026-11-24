@@ -19,6 +19,7 @@ import (
 
 	"github.com/floholz/matchowl/internal/announce"
 	"github.com/floholz/matchowl/internal/appconfig"
+	"github.com/floholz/matchowl/internal/challenges"
 	"github.com/floholz/matchowl/internal/chat"
 	"github.com/floholz/matchowl/internal/dev"
 	"github.com/floholz/matchowl/internal/feed"
@@ -79,6 +80,8 @@ func main() {
 		tournaments.Register(e.App, e)
 		feed.Register(e.App, e)
 		teams.Routes(e.App, e)
+		challenges.Register(e.App)
+		challenges.Routes(e.App, e)
 		seed.Register(e.App, e)
 		importer.Register(e.App, e)
 		wmsync.Register(e.App, e)

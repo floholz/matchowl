@@ -347,7 +347,7 @@ type Result struct {
 
 // Row is one team's line of a table.
 type Row struct {
-	Team                                string
+	Team                                  string
 	Played, Won, Drawn, Lost, GF, GA, Pts int
 }
 
