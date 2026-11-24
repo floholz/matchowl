@@ -174,8 +174,8 @@ type seasonPick struct {
 	matches []*core.Record
 }
 
-// activeSeasons lists the active seasons, the ones with the most matches
-// around now first.
+// activeSeasons lists the active seasons: club leagues first, then the
+// ones with the most matches around now.
 func activeSeasons(app core.App, now time.Time) []seasonPick {
 	recs, _ := tournaments.Active(app)
 	var out []seasonPick
@@ -194,7 +194,18 @@ func activeSeasons(app core.App, now time.Time) []seasonPick {
 		}
 		return c
 	}
-	sort.SliceStable(out, func(i, j int) bool { return near(out[i]) > near(out[j]) })
+	// Club leagues first (what a friends' pool usually plays), then the
+	// busiest around today.
+	club := func(p seasonPick) bool {
+		c, err := app.FindRecordById("competitions", p.t.GetString("competition"))
+		return err == nil && c.GetString("teamKind") == "club"
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if ci, cj := club(out[i]), club(out[j]); ci != cj {
+			return ci
+		}
+		return near(out[i]) > near(out[j])
+	})
 	return out
 }
 
