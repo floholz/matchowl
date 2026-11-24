@@ -78,8 +78,15 @@
 	/* ---- Layout metrics ---- */
 	--maxw: 740px;
 	--maxw-wide: 1260px; /* desktop pages that spread out (Matches, Home) */
-	--nav-h: 66px;
-	--topbar-h: 58px;
+	/* The bars include the device's safe areas: the page runs edge to edge
+	   (viewport-fit=cover, and the iOS home-screen app draws its status bar
+	   over the page), so the top bar reaches under the status bar and the
+	   tab bar over the home indicator, padded by the insets. Everything that
+	   offsets by these heights follows. */
+	--safe-top: env(safe-area-inset-top, 0px);
+	--safe-bottom: env(safe-area-inset-bottom, 0px);
+	--nav-h: calc(66px + var(--safe-bottom));
+	--topbar-h: calc(58px + var(--safe-top));
 	--rail-w: 240px;
 
 	/* The PWA theme-color per theme (read by theme.svelte.ts into the

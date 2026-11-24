@@ -798,7 +798,7 @@
 		max-height: calc(100dvh - var(--topbar-h));
 		overflow-y: auto;
 		margin: 0 auto;
-		padding: 0.6rem 1rem calc(var(--nav-h) + 1rem + env(safe-area-inset-bottom));
+		padding: 0.6rem 1rem calc(1.2rem + var(--safe-bottom));
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-bottom: none;
