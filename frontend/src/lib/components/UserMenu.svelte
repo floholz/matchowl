@@ -8,7 +8,8 @@
 		Settings,
 		Shield,
 		LayoutDashboard,
-		ExternalLink
+		ExternalLink,
+		CircleHelp
 	} from '@lucide/svelte';
 
 	let {
@@ -77,6 +78,9 @@
 			{/if}
 			<a class="item" href="/settings" onclick={() => (open = false)}>
 				<Settings size={17} /> Settings
+			</a>
+			<a class="item" href="/help" onclick={() => (open = false)}>
+				<CircleHelp size={17} /> Help
 			</a>
 			<button class="item" onclick={() => auth.logout()}>
 				<LogOut size={17} /> Log out

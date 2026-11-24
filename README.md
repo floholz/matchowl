@@ -185,7 +185,8 @@ seconds:
     now are simulated.
 - **Demo people**, all made up: sign in as `mira@example.com` (owner) or
   any of max, lena, jonas, sofia, tom `@example.com`, password
-  `matchowl-dev`. Friends and requests, a classic and a head-to-head pool
+  `matchowl-dev`. The PocketBase superuser comes from `PB_ADMIN_EMAIL` /
+  `PB_ADMIN_PASSWORD` in `.env`. Friends and requests, a classic and a head-to-head pool
   with bots, tips, pool chat, challenges in every state, followed teams, a
   country and a pinned competition.
 

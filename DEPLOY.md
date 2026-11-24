@@ -35,7 +35,7 @@ cp .env.example .env
 | `NOTIFY_LOG_LEVEL` | no | `debug` logs a per-pass heartbeat; default logs only passes that sent/failed mail (plus allowlist changes & errors). |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | optional | Web Push keys. Auto-generated & stored in the DB if unset; pin them to keep keys stable across a `pb_data` wipe (regenerating invalidates existing subscriptions). |
 | `VAPID_SUBJECT` | no | VAPID JWT contact (`mailto:` / `https:`). Defaults to `mailto:<sender address>`. |
-| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | optional | Convenience only — see superuser step below. |
+| `PB_ADMIN_EMAIL` / `PB_ADMIN_PASSWORD` | optional | Creates this PocketBase superuser at boot when none with that email exists (an existing one is left alone). Otherwise see the superuser step below. |
 
 **Notifications.** The app sends reminders before each stage kicks off, before
 the Forecast locks, before untipped matches, and a daily results recap — over

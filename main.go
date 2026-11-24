@@ -66,6 +66,9 @@ func main() {
 	// Seed teams/groups/fixtures from the embedded openfootball dataset on
 	// first boot (idempotent).
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		// The superuser from PB_ADMIN_EMAIL / PB_ADMIN_PASSWORD, on a fresh
+		// database.
+		users.EnsureSuperuser(e.App)
 		// Team rows get their identity on create, seeded ones included.
 		teams.Register(e.App)
 		if err := seed.Run(e.App); err != nil {

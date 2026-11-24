@@ -20,9 +20,14 @@
 	import { challengesStore } from '$lib/challenges.svelte';
 	import ChallengeCard from '$lib/components/ChallengeCard.svelte';
 	import Flag from '$lib/components/Flag.svelte';
+	import { pageChrome } from '$lib/shell.svelte';
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
 
 	let openId = $state('');
+
+	// Home keeps the wordmark; the search icon sits in the top bar (Help
+	// lives in the user menu and the footer).
+	pageChrome(() => ({ search: true }));
 
 	$effect(() => {
 		if (!auth.isAuthed || feedStore.loading || feedStore.error) return;
@@ -320,7 +325,7 @@
 				</div>
 				<div class="teamstrip">
 					{#each teamsStore.mine as t (t.key)}
-						<a class="card tcard" href={t.next ? `/m/${t.next.id}` : `/teams/${t.key}`}>
+						<a class="card tcard" href={`/teams/${t.key}`}>
 							<span class="tcrest">
 								{#if t.national && t.iso2}
 									<Flag iso2={t.iso2} code={t.fifaCode} logo={crestUrl(t.crest)} size={30} />

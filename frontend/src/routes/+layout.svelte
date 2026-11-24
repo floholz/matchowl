@@ -18,7 +18,7 @@
 	import { theme } from '$lib/theme.svelte';
 	import { shell } from '$lib/shell.svelte';
 	import '$lib/keyboard'; // tracks the on-screen keyboard → `kb-open` class + `--kb` var
-	import { CircleHelp, ChevronLeft, Search } from '@lucide/svelte';
+	import { ChevronLeft, Search } from '@lucide/svelte';
 
 	let { children } = $props();
 
@@ -119,9 +119,6 @@
 		<div class="topbar-right">
 			<a class="topbar-help topbar-search" class:here={shell.search} href="/search" aria-label="Search competitions and teams">
 				<Search size={20} />
-			</a>
-			<a class="topbar-help" href="/help" aria-label="Help: how Matchowl works">
-				<CircleHelp size={20} />
 			</a>
 			<PwaInstallButton />
 			<UserMenu align="right" />

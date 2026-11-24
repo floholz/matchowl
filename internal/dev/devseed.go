@@ -25,6 +25,7 @@ import (
 	"github.com/floholz/matchowl/internal/teams"
 	"github.com/floholz/matchowl/internal/tips"
 	"github.com/floholz/matchowl/internal/tournaments"
+	"github.com/floholz/matchowl/internal/users"
 )
 
 // The dev seed (`make dev-reset`): a fresh dev database with useful data.
@@ -174,6 +175,7 @@ func Seed(app core.App, snapPath string, logos, frozen bool) error {
 		// after it, live matches where a kick-off is under way.
 		return fmt.Errorf("simulate: %w", err)
 	}
+	users.EnsureSuperuser(app)
 	if err := seedPeople(app, now); err != nil {
 		return fmt.Errorf("people: %w", err)
 	}
