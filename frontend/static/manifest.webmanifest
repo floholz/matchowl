@@ -24,11 +24,13 @@
     { "src": "/icons/maskable_icon_x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "screenshots": [
-    { "src": "/screenshots/sc-mobile-tips.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Tip every match" },
-    { "src": "/screenshots/sc-mobile-forecast-groups.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Forecast the group stage" },
-    { "src": "/screenshots/sc-mobile-forecast-ko.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Forecast the bracket" },
-    { "src": "/screenshots/sc-desktop-tips.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Tip every match" },
-    { "src": "/screenshots/sc-desktop-forecast-groups.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Forecast the group stage" },
-    { "src": "/screenshots/sc-desktop-forecast-ko.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Forecast the bracket" }
+    { "src": "/screenshots/n1-home.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Your pools, challenges and what to tip" },
+    { "src": "/screenshots/n2-matches.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Every match, day by day" },
+    { "src": "/screenshots/n3-match.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Your tip and the live ticker" },
+    { "src": "/screenshots/n4-pool.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Pools with your friends" },
+    { "src": "/screenshots/n5-team.png", "sizes": "1082x2402", "type": "image/png", "form_factor": "narrow", "label": "Follow your teams" },
+    { "src": "/screenshots/w1-matches.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Matches with the match beside them" },
+    { "src": "/screenshots/w2-home.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Your pools, challenges and what to tip" },
+    { "src": "/screenshots/w3-pool.png", "sizes": "1920x1080", "type": "image/png", "form_factor": "wide", "label": "Pools with your friends" }
   ]
 }
