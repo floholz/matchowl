@@ -232,7 +232,7 @@ func view(app core.App, c *core.Record, me string, now time.Time) map[string]any
 		"theirTipped": theirTip != nil,
 		"settled":     c.GetString("settledAt") != "",
 	}
-	if started(m, now) {
+	if started(m, now) || c.GetString("settledAt") != "" {
 		v["theirTip"] = theirTip
 	}
 	if c.GetString("settledAt") != "" {

@@ -1,7 +1,8 @@
 <!-- Home: your pools first (the head-to-head duel is the biggest thing
      on the page), then Tip now (matches locking soonest, in the thumb
      zone), the forecast deadline, Live, yesterday's points, and the teams
-     you follow as a sideways strip. Nothing else.
+     you follow as a sideways strip. Friend challenges (invites to answer,
+     open ones) sit between the pools and Tip now. Nothing else.
      Signed-out visitors are sent to sign in by the layout. -->
 <script lang="ts">
 	import { auth } from '$lib/auth.svelte';
@@ -16,6 +17,8 @@
 	import SupportCard from '$lib/components/SupportCard.svelte';
 	import { appConfig } from '$lib/appconfig.svelte'; // loaded by SupportCard
 	import { teamsStore, crestUrl, type NextMatch } from '$lib/teams.svelte';
+	import { challengesStore } from '$lib/challenges.svelte';
+	import ChallengeCard from '$lib/components/ChallengeCard.svelte';
 	import Flag from '$lib/components/Flag.svelte';
 	import { Telescope, ChevronRight, ChevronUp, ChevronDown } from '@lucide/svelte';
 
@@ -70,6 +73,14 @@
 	});
 	let duels = $derived(h2hStore.pools);
 
+	// ---- challenges (friends only, so verified accounts) ----
+	$effect(() => {
+		if (auth.user?.verified) challengesStore.load().catch(() => {});
+	});
+	/** Invites to answer first, then the ones still to be played. */
+	let challengeCards = $derived([...challengesStore.incoming, ...challengesStore.open].slice(0, 4));
+	let challengeMore = $derived(challengesStore.incoming.length + challengesStore.open.length - challengeCards.length);
+
 	// ---- your teams ----
 	$effect(() => {
 		if (auth.isAuthed) teamsStore.load().catch(() => {});
@@ -103,8 +114,10 @@
 	 *  included — not the next open pairing months out. */
 	const TIP_WINDOW_MS = 7 * 86400_000;
 	let soon = $derived(open.filter((m) => new Date(m.kickoff).getTime() - serverClock.now() <= TIP_WINDOW_MS));
-	/** Only what your pools (later: challenges) ask you to tip. */
-	let untipped = $derived(soon.filter((m) => !m.myTip && m.reasons.includes('pool')));
+	/** Only what your pools and challenges ask you to tip. */
+	let untipped = $derived(
+		soon.filter((m) => !m.myTip && (m.reasons.includes('pool') || m.reasons.includes('challenge')))
+	);
 	let tipNow = $derived(untipped.slice(0, 3));
 	let live = $derived(feedStore.matches.filter((m) => m.status === 'live').sort(byKickoff));
 	/** The most recent day with results: "Yesterday" when it is. */
@@ -220,6 +233,21 @@
 				<div class="card quiet muted">
 					No pools yet. <a href="/pools">Start one</a> and invite your friends.
 				</div>
+			{/if}
+
+			{#if challengeCards.length}
+				<div class="sec">
+					<h2>Challenges</h2>
+					<a class="more" href="/friends">Friends <ChevronRight size={14} /></a>
+				</div>
+				<div class="chs">
+					{#each challengeCards as c (c.id)}
+						<ChallengeCard {c} onChange={() => feedStore.load().catch(() => {})} />
+					{/each}
+				</div>
+				{#if challengeMore > 0}
+					<a class="seeall" href="/friends">{challengeMore} more on Friends <ChevronRight size={14} /></a>
+				{/if}
 			{/if}
 
 			<div class="sec">
@@ -453,6 +481,11 @@
 	}
 	.empty .btn {
 		margin-top: 1rem;
+	}
+	.chs {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
 	}
 	/* Followed teams: a sideways strip of cards, each with its next match. */
 	.teamstrip {

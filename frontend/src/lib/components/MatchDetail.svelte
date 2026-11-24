@@ -34,7 +34,11 @@
 	import { offerTipGuide } from '$lib/guides';
 	import { h2hStore } from '$lib/h2h.svelte';
 	import Avatar from './Avatar.svelte';
-	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
+	import { auth } from '$lib/auth.svelte';
+	import { challengesStore, type Challenge } from '$lib/challenges.svelte';
+	import ChallengeCard from './ChallengeCard.svelte';
+	import ChallengeSheet from './ChallengeSheet.svelte';
+	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X, Swords } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
 	let {
@@ -135,6 +139,28 @@
 	let A = $derived(label('away'));
 	const sideOf = (tid: string): '' | 'home' | 'away' =>
 		match && tid ? (tid === match.homeTeam ? 'home' : tid === match.awayTeam ? 'away' : '') : '';
+
+	// ---- challenges on this match (friends only, so verified accounts) ----
+	let challenges = $state<Challenge[]>([]);
+	let sheetOpen = $state(false);
+	$effect(() => {
+		const mid = id;
+		void existing; // my tip changed: the card's "You tipped" follows
+		if (!mid || !auth.user?.verified) return;
+		challengesStore
+			.forMatch(mid)
+			.then((c) => (challenges = c))
+			.catch(() => {});
+	});
+	/** Who I already have a live challenge with here. */
+	let taken = $derived(challenges.filter((c) => c.status === 'pending' || c.status === 'accepted').map((c) => c.them.userId));
+	let canChallenge = $derived(!!auth.user?.verified && !!match && resolved && !locked);
+	function updated(c: Challenge) {
+		const i = challenges.findIndex((x) => x.id === c.id);
+		if (c.status === 'declined' || c.status === 'cancelled') challenges = challenges.filter((x) => x.id !== c.id);
+		else if (i >= 0) challenges[i] = c;
+		else challenges = [c, ...challenges];
+	}
 
 	let kickoffTime = $derived(
 		match ? new Date(match.kickoff).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
@@ -481,6 +507,34 @@
 			<div class="card quiet muted">No tip — this match was locked.</div>
 		{/if}
 
+		<!-- ---- challenges ---- -->
+		{#if challenges.length}
+			<div class="sec">
+				<h2>Challenge{challenges.length > 1 ? 's' : ''}</h2>
+				{#if !locked}<span class="muted small">picks show at kick-off</span>{/if}
+			</div>
+			{#each challenges as c (c.id)}
+				<ChallengeCard {c} showMatch={false} onChange={updated} />
+			{/each}
+		{/if}
+		{#if canChallenge}
+			<button class="btn secondary challenge" onclick={() => (sheetOpen = true)}>
+				<Swords size={16} /> {challenges.length ? 'Challenge another friend' : 'Challenge a friend'}
+			</button>
+		{/if}
+		{#if sheetOpen && match}
+			<ChallengeSheet
+				matchId={match.id}
+				title={`${H.name} – ${A.name} · ${kickoffDay}, ${kickoffTime}`}
+				{taken}
+				onClose={() => (sheetOpen = false)}
+				onSent={(c) => {
+					sheetOpen = false;
+					updated(c);
+				}}
+			/>
+		{/if}
+
 		<!-- ---- friends' picks ---- -->
 		<div class="sec">
 			<h2>Friends’ picks</h2>
@@ -822,6 +876,13 @@
 		align-items: baseline;
 		gap: 0.5rem;
 		margin: 0.6rem 0.15rem 0;
+	}
+	.btn.challenge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		width: 100%;
 	}
 	.sec h2 {
 		font-size: 1.1rem;

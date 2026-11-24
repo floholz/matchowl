@@ -4,6 +4,8 @@
      Friends — the mutual graph: a board of you and your friends for one
      season, requests, and finding people. -->
 <script lang="ts">
+	import { challengesStore, recordLine } from '$lib/challenges.svelte';
+	import ChallengeCard from './ChallengeCard.svelte';
 	import PoolSettings from '$lib/components/PoolSettings.svelte';
 	import { api, type PoolMode, type PoolSummary, type PoolSeason, type LeaderboardRow, type Person } from '$lib/api';
 	import { auth } from '$lib/auth.svelte';
@@ -236,6 +238,7 @@
 		friendsStarted = true;
 		loadFriends();
 		loadBoard('');
+		challengesStore.load().catch(() => {});
 	});
 	function pickCompetition(key: string) {
 		const s = defaultSeason(boardChoices.filter((t) => t.competition?.key === key));
@@ -390,6 +393,18 @@
 	</div>
 	<div class="actpad"></div>
 			{:else}
+	{#if challengesStore.incoming.length || challengesStore.open.length || challengesStore.recent.length}
+		<div class="sec2"><h2>Challenges</h2>{#if challengesStore.incoming.length}<span class="pill ok">{challengesStore.incoming.length}</span>{/if}</div>
+		<div class="chs">
+			{#each [...challengesStore.incoming, ...challengesStore.open] as c (c.id)}
+				<ChallengeCard {c} />
+			{/each}
+			{#each challengesStore.recent.slice(0, 3) as c (c.id)}
+				<ChallengeCard {c} />
+			{/each}
+		</div>
+		<p class="muted small pad">Challenge a friend from any match page: one match, more points wins.</p>
+	{/if}
 	<label class="search">
 		<Search size={16} />
 		<input class="input" placeholder="Find people by name" bind:value={q} oninput={onSearch} />
@@ -476,9 +491,11 @@
 		<h2 class="sec">Your friends</h2>
 		<div class="card list">
 			{#each friends as p (p.userId)}
+				{@const rec = challengesStore.records[p.userId]}
+				{@const line = recordLine(rec, p.name)}
 				<div class="brow">
 					<Avatar name={p.name} id={p.userId} preset={p.avatarPreset} src={avatarUrl(p.userId, p.avatar)} size={28} />
-					<span class="bname">{p.name}</span>
+					<span class="bname fname">{p.name}{#if line}<span class="rec" class:lead={rec && rec.won > rec.lost}>{line}</span>{/if}</span>
 					<span class="spacer"></span>
 					<button class="ibtn" onclick={() => remove(p)} aria-label="Remove friend"><X size={16} /></button>
 				</div>
@@ -939,6 +956,24 @@
 		align-items: center;
 		gap: 0.4rem;
 		min-width: 0;
+	}
+	.bname.fname {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.05rem;
+	}
+	.rec {
+		font-size: 0.76rem;
+		font-weight: 600;
+		color: var(--muted);
+	}
+	.rec.lead {
+		color: var(--success);
+	}
+	.chs {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
 	}
 	.pill.you {
 		font-size: 0.56rem;

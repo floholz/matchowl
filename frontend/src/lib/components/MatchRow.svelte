@@ -34,7 +34,7 @@
 	import H2HPickButtons from './H2HPickButtons.svelte';
 	import { h2hStore } from '$lib/h2h.svelte';
 	import { auth } from '$lib/auth.svelte';
-	import { ChevronRight, Check } from '@lucide/svelte';
+	import { ChevronRight, Check, Swords } from '@lucide/svelte';
 	import { untrack } from 'svelte';
 
 	let {
@@ -77,6 +77,8 @@
 	} = $props();
 
 	const teamOf = (id: string) => (team ? team(id) : tipsStore.team(id));
+	/** A friend challenge is on (feed rows carry the scope reasons). */
+	let challenged = $derived(((match as { reasons?: string[] }).reasons ?? []).includes('challenge'));
 
 	// Row-local clock: ticks per second only inside the countdown window,
 	// otherwise a single timeout wakes it at the window's edge.
@@ -332,7 +334,9 @@
 				>{existing && pts !== undefined ? `${pts > 0 ? '+' : ''}${pts}` : existing ? '' : '0'}</span
 			>
 		{:else if href}
-			<a class="go" {href} aria-label="Match details" onclick={pick}><ChevronRight size={16} /></a>
+			<a class="go" class:ch={challenged} {href} aria-label={challenged ? 'Match details · challenge on' : 'Match details'} onclick={pick}>
+				{#if challenged}<Swords size={14} />{:else}<ChevronRight size={16} />{/if}
+			</a>
 		{:else}
 			<span class="pts"></span>
 		{/if}
@@ -526,6 +530,14 @@
 	.go:hover {
 		color: var(--accent);
 		background: var(--surface-2);
+	}
+	.go.ch {
+		width: 26px;
+		height: 26px;
+		margin: 0 4px;
+		border-radius: 50%;
+		color: var(--accent);
+		background: color-mix(in srgb, var(--accent) 13%, transparent);
 	}
 
 	/* ---- editor drawer ---- */
