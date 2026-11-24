@@ -4,6 +4,7 @@
      Friends — the mutual graph: a board of you and your friends for one
      season, requests, and finding people. -->
 <script lang="ts">
+	import { portal, lockScroll } from '$lib/actions';
 	import { challengesStore, recordLine } from '$lib/challenges.svelte';
 	import ChallengeCard from './ChallengeCard.svelte';
 	import PoolSettings from '$lib/components/PoolSettings.svelte';
@@ -515,8 +516,8 @@
 {/if}
 
 {#if sheet}
-	<button class="scrim" onclick={closeSheet} aria-label="Close"></button>
-	<div class="sheet" role="dialog" aria-modal="true">
+	<button class="scrim" use:portal onclick={closeSheet} aria-label="Close"></button>
+	<div class="sheet" use:portal use:lockScroll role="dialog" aria-modal="true">
 		<div class="grab"></div>
 		{#if sheet === 'start'}
 			<div class="shead"><h2>Start a pool</h2><button class="ibtn" onclick={closeSheet} aria-label="Close"><X size={18} /></button></div>
@@ -787,6 +788,8 @@
 	}
 	.sheet {
 		position: fixed;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		left: 0;
 		right: 0;
 		bottom: 0;
@@ -804,6 +807,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.7rem;
+	}
+	/* A flex column with a max height would shrink (and clip) its children
+	   instead of overflowing; they keep their size so the sheet scrolls. */
+	.sheet > :global(*) {
+		flex-shrink: 0;
 	}
 	.grab {
 		width: 36px;

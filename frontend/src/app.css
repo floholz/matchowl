@@ -614,3 +614,11 @@ body.kb-open .tabbar {
 		display: inline-flex;
 	}
 }
+
+/* A modal sheet is open (lockScroll in lib/actions.ts): the page behind it
+   stays put. */
+html.scroll-locked,
+html.scroll-locked body {
+	overflow: hidden;
+	overscroll-behavior: none;
+}

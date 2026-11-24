@@ -46,3 +46,29 @@ export function collapseOnScroll(
 		}
 	};
 }
+
+/** Render a node at the end of <body>. Bottom sheets need it: the app shell
+ *  is its own stacking context (z-index 2), so anything inside it — however
+ *  high its own z-index — sits below the tab bar (z-index 50), which then
+ *  covers the sheet's bottom and catches its touches. */
+export function portal(node: HTMLElement) {
+	document.body.appendChild(node);
+	return {
+		destroy() {
+			node.remove();
+		}
+	};
+}
+
+/** Hold the page still while a modal sheet is open, so a swipe scrolls the
+ *  sheet and not the list behind it (iOS hands a fixed element's touches to
+ *  the page otherwise). Counted, so stacked sheets unlock once. */
+let scrollLocks = 0;
+export function lockScroll(_node: HTMLElement) {
+	if (scrollLocks++ === 0) document.documentElement.classList.add('scroll-locked');
+	return {
+		destroy() {
+			if (--scrollLocks === 0) document.documentElement.classList.remove('scroll-locked');
+		}
+	};
+}

@@ -5,6 +5,7 @@
      unpins instead; pinned competitions become chips in the row. The ones
      your pools play are always pinned. -->
 <script lang="ts">
+	import { portal, lockScroll } from '$lib/actions';
 	import { pins, type CompetitionEntry } from '$lib/pins.svelte';
 	import { competitionLogoUrl } from '$lib/tournament.svelte';
 	import { Pin, Check, ChevronRight } from '@lucide/svelte';
@@ -71,8 +72,8 @@
 
 <svelte:window onkeydown={onKey} />
 
-<button class="scrim" onclick={onClose} aria-label="Close"></button>
-<div class="sheet" role="dialog" aria-modal="true" aria-label="Competitions">
+<button class="scrim" use:portal onclick={onClose} aria-label="Close"></button>
+<div class="sheet" use:portal use:lockScroll role="dialog" aria-modal="true" aria-label="Competitions">
 	<div class="grab"></div>
 	<div class="shead">
 		<h2>Competitions</h2>
@@ -132,6 +133,8 @@
 	}
 	.sheet {
 		position: fixed;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		left: 0;
 		right: 0;
 		bottom: 0;
@@ -149,6 +152,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.45rem;
+	}
+	/* A flex column with a max height would shrink (and clip) its children
+	   instead of overflowing; they keep their size so the sheet scrolls. */
+	.sheet > :global(*) {
+		flex-shrink: 0;
 	}
 	.grab {
 		width: 36px;

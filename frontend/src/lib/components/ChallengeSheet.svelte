@@ -1,6 +1,7 @@
 <!-- Challenge a friend on one match: pick a friend (each with your record
      against them), add an optional stake note, send. -->
 <script lang="ts">
+	import { portal, lockScroll } from '$lib/actions';
 	import { pb } from '$lib/pb';
 	import { api, type Person } from '$lib/api';
 	import { challengesStore, recordLine, type Challenge } from '$lib/challenges.svelte';
@@ -66,8 +67,8 @@
 
 <svelte:window onkeydown={onKey} />
 
-<button class="scrim" onclick={onClose} aria-label="Close"></button>
-<div class="sheet" role="dialog" aria-modal="true" aria-label="Challenge a friend">
+<button class="scrim" use:portal onclick={onClose} aria-label="Close"></button>
+<div class="sheet" use:portal use:lockScroll role="dialog" aria-modal="true" aria-label="Challenge a friend">
 <form class="sform" onsubmit={send}>
 	<div class="grab"></div>
 	<div class="shead">
@@ -119,6 +120,8 @@
 	}
 	.sheet {
 		position: fixed;
+		overscroll-behavior: contain;
+		-webkit-overflow-scrolling: touch;
 		left: 0;
 		right: 0;
 		bottom: 0;
@@ -141,6 +144,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.45rem;
+	}
+	/* A flex column with a max height would shrink (and clip) its children
+	   instead of overflowing; they keep their size so the sheet scrolls. */
+	.sheet > :global(*) {
+		flex-shrink: 0;
 	}
 	.grab {
 		width: 36px;
