@@ -38,6 +38,7 @@
 	import { challengesStore, type Challenge } from '$lib/challenges.svelte';
 	import ChallengeCard from './ChallengeCard.svelte';
 	import ChallengeSheet from './ChallengeSheet.svelte';
+	import Ticker from './Ticker.svelte';
 	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
 	import BoxingGlove from './BoxingGlove.svelte';
 	import { untrack } from 'svelte';
@@ -506,6 +507,11 @@
 			</div>
 		{:else}
 			<div class="card quiet muted">No tip — this match was locked.</div>
+		{/if}
+
+		<!-- ---- ticker (live sync's match_events) ---- -->
+		{#if live || played}
+			<Ticker {match} />
 		{/if}
 
 		<!-- ---- challenges ---- -->
