@@ -11,6 +11,97 @@ matching section of this file.
 
 ## [Unreleased]
 
+## [1.0.0-alpha.11] - 2026-11-24
+
+The pools-at-the-center release. Your pools now decide what's "yours":
+there's no more "playing" a competition. Follow teams, challenge a friend
+on a single match, and follow live matches minute by minute with a ticker
+of goals, cards and substitutions.
+
+**Deploy:** migrations 0054–0058 run at boot (0054 drops
+`tournament_players`; 0055 `users.pinnedCompetitions`; 0056 team
+identities, `team_follows`, `users.country`; 0057 `challenges`; 0058
+`match_events`, `matches.afId`). After the first start, click **Fetch
+countries** once on the admin Teams page (one API request per season) so
+teams get their countries. Env: `SYNC_CRON` now sets the full schedule
+refresh only (default twice a day; live scores no longer depend on it);
+`SYNC_LIVE=off` turns the new live pass off; `PB_ADMIN_EMAIL` /
+`PB_ADMIN_PASSWORD` now create that superuser at boot when it's missing.
+
+### Added
+
+- **My matches:** one definition across the app: the seasons your pools
+  play (from each pool's start date), the teams you follow, your
+  challenges, and anything you've tipped. Any covered match can be
+  tipped; a tip counts wherever it applies.
+- **Teams:** every club and nation has one identity across seasons, with
+  its country. Team pages (`/teams/{key}`) show the crest, a follow star,
+  next matches, latest results and the competitions with the team's table
+  line, plus all its matches. Followed teams' matches join My matches,
+  and Home gets a **Your teams** strip.
+- **Search:** competitions and teams, with recent searches, from the
+  search icon in the top bar (Home and Matches on phones, every page on
+  desktop).
+- **Country:** set yours in Settings to get a country chip on Matches with
+  every match of a team from there.
+- **Challenges:** challenge a friend on one match from the match page,
+  with an optional stake note (shown, never collected). Your friend
+  accepts before kick-off, picks stay hidden until then, and the default
+  scoring decides. Home and Friends list invites, open and played
+  challenges, with your record against each friend. Challenged matches
+  carry a boxing-glove badge. Notifications for invites, acceptance and
+  results.
+- **Live ticker:** goals with the running score, cards, substitutions and
+  VAR checks on the match page, newest first, with half-time and full-time
+  lines. It updates by itself during the match.
+- **Kick-off-aware sync:** a pass every minute that only makes requests
+  around kick-offs: one request covers every live league, and matches that
+  just ended are checked by id in batches. The full schedule refresh drops
+  to twice a day. About 10 % of the daily API quota on a busy Saturday.
+- **Admin:** a team registry grouped by identity with countries, and a
+  Fetch countries button.
+- **Dev database:** `make dev-reset` builds a ready-to-use dev database in
+  seconds from a committed sports snapshot (no people), plus made-up demo
+  users, pools, tips, challenges and follows; with an API key it keeps
+  real dates and syncs live. `make dev-snapshot` refreshes the snapshot
+  from a copy of a real database.
+
+### Changed
+
+- **Tabs:** Home · Matches · Pools · Friends. Competitions are reached from
+  matches, search and team pages.
+- **Matches filter:** one row (My matches · All · your country · pinned
+  competitions · More) with Live pinned at the right and a clear button.
+  Pins follow your account; your pools' competitions are always pinned.
+- **Home:** your pools, challenges, Tip now (only what your pools and
+  challenges ask for), Live, results and your teams.
+- **Help** moved from the top bar into the user menu (and stays in Home's
+  footer).
+- **Tables:** rows on the competition table and the match page's league
+  table open the team's page.
+- **Store screenshots** show the current app.
+- **Notification badge:** the owl's eyes are rings with a dot, like the
+  colour icon.
+
+### Removed
+
+- **Playing a competition:** the Play button, auto-subscribe and the
+  Playing toggle are gone; the "playing" mailing audience became "in a
+  pool of this season".
+
+### Fixed
+
+- **iOS app:** the status bar no longer covers the top bar, and the tab bar
+  clears the home indicator.
+- **Bottom sheets** (More competitions, Challenge a friend, Start / Join a
+  pool) scroll themselves instead of the page behind, and sit above the
+  tab bar.
+- **Sync timeouts:** each season gets its own deadline instead of all
+  sharing one; a season set to manual is never synced, even when
+  `RESULTS_SOURCE` forces a provider; storing the provider's fixture id no
+  longer rescores the whole database.
+- Buttons use the app font.
+
 ## [1.0.0-alpha.10] - 2026-10-10
 
 The live release. Live matches show their minute, the home feed follows

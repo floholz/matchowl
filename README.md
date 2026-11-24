@@ -38,8 +38,16 @@ added from the admin API without touching the codebase (see
   own row is highlighted. The owner can restart a pool's standings from a
   date, so latecomers start level. Every user is auto-joined to a shared
   **Global** league.
+- **My matches** — what your pools play, the teams you follow, your
+  challenges and anything you tipped, in one list with a filter row for
+  all matches, your country and pinned competitions.
+- **Teams & search** — a page per club or nation (next matches, results,
+  table line) with a follow star; search competitions and teams.
+- **Challenges** — challenge a friend on one match with a stake note; the
+  default scoring decides, and you keep a record per friend.
 - **Live tournament view** — group tables and a knockout bracket that fill
-  in from real results.
+  in from real results, and a live ticker (goals, cards, substitutions,
+  VAR) on the match page.
 - **Bot opponents** — `role=bot` accounts that play your leagues through the
   public API under the exact same locks as humans. Two brains: a deterministic
   API-free **rating model** (`algo`) or **Claude** (`claude`). They run as a
@@ -52,7 +60,8 @@ added from the admin API without touching the codebase (see
   offline app shell, maskable icons + screenshots.
 - **Results** — auto-synced from API-Football (free tier) when a key is set;
   always overridable by an admin; fully playable on the seeded fixtures
-  without any key. Live matches show their score and minute as they play.
+  without any key. Live matches show their score and minute as they play;
+  the sync only spends requests around kick-offs.
 
 ## Scoring (config-driven, max 7 points per match)
 

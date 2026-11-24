@@ -882,6 +882,11 @@ work pending · ⏭ deliberately deferred
 
 ## Releases
 
+- **v1.0.0-alpha.11** (2026-11-24): pools at the center — "my matches"
+  from pools, followed teams, challenges and tips (playing goes away);
+  tabs Home · Matches · Pools · Friends; team identities with country,
+  team pages, follow, search, country chip; 1-on-1 challenges; kick-off
+  aware live sync with a ticker; dev seed. Migrations 0054–0058.
 - **v1.0.0-alpha.10** (2026-10-10): the live release — a pool start date
   restarts the standings (classic: matches from then on, no Forecast
   mid-season; h2h: matchdays from then on), live matches show their
