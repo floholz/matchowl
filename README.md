@@ -169,6 +169,28 @@ Run with `MATCHOWL_DEV=1` to unlock the **Dev** page of the admin app:
 
 The dev endpoints are **not registered** unless `MATCHOWL_DEV=1`.
 
+### Dev database
+
+`make dev-reset` wipes `pb_data` and fills it with useful data in a few
+seconds:
+
+- **Sports data** from a committed snapshot (`internal/dev/data/`):
+  competitions, seasons, teams with countries, matches. All dates move by
+  whole weeks so the snapshot lands on today; results up to now are filled
+  in (real ones from the snapshot, simulated after it, live where a
+  kick-off is under way). Seasons are switched to manual sync so the live
+  sync leaves them alone. Crests come from the provider's CDN (no API quota).
+- **Demo people**, all made up: sign in as `mira@example.com` (owner) or
+  any of max, lena, jonas, sofia, tom `@example.com`, password
+  `matchowl-dev`. Friends and requests, a classic and a head-to-head pool
+  with bots, tips, pool chat, challenges in every state, followed teams, a
+  country and a pinned competition.
+
+`make dev-snapshot FROM=path/to/copy/of/pb_data` refreshes the snapshot
+from a real database. It only exports sports data, never people, and with
+`API_FOOTBALL_KEY` set it first fetches team countries (one request per
+season). Run it on a copy: it migrates and writes to that database.
+
 ## Data
 
 - Fixtures/teams/groups seeded from

@@ -1,4 +1,4 @@
-.PHONY: help install dev-frontend dev-admin dev-backend build-frontend build-admin build run docker clean test tailscale tailscale-off design-pack design-unpack design-status design-hooks
+.PHONY: dev-reset dev-snapshot help install dev-frontend dev-admin dev-backend build-frontend build-admin build run docker clean test tailscale tailscale-off design-pack design-unpack design-status design-hooks
 
 # Load .env (if present) and export its variables to every recipe, so
 # `make run` / `make dev-backend` see the same config as docker-compose.
@@ -68,6 +68,14 @@ docker: ## Build the production Docker image
 reset: ## Wipe the local dev database (pb_data is disposable — re-seeded on boot)
 	rm -rf pb_data
 	@echo "pb_data removed — next 'make run'/'make dev-backend' re-seeds a fresh DB."
+
+dev-reset: ## Wipe pb_data and fill it with the dev seed (sports snapshot + demo people, password matchowl-dev)
+	rm -rf pb_data
+	MATCHOWL_DEV=1 go run . dev-seed --dir=./pb_data --dev=false
+
+dev-snapshot: ## Refresh the dev seed's sports snapshot from a COPY of a real database: make dev-snapshot FROM=path/to/pb_data
+	@test -n "$(FROM)" || { echo "usage: make dev-snapshot FROM=path/to/a/copy/of/pb_data"; exit 1; }
+	MATCHOWL_DEV=1 go run . dev-snapshot --dir=$(FROM) --dev=false
 
 clean: ## Remove build artifacts (keeps the embed .gitkeep so go build works)
 	rm -f matchowl

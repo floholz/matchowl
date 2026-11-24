@@ -183,6 +183,10 @@ const DefaultScoringConfig = `{
   "tiebreakers": ["points", "exactScores", "correctWinners", "goalDiffDeviation", "fewestTips", "earliestEdit"]
 }`
 
+// EnsureDefaultScoringConfig creates the default scoring config once (the
+// dev seed needs it before the server's first start).
+func EnsureDefaultScoringConfig(app core.App) error { return ensureDefaultScoringConfig(app) }
+
 // ensureDefaultScoringConfig creates the default scoring config once.
 func ensureDefaultScoringConfig(app core.App) error {
 	if n, _ := app.CountRecords("scoring_configs"); n > 0 {

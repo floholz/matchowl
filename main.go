@@ -58,6 +58,11 @@ func main() {
 		Automigrate:  true,
 	})
 
+	// Dev database tools: `dev-seed` fills an empty dev database with the
+	// sports snapshot and demo people, `dev-snapshot` refreshes the snapshot
+	// from a copy of a real database (see internal/dev/devseed.go).
+	app.RootCmd.AddCommand(dev.SeedCommand(app), dev.SnapshotCommand(app))
+
 	// Seed teams/groups/fixtures from the embedded openfootball dataset on
 	// first boot (idempotent).
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {

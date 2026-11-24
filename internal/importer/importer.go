@@ -345,6 +345,30 @@ func originISO(t TeamPreview) string {
 	return CountryISO2(t.Country)
 }
 
+// BackfillOrigins runs backfillOrigins for every season with an
+// API-Football sync config and returns how many identities changed per
+// season name (errors are logged and skipped).
+func BackfillOrigins(ctx context.Context, app core.App, key string) map[string]int {
+	out := map[string]int{}
+	all, err := tournaments.All(app)
+	if err != nil {
+		return out
+	}
+	for _, t := range all {
+		cfg, err := tournaments.SyncOf(t)
+		if err != nil || cfg.APIFootballLeague == 0 || cfg.Season == 0 {
+			continue
+		}
+		n, err := backfillOrigins(ctx, app, key, t, cfg)
+		if err != nil {
+			log.Printf("[importer] origins %s: %v", t.GetString("name"), err)
+			continue
+		}
+		out[t.GetString("name")] = n
+	}
+	return out
+}
+
 // backfillOrigins stores country and national flag on the identities of one
 // season's teams from one /teams request. Rows are matched by provider id,
 // else by normalized name (and get the provider id then). Returns how many
