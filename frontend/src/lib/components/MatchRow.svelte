@@ -34,7 +34,8 @@
 	import H2HPickButtons from './H2HPickButtons.svelte';
 	import { h2hStore } from '$lib/h2h.svelte';
 	import { auth } from '$lib/auth.svelte';
-	import { ChevronRight, Check, Swords } from '@lucide/svelte';
+	import { ChevronRight, Check } from '@lucide/svelte';
+	import BoxingGlove from './BoxingGlove.svelte';
 	import { untrack } from 'svelte';
 
 	let {
@@ -335,7 +336,7 @@
 			>
 		{:else if href}
 			<a class="go" class:ch={challenged} {href} aria-label={challenged ? 'Match details · challenge on' : 'Match details'} onclick={pick}>
-				{#if challenged}<Swords size={14} />{:else}<ChevronRight size={16} />{/if}
+				{#if challenged}<BoxingGlove size={14} />{:else}<ChevronRight size={16} />{/if}
 			</a>
 		{:else}
 			<span class="pts"></span>

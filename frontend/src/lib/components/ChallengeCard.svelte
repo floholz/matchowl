@@ -7,7 +7,8 @@
 	import { serverClock } from '$lib/serverclock.svelte';
 	import { challengesStore, recordLine, type Challenge, type ChallengeTip } from '$lib/challenges.svelte';
 	import Avatar from './Avatar.svelte';
-	import { Check, Swords } from '@lucide/svelte';
+	import { Check } from '@lucide/svelte';
+	import BoxingGlove from './BoxingGlove.svelte';
 
 	let {
 		c,
@@ -89,7 +90,7 @@
 
 	{#if c.status === 'pending' && !c.mine}
 		<div class="foot">
-			<button class="btn sm" disabled={busy} onclick={() => act('accept')}><Swords size={15} /> Accept</button>
+			<button class="btn sm" disabled={busy} onclick={() => act('accept')}><BoxingGlove size={15} /> Accept</button>
 			<button class="btn secondary sm" disabled={busy} onclick={() => act('decline')}>Decline</button>
 			<span class="muted note">accept before kick-off</span>
 		</div>

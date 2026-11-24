@@ -38,7 +38,8 @@
 	import { challengesStore, type Challenge } from '$lib/challenges.svelte';
 	import ChallengeCard from './ChallengeCard.svelte';
 	import ChallengeSheet from './ChallengeSheet.svelte';
-	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X, Swords } from '@lucide/svelte';
+	import { Check, Lock, Bot, Target, ChevronRight, ChevronDown, X } from '@lucide/svelte';
+	import BoxingGlove from './BoxingGlove.svelte';
 	import { untrack } from 'svelte';
 
 	let {
@@ -519,7 +520,7 @@
 		{/if}
 		{#if canChallenge}
 			<button class="btn secondary challenge" onclick={() => (sheetOpen = true)}>
-				<Swords size={16} /> {challenges.length ? 'Challenge another friend' : 'Challenge a friend'}
+				<BoxingGlove size={16} /> {challenges.length ? 'Challenge another friend' : 'Challenge a friend'}
 			</button>
 		{/if}
 		{#if sheetOpen && match}
