@@ -148,6 +148,8 @@ func Register(app core.App, se *core.ServeEvent) {
 		return e.Next()
 	})
 
+	registerChallenges(app, r)
+
 	// Pool invites go out the moment they are written (internal/pools), as
 	// push + email to the invitee — event "pool_invite".
 	app.OnRecordAfterCreateSuccess("pool_invites").BindFunc(func(e *core.RecordEvent) error {
@@ -742,6 +744,11 @@ func (r *Runner) sampleData(event string) tplData {
 	case "h2h_ban":
 		d.League, d.Round, d.Rival, d.Match = "Bürocup", "Matchday 12", "Lena", "Sevilla – Valencia"
 		d.CTAText, d.CTAUrl = "See your duel", base.url+"/pools"
+	case "challenge_invite", "challenge_accepted", "challenge_result":
+		d.From, d.Rival, d.Match, d.Stake = "Max", "Max", "Sturm Graz – Rapid Wien", "Loser buys the next round"
+		d.WhenText = when
+		d.Mine, d.Theirs, d.Verdict = 6, 3, "beat"
+		d.CTAText, d.CTAUrl = "Open the match", base.url+"/m/sample"
 	case "pool_chat":
 		d.ChatTotal = 5
 		d.ChatLeagues = []chatLine{{League: "Squad", Count: 3}, {League: "Office Pool", Count: 2}}

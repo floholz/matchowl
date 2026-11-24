@@ -265,3 +265,27 @@ func TestRenderAllTemplates(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderChallengeEvents(t *testing.T) {
+	for _, verdict := range []string{"beat", "drew with", "lost to"} {
+		data := tplData{
+			From: "Max", Rival: "Max", Match: "Sturm Graz – Rapid Wien", Stake: "Loser buys the next round",
+			WhenText: "Sat, Nov 28 · 16:00 UTC", Mine: 6, Theirs: 3, Verdict: verdict,
+			CTAUrl: "https://example.com/m/x", SettingsUrl: "https://example.com/settings",
+		}
+		for _, ev := range []string{"challenge_invite", "challenge_accepted", "challenge_result"} {
+			subject, html, text, err := render(ev, data)
+			if err != nil {
+				t.Fatalf("render(%s): %v", ev, err)
+			}
+			title, body, err := renderPush(ev, data)
+			if err != nil || title == "" {
+				t.Fatalf("renderPush(%s): %q %v", ev, title, err)
+			}
+			if !strings.Contains(html, "Max") || !strings.Contains(text, "Sturm Graz") {
+				t.Errorf("%s: missing names in the body", ev)
+			}
+			t.Logf("%s/%s → %q | push %q / %q", ev, verdict, subject, title, body)
+		}
+	}
+}

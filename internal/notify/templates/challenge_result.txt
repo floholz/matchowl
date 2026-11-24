@@ -1,0 +1,7 @@
+Your challenge with {{.Rival}} on {{.Match}} is in: you {{.Verdict}} {{.Rival}} {{.Mine}}–{{.Theirs}} in points.{{if .Stake}}
+The stake was "{{.Stake}}".{{end}}
+
+{{.CTAUrl}}
+
+—
+Manage your notifications: {{.SettingsUrl}}

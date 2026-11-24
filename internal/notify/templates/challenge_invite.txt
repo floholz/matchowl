@@ -1,0 +1,7 @@
+{{.From}} challenges you on {{.Match}}{{if .Stake}} — stake: "{{.Stake}}"{{end}}.
+
+Kick-off {{.WhenText}}. Accept before then, then both of you tip: more points wins.
+{{.CTAUrl}}
+
+—
+Manage your notifications: {{.SettingsUrl}}

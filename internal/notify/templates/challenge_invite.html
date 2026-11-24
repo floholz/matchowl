@@ -1,0 +1,16 @@
+{{define "subject"}}{{.From}} challenges you: {{.Match}}{{end}}
+{{define "preheader"}}{{if .Stake}}Stake: “{{.Stake}}”. {{end}}Accept before kick-off.{{end}}
+{{define "pushTitle"}}⚔️ {{.From}} challenges you{{end}}
+{{define "pushBody"}}{{.Match}}{{if .Stake}} · “{{.Stake}}”{{end}} · accept before kick-off{{end}}
+{{define "content"}}
+<div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcf3a;">Challenge</div>
+<h1 style="margin:7px 0 14px;font-size:27px;line-height:1.12;font-weight:800;color:#fff3e6;">{{.From}} challenges you on {{.Match}}</h1>
+{{if .Stake}}<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td bgcolor="#271c11" style="background:#271c11;border:1px solid #3d2e1e;border-radius:12px;padding:14px;">
+<div style="font-size:11px;color:#b39a82;text-transform:uppercase;letter-spacing:.08em;">Stake</div>
+<div style="margin-top:4px;font-size:16px;font-weight:700;color:#fff3e6;">“{{.Stake}}”</div>
+</td></tr></table>{{end}}
+<p style="margin:20px 0 0;font-size:15px;line-height:1.6;color:#aeb6d0;">
+Kick-off {{.WhenText}}. Accept before then, then both of you tip: more points wins. Your picks stay hidden from each other until kick-off.
+</p>
+{{end}}

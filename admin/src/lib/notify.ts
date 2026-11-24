@@ -55,6 +55,21 @@ export const NOTIFY_EVENTS: NotifyEvent[] = [
 		hint: 'At kick-off, when your head-to-head rival has banned that match for you.'
 	},
 	{
+		key: 'challenge_invite',
+		label: 'Challenges',
+		hint: 'When a friend challenges you on a match.'
+	},
+	{
+		key: 'challenge_accepted',
+		label: 'Challenge accepted',
+		hint: 'When a friend takes up your challenge.'
+	},
+	{
+		key: 'challenge_result',
+		label: 'Challenge results',
+		hint: 'When a challenged match is over: who won, and the stake.'
+	},
+	{
 		key: 'mailing',
 		label: 'News from Matchowl',
 		hint: 'Occasional mail from the people who run Matchowl: what is new, what is coming, the odd question.'

@@ -1,0 +1,7 @@
+{{.Rival}} accepted your challenge on {{.Match}}{{if .Stake}} (stake: "{{.Stake}}"){{end}}.
+
+Kick-off {{.WhenText}}. Make sure your tip is in:
+{{.CTAUrl}}
+
+—
+Manage your notifications: {{.SettingsUrl}}

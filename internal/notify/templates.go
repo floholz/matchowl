@@ -78,6 +78,8 @@ type tplData struct {
 	Theirs  int
 	Verdict string
 	Match   string
+	// Stake is a challenge's free-text stake note.
+	Stake string
 
 	// Title/Body back the free-text "announcement" broadcast event and
 	// mailings; BodyHTML is the Markdown body rendered (safe HTML).

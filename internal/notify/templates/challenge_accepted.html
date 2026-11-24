@@ -1,0 +1,11 @@
+{{define "subject"}}{{.Rival}} accepted your challenge: {{.Match}}{{end}}
+{{define "preheader"}}Get your tip in before kick-off.{{end}}
+{{define "pushTitle"}}⚔️ {{.Rival}} is in{{end}}
+{{define "pushBody"}}{{.Match}} · get your tip in before kick-off{{end}}
+{{define "content"}}
+<div style="font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#ffcf3a;">Challenge accepted</div>
+<h1 style="margin:7px 0 14px;font-size:27px;line-height:1.12;font-weight:800;color:#fff3e6;">{{.Rival}} is in: {{.Match}}</h1>
+<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#aeb6d0;">
+Kick-off {{.WhenText}}.{{if .Stake}} The stake: “{{.Stake}}”.{{end}} Make sure your tip is in — more points wins.
+</p>
+{{end}}
